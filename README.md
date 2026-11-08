@@ -49,7 +49,7 @@ brew upgrade --cask vidbutler
 
 ### Method 2: Direct Download
 
-1. Download the latest release from the [Releases](https://github.com/Shawshank01/yt-downloader-electron/releases) page.
+1. Download the latest release from the [Releases](https://github.com/Shawshank01/Vidbutler/releases) page.
 2. Run the installer for your operating system:
    - **macOS:** `.dmg` (select `mac-arm64` for Apple Silicon M-series Macs)
    - **Windows:** `.exe` installer (select `win-x64` for most users)
@@ -66,8 +66,8 @@ brew upgrade --cask vidbutler
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/Shawshank01/yt-downloader-electron.git
-   cd yt-downloader-electron
+   git clone https://github.com/Shawshank01/Vidbutler.git
+   cd Vidbutler
    ```
 
 2. Install dependencies:
@@ -170,7 +170,7 @@ To stop an ongoing task, click **Cancel Action**. The active `yt-dlp` or `FFmpeg
 The app includes a built-in update checker:
 
 1. Click the app icon in the header to open the **About** modal, then click **Check for Updates**.
-2. If an update is available, you will be prompted to open the [GitHub Releases](https://github.com/Shawshank01/yt-downloader-electron/releases/latest) page to grab the latest installer.
+2. If an update is available, you will be prompted to open the [GitHub Releases](https://github.com/Shawshank01/Vidbutler/releases/latest) page to grab the latest installer.
 
 > [!NOTE]
 > Packaged release builds bundle their own copies of `yt-dlp`, `FFmpeg`, and `Deno` (used for solving YouTube JavaScript challenges). In development runs (`pnpm start`), the app looks for tools installed on your system `PATH`.

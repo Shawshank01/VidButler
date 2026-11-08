@@ -224,16 +224,16 @@ jobs:
 
           on_arm do
             sha256 "${ARM64_SHA}"
-            url "https://github.com/Shawshank01/yt-downloader-electron/releases/download/v#{version}/VidButler-mac-arm64-#{version}.dmg"
+            url "https://github.com/Shawshank01/Vidbutler/releases/download/v#{version}/VidButler-mac-arm64-#{version}.dmg"
           end
           on_intel do
             sha256 "${X64_SHA}"
-            url "https://github.com/Shawshank01/yt-downloader-electron/releases/download/v#{version}/VidButler-mac-x64-#{version}.dmg"
+            url "https://github.com/Shawshank01/Vidbutler/releases/download/v#{version}/VidButler-mac-x64-#{version}.dmg"
           end
 
           name "VidButler"
           desc "Video downloader and media processor using yt-dlp and FFmpeg with AI assistance"
-          homepage "https://github.com/Shawshank01/yt-downloader-electron"
+          homepage "https://github.com/Shawshank01/Vidbutler"
 
           app "VidButler.app"
 

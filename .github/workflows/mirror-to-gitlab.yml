@@ -23,7 +23,7 @@ jobs:
 
     - name: Push to GitLab
       run: |
-        git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/michifumi/yt-downloader-electron.git
+        git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/michifumi/Vidbutler.git
         if [ "${{ github.ref_type }}" = "branch" ]; then
           git push gitlab "refs/remotes/origin/${{ github.ref_name }}:refs/heads/${{ github.ref_name }}"
         else

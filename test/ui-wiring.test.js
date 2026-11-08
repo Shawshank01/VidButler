@@ -110,7 +110,7 @@ test('app info modal is wired to the brand icon and exposes info', () => {
     assert.match(html, /id="appInfoBtn"/);
     assert.match(html, /id="appInfoModal"/);
     assert.match(html, /id="appInfoGithubLink"/);
-    assert.match(html, /https:\/\/github\.com\/Shawshank01\/yt-downloader-electron/);
+    assert.match(html, /https:\/\/github\.com\/Shawshank01\/Vidbutler/);
     assert.match(html, /id="checkDependenciesBtn"/);
     assert.match(html, /id="checkUpdateBtn"/);
     assert.match(html, /Michifumi/);

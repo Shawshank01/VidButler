@@ -202,7 +202,7 @@ window.checkUpdate = async function () {
                 cancelText: 'Close'
             });
             if (openReleases) {
-                const targetUrl = 'https://github.com/Shawshank01/yt-downloader-electron/releases/latest';
+                const targetUrl = 'https://github.com/Shawshank01/Vidbutler/releases/latest';
                 if (window.electronAPI?.openExternal) {
                     try {
                         const opened = await window.electronAPI.openExternal(targetUrl);
@@ -261,7 +261,7 @@ window.checkUpdate = async function () {
             if (openNow) {
                 const targetUrl =
                     appUpdate.releaseUrl ||
-                    'https://github.com/Shawshank01/yt-downloader-electron/releases/latest';
+                    'https://github.com/Shawshank01/Vidbutler/releases/latest';
 
                 if (window.electronAPI?.openExternal) {
                     try {
@@ -1259,7 +1259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (appInfoGithubLink) {
         appInfoGithubLink.addEventListener('click', (e) => {
             e.preventDefault();
-            const targetUrl = appInfoGithubLink.getAttribute('href') || 'https://github.com/Shawshank01/yt-downloader-electron';
+            const targetUrl = appInfoGithubLink.getAttribute('href') || 'https://github.com/Shawshank01/Vidbutler';
             if (window.electronAPI?.openExternal) {
                 window.electronAPI.openExternal(targetUrl);
             }

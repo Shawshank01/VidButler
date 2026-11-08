@@ -22,7 +22,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Shawshank01/yt-downloader-electron.git"
+    "url": "git+https://github.com/Shawshank01/Vidbutler.git"
   },
   "keywords": [
     "youtube",
@@ -45,9 +45,9 @@
   },
   "license": "GPL-2.0-only",
   "bugs": {
-    "url": "https://github.com/Shawshank01/yt-downloader-electron/issues"
+    "url": "https://github.com/Shawshank01/Vidbutler/issues"
   },
-  "homepage": "https://github.com/Shawshank01/yt-downloader-electron#readme",
+  "homepage": "https://github.com/Shawshank01/Vidbutler#readme",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "electron": "^45.2.3",

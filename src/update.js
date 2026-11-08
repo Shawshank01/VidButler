@@ -2,7 +2,7 @@ import electron from 'electron';
 
 const app = electron?.app || electron;
 
-const GITHUB_REPO = 'Shawshank01/yt-downloader-electron';
+const GITHUB_REPO = 'Shawshank01/Vidbutler';
 const RELEASES_PAGE_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
 
 /**
