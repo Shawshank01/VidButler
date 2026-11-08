@@ -17,16 +17,15 @@
     <!-- App background with slight light and shadow gradient -->
     <rect width="512" height="512" fill="url(#bg_gradient)" />
 
-    <!-- Earth: one-third arc of the horizon in app teal (#019D9C) -->
-    <path d="M -10 240 A 272 272 0 0 1 272 522" fill="none" stroke="#019D9C" stroke-width="22" stroke-linecap="round" />
+    <!-- Play button (rounded triangle) in app teal (#019D9C), scaled 1.5x -->
+    <path d="M 163 91 L 163 271 Q 163 316 202 293.5 L 358 203.5 Q 397 181 358 158.5 L 202 68.5 Q 163 46 163 91 Z" fill="#019D9C" />
 
-    <!-- Comet: lines of varying lengths converging at a single point (Claude icon style) -->
-    <line x1="230" y1="282" x2="241.0" y2="177.6" stroke="#019D9C" stroke-width="22" stroke-linecap="round" />
-    <line x1="230" y1="282" x2="290.2" y2="107.1" stroke="#019D9C" stroke-width="22" stroke-linecap="round" />
-    <line x1="230" y1="282" x2="301.5" y2="167.5" stroke="#019D9C" stroke-width="22" stroke-linecap="round" />
-    <line x1="230" y1="282" x2="417.4" y2="94.6" stroke="#019D9C" stroke-width="22" stroke-linecap="round" />
-    <line x1="230" y1="282" x2="353.0" y2="205.2" stroke="#019D9C" stroke-width="22" stroke-linecap="round" />
-    <line x1="230" y1="282" x2="423.8" y2="215.3" stroke="#019D9C" stroke-width="22" stroke-linecap="round" />
-    <line x1="230" y1="282" x2="344.4" y2="270.0" stroke="#019D9C" stroke-width="22" stroke-linecap="round" />
+    <!-- Butler Bow Tie in app teal (#019D9C), scaled 1.5x -->
+    <!-- Left Wing -->
+    <path d="M 217 406 C 172 403 124 385 94 370 Q 82 364 82 379 Q 89.5 421 82 463 Q 82 478 94 472 C 124 457 172 439 217 436 Z" fill="#019D9C" />
+    <!-- Right Wing -->
+    <path d="M 295 406 C 340 403 388 385 418 370 Q 430 364 430 379 Q 422.5 421 430 463 Q 430 478 418 472 C 388 457 340 439 295 436 Z" fill="#019D9C" />
+    <!-- Center Knot -->
+    <rect x="229" y="382" width="54" height="78" rx="15" fill="#019D9C" />
   </g>
 </svg>

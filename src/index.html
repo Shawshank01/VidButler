@@ -12,16 +12,19 @@
         <div class="app-header">
             <div class="header-top">
                 <div class="header-brand">
-                    <button type="button" id="appInfoBtn" class="brand-icon" aria-label="About VidButler" title="About VidButler">
-                        <svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="28" stroke-linecap="round">
-                            <path d="M -10 240 A 272 272 0 0 1 272 522"></path>
-                            <line x1="230" y1="282" x2="241.0" y2="177.6"></line>
-                            <line x1="230" y1="282" x2="290.2" y2="107.1"></line>
-                            <line x1="230" y1="282" x2="301.5" y2="167.5"></line>
-                            <line x1="230" y1="282" x2="417.4" y2="94.6"></line>
-                            <line x1="230" y1="282" x2="353.0" y2="205.2"></line>
-                            <line x1="230" y1="282" x2="423.8" y2="215.3"></line>
-                            <line x1="230" y1="282" x2="344.4" y2="270.0"></line>
+                    <button type="button" id="appInfoBtn" class="brand-icon" aria-label="About VidButler"
+                        title="About VidButler">
+                        <svg viewBox="0 0 512 512" fill="currentColor">
+                            <path
+                                d="M 163 91 L 163 271 Q 163 316 202 293.5 L 358 203.5 Q 397 181 358 158.5 L 202 68.5 Q 163 46 163 91 Z">
+                            </path>
+                            <path
+                                d="M 217 406 C 172 403 124 385 94 370 Q 82 364 82 379 Q 89.5 421 82 463 Q 82 478 94 472 C 124 457 172 439 217 436 Z">
+                            </path>
+                            <path
+                                d="M 295 406 C 340 403 388 385 418 370 Q 430 364 430 379 Q 422.5 421 430 463 Q 430 478 418 472 C 388 457 340 439 295 436 Z">
+                            </path>
+                            <rect x="229" y="382" width="54" height="78" rx="15"></rect>
                         </svg>
                     </button>
                     <h1>VidButler</h1>
@@ -307,15 +310,17 @@
                 <div class="app-info-header">
                     <div class="app-info-brand">
                         <div class="brand-icon">
-                            <svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="28" stroke-linecap="round">
-                                <path d="M -10 240 A 272 272 0 0 1 272 522"></path>
-                                <line x1="230" y1="282" x2="241.0" y2="177.6"></line>
-                                <line x1="230" y1="282" x2="290.2" y2="107.1"></line>
-                                <line x1="230" y1="282" x2="301.5" y2="167.5"></line>
-                                <line x1="230" y1="282" x2="417.4" y2="94.6"></line>
-                                <line x1="230" y1="282" x2="353.0" y2="205.2"></line>
-                                <line x1="230" y1="282" x2="423.8" y2="215.3"></line>
-                                <line x1="230" y1="282" x2="344.4" y2="270.0"></line>
+                            <svg viewBox="0 0 512 512" fill="currentColor">
+                                <path
+                                    d="M 163 91 L 163 271 Q 163 316 202 293.5 L 358 203.5 Q 397 181 358 158.5 L 202 68.5 Q 163 46 163 91 Z">
+                                </path>
+                                <path
+                                    d="M 217 406 C 172 403 124 385 94 370 Q 82 364 82 379 Q 89.5 421 82 463 Q 82 478 94 472 C 124 457 172 439 217 436 Z">
+                                </path>
+                                <path
+                                    d="M 295 406 C 340 403 388 385 418 370 Q 430 364 430 379 Q 422.5 421 430 463 Q 430 478 418 472 C 388 457 340 439 295 436 Z">
+                                </path>
+                                <rect x="229" y="382" width="54" height="78" rx="15"></rect>
                             </svg>
                         </div>
                         <div class="app-info-title-group">
@@ -323,7 +328,8 @@
                             <span id="appInfoVersion" class="app-info-badge">v4.3.0</span>
                         </div>
                     </div>
-                    <button type="button" class="modal-close-btn" id="appInfoCloseBtn" aria-label="Close">&times;</button>
+                    <button type="button" class="modal-close-btn" id="appInfoCloseBtn"
+                        aria-label="Close">&times;</button>
                 </div>
 
                 <div class="app-info-body">
@@ -334,7 +340,9 @@
                         </div>
                         <div class="app-info-row">
                             <span class="app-info-label">GitHub</span>
-                            <a href="https://github.com/Shawshank01/Vidbutler" id="appInfoGithubLink" class="app-info-link" target="_blank" rel="noopener noreferrer" title="https://github.com/Shawshank01/Vidbutler">Shawshank01/Vidbutler</a>
+                            <a href="https://github.com/Shawshank01/Vidbutler" id="appInfoGithubLink"
+                                class="app-info-link" target="_blank" rel="noopener noreferrer"
+                                title="https://github.com/Shawshank01/Vidbutler">Shawshank01/Vidbutler</a>
                         </div>
                     </div>
 
@@ -360,9 +368,73 @@
                 </div>
 
                 <div class="modal-buttons app-info-actions">
-                    <button type="button" id="checkDependenciesBtn" class="dep-check-btn" style="display: none;">Check Dependencies</button>
-                    <button type="button" id="checkUpdateBtn" class="update-button" onclick="checkUpdate()">Check for Updates</button>
+                    <button type="button" id="checkDependenciesBtn" class="dep-check-btn" style="display: none;">Check
+                        Dependencies</button>
+                    <button type="button" id="checkUpdateBtn" class="update-button" onclick="checkUpdate()">Check for
+                        Updates</button>
                     <button type="button" class="cancel-btn" id="appInfoDoneBtn">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Update Modal -->
+        <div id="updateModal" class="modal" style="display: none;" role="dialog" aria-modal="true"
+            aria-labelledby="updateModalTitle">
+            <div class="modal-content app-info-modal">
+                <div class="app-info-header">
+                    <div class="app-info-brand">
+                        <div class="brand-icon">
+                            <svg viewBox="0 0 512 512" fill="currentColor">
+                                <path
+                                    d="M 163 91 L 163 271 Q 163 316 202 293.5 L 358 203.5 Q 397 181 358 158.5 L 202 68.5 Q 163 46 163 91 Z">
+                                </path>
+                                <path
+                                    d="M 217 406 C 172 403 124 385 94 370 Q 82 364 82 379 Q 89.5 421 82 463 Q 82 478 94 472 C 124 457 172 439 217 436 Z">
+                                </path>
+                                <path
+                                    d="M 295 406 C 340 403 388 385 418 370 Q 430 364 430 379 Q 422.5 421 430 463 Q 430 478 418 472 C 388 457 340 439 295 436 Z">
+                                </path>
+                                <rect x="229" y="382" width="54" height="78" rx="15"></rect>
+                            </svg>
+                        </div>
+                        <div class="app-info-title-group">
+                            <h2 id="updateModalTitle">VidButler</h2>
+                            <span id="updateModalVersion" class="app-info-badge"></span>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-close-btn" id="updateModalCloseBtn"
+                        aria-label="Close">&times;</button>
+                </div>
+
+                <div class="app-info-body">
+                    <div class="app-info-section">
+                        <div class="app-info-section-title" id="updateModalSectionTitle">Update Status</div>
+                        <div class="app-info-row">
+                            <span class="app-info-label">Status</span>
+                            <span class="app-info-value" id="updateModalStatus">-</span>
+                        </div>
+                        <div class="app-info-row" id="updateModalCurrentRow">
+                            <span class="app-info-label">Current Version</span>
+                            <span class="app-info-value" id="updateModalCurrentVersion">-</span>
+                        </div>
+                        <div class="app-info-row" id="updateModalLatestRow">
+                            <span class="app-info-label">Latest Version</span>
+                            <span class="app-info-value" id="updateModalLatestVersion">-</span>
+                        </div>
+                    </div>
+
+                    <div class="app-info-section" id="updateModalNotesSection" style="display: none;">
+                        <div class="app-info-section-title" id="updateModalNotesTitle">Release Notes</div>
+                        <div id="updateModalNotes" class="app-info-dep-result"></div>
+                    </div>
+
+                    <div id="updateModalMessage" class="update-modal-message" style="display: none;"></div>
+                </div>
+
+                <div class="modal-buttons app-info-actions">
+                    <button type="button" class="cancel-btn" id="updateModalCancelBtn"
+                        style="display: none;">Close</button>
+                    <button type="button" class="update-button" id="updateModalActionBtn">OK</button>
                 </div>
             </div>
         </div>

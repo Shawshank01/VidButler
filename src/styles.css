@@ -61,13 +61,16 @@ body {
     width: 8px;
     height: 8px;
 }
+
 ::-webkit-scrollbar-track {
     background: #18181c;
 }
+
 ::-webkit-scrollbar-thumb {
     background: #363640;
     border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
     background: var(--accent-teal);
 }
@@ -213,7 +216,7 @@ body[data-mode='ai'] .download-controls {
     margin-bottom: 8px;
 }
 
-body[data-mode='ai'] .download-controls > .input-row {
+body[data-mode='ai'] .download-controls>.input-row {
     display: contents;
 }
 
@@ -706,7 +709,7 @@ body[data-mode='ai'] .ai-panel {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
-.ai-messages > * {
+.ai-messages>* {
     flex-shrink: 0;
 }
 
@@ -725,11 +728,11 @@ body[data-mode='ai'] .ai-panel {
     white-space: normal;
 }
 
-.ai-msg.md > :first-child {
+.ai-msg.md> :first-child {
     margin-top: 0;
 }
 
-.ai-msg.md > :last-child {
+.ai-msg.md> :last-child {
     margin-bottom: 0;
 }
 
@@ -768,8 +771,8 @@ body[data-mode='ai'] .ai-panel {
     margin: 0.2em 0;
 }
 
-.ai-msg.md li > ul,
-.ai-msg.md li > ol {
+.ai-msg.md li>ul,
+.ai-msg.md li>ol {
     margin: 0.2em 0 0.2em;
 }
 
@@ -1443,8 +1446,29 @@ body[data-mode='ai'] .ai-panel {
     margin-top: 0;
 }
 
+#updateModal,
 #confirmModal {
     z-index: 2200;
+}
+
+.modal-buttons .update-button {
+    height: 36px;
+    padding: 0 18px;
+    font-size: 13px;
+}
+
+.modal-buttons button.run-button {
+    width: auto;
+}
+
+.update-modal-message {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 10px 12px;
 }
 
 /* Proxy controls */
@@ -1477,13 +1501,13 @@ body[data-mode='ai'] .ai-panel {
     line-height: 20px;
 }
 
-.proxy-group > input[type='text'] {
+.proxy-group>input[type='text'] {
     width: 100%;
     height: 38px;
     box-sizing: border-box;
 }
 
-.proxy-group > input[type='text']:disabled {
+.proxy-group>input[type='text']:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
@@ -1528,10 +1552,10 @@ body[data-mode='ai'] .ai-panel {
     border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
     background-color: var(--accent-teal);
 }
 
-input:checked + .slider::before {
+input:checked+.slider::before {
     transform: translateX(14px);
 }

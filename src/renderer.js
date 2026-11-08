@@ -183,9 +183,10 @@ window.checkUpdate = async function () {
 
     if (output) output.textContent = 'Checking for app updates...\n';
 
+    let currentVersion = '';
     try {
         // Get current version
-        const currentVersion = await window.electronAPI.getCurrentVersion();
+        currentVersion = await window.electronAPI.getCurrentVersion();
         log(`Current version: ${currentVersion}\n`);
 
         // Check if auto-updater is supported
@@ -193,11 +194,14 @@ window.checkUpdate = async function () {
         if (!isSupported) {
             log('\nAuto-updater is not supported on this platform.\n');
             log('Please download updates manually from GitHub releases.\n');
-            const openReleases = await showConfirmModal({
-                title: 'Check for Updates',
+            const openReleases = await showUpdateModal({
+                title: 'VidButler',
+                currentVersion,
+                sectionTitle: 'Update Status',
+                status: 'Manual update required',
                 message:
-                    `Auto-updater is not supported in this environment.\n\n` +
-                    `You can check for and download updates manually from GitHub releases.`,
+                    'Auto-updater is not supported in this environment.\n\n' +
+                    'You can check for and download updates manually from GitHub releases.',
                 confirmText: 'Open Releases Page',
                 cancelText: 'Close'
             });
@@ -222,8 +226,11 @@ window.checkUpdate = async function () {
 
         if (appUpdate.error) {
             log(`\nError checking for updates: ${appUpdate.message}`);
-            await showConfirmModal({
-                title: 'Check for Updates',
+            await showUpdateModal({
+                title: 'VidButler',
+                currentVersion,
+                sectionTitle: 'Update Status',
+                status: 'Check failed',
                 message: `Could not check for updates:\n\n${appUpdate.message}`,
                 confirmText: 'OK',
                 cancelText: null
@@ -236,17 +243,14 @@ window.checkUpdate = async function () {
             const stripHtml = (v) => (v || '').replace(/<[^>]*>/g, '').trim();
             const cleanedNotes = stripHtml(appUpdate.releaseNotes);
 
-            // Show details inside the confirmation prompt first
-            const promptMsg =
-                `A new version is available!\n\n` +
-                `Current version: ${currentVersion}\n` +
-                `New version: ${appUpdate.version}\n` +
-                (cleanedNotes ? `\nRelease notes:\n${cleanedNotes}\n\n` : '\n') +
-                `Do you want to open the GitHub releases page to download the latest version?`;
-
-            const openNow = await showConfirmModal({
-                title: 'Update Available',
-                message: promptMsg,
+            const openNow = await showUpdateModal({
+                title: 'VidButler',
+                currentVersion,
+                latestVersion: appUpdate.version,
+                sectionTitle: 'Update Available',
+                status: '🎉 New version available',
+                notes: cleanedNotes,
+                message: 'Do you want to open the GitHub releases page to download the latest version?',
                 confirmText: 'Open Releases Page',
                 cancelText: 'Later'
             });
@@ -278,17 +282,23 @@ window.checkUpdate = async function () {
             }
         } else {
             log(`\n✅ App is up to date!`);
-            await showConfirmModal({
-                title: 'Check for Updates',
-                message: `✅ You're up to date!\n\nCurrent version (${currentVersion}) is the latest version.`,
+            await showUpdateModal({
+                title: 'VidButler',
+                currentVersion,
+                latestVersion: currentVersion,
+                sectionTitle: 'Update Status',
+                status: "✅ You're up to date!",
                 confirmText: 'OK',
                 cancelText: null
             });
         }
     } catch (error) {
         log(`\nError: ${error.message}`);
-        await showConfirmModal({
-            title: 'Check for Updates',
+        await showUpdateModal({
+            title: 'VidButler',
+            currentVersion: currentVersion || '',
+            sectionTitle: 'Update Status',
+            status: 'Check failed',
             message: `Could not check for updates:\n\n${error.message}`,
             confirmText: 'OK',
             cancelText: null
@@ -1275,6 +1285,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (titleEl && info.name) titleEl.textContent = info.name;
                 const versionBadge = document.getElementById('appInfoVersion');
                 if (versionBadge && info.version) versionBadge.textContent = `v${info.version}`;
+                const updateVerBadge = document.getElementById('updateModalVersion');
+                if (updateVerBadge && info.version) updateVerBadge.textContent = `v${info.version}`;
                 if (info.bundledTools) {
                     const ytEl = document.getElementById('toolVerYtdlp');
                     if (ytEl && info.bundledTools['yt-dlp']) ytEl.textContent = info.bundledTools['yt-dlp'];
@@ -1312,6 +1324,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && appInfoModal.style.display === 'flex') {
+                const updateModal = document.getElementById('updateModal');
+                if (updateModal && updateModal.style.display === 'flex') return;
                 closeInfoModal();
             }
         });
@@ -1413,6 +1427,147 @@ function showConfirmModal({ title = 'Confirm Action', message = '', confirmText 
         acceptBtn.focus();
     });
 }
+
+// Show asynchronous update prompt modal and return boolean without freezing UI thread
+function showUpdateModal({
+    title = 'VidButler',
+    version = '',
+    sectionTitle = 'Update Status',
+    status = '',
+    currentVersion = '',
+    latestVersion = '',
+    notes = '',
+    message = '',
+    confirmText = 'OK',
+    cancelText = null
+} = {}) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('updateModal');
+        const titleEl = document.getElementById('updateModalTitle');
+        const versionEl = document.getElementById('updateModalVersion');
+        const closeBtn = document.getElementById('updateModalCloseBtn');
+        const sectionTitleEl = document.getElementById('updateModalSectionTitle');
+        const statusEl = document.getElementById('updateModalStatus');
+        const currentRow = document.getElementById('updateModalCurrentRow');
+        const currentVal = document.getElementById('updateModalCurrentVersion');
+        const latestRow = document.getElementById('updateModalLatestRow');
+        const latestVal = document.getElementById('updateModalLatestVersion');
+        const notesSection = document.getElementById('updateModalNotesSection');
+        const notesContent = document.getElementById('updateModalNotes');
+        const messageEl = document.getElementById('updateModalMessage');
+        const cancelBtn = document.getElementById('updateModalCancelBtn');
+        const actionBtn = document.getElementById('updateModalActionBtn');
+
+        if (!modal || !actionBtn) {
+            resolve(false);
+            return;
+        }
+
+        if (titleEl) titleEl.textContent = title;
+        const ver = (version || currentVersion || '').replace(/^v/, '');
+        if (versionEl) {
+            if (ver) {
+                versionEl.textContent = `v${ver}`;
+                versionEl.style.display = '';
+            } else {
+                versionEl.style.display = 'none';
+            }
+        }
+
+        if (sectionTitleEl) sectionTitleEl.textContent = sectionTitle;
+        if (statusEl) statusEl.textContent = status || '-';
+
+        if (currentRow && currentVal) {
+            if (currentVersion) {
+                currentRow.style.display = 'flex';
+                currentVal.textContent = currentVersion.replace(/^v/, '');
+            } else {
+                currentRow.style.display = 'none';
+            }
+        }
+
+        if (latestRow && latestVal) {
+            if (latestVersion) {
+                latestRow.style.display = 'flex';
+                latestVal.textContent = latestVersion.replace(/^v/, '');
+            } else {
+                latestRow.style.display = 'none';
+            }
+        }
+
+        if (notesSection && notesContent) {
+            if (notes && notes.trim()) {
+                notesSection.style.display = 'block';
+                notesContent.textContent = notes.trim();
+            } else {
+                notesSection.style.display = 'none';
+                notesContent.textContent = '';
+            }
+        }
+
+        if (messageEl) {
+            if (message && message.trim()) {
+                messageEl.style.display = 'block';
+                messageEl.textContent = message.trim();
+            } else {
+                messageEl.style.display = 'none';
+                messageEl.textContent = '';
+            }
+        }
+
+        actionBtn.textContent = confirmText;
+        if (cancelText) {
+            cancelBtn.textContent = cancelText;
+            cancelBtn.style.display = '';
+        } else {
+            cancelBtn.style.display = 'none';
+        }
+
+        const cleanup = () => {
+            modal.style.display = 'none';
+            cancelBtn.style.display = '';
+            actionBtn.removeEventListener('click', handleAction);
+            if (cancelBtn) cancelBtn.removeEventListener('click', handleDismiss);
+            if (closeBtn) closeBtn.removeEventListener('click', handleDismiss);
+            modal.removeEventListener('click', handleBackdrop);
+            document.removeEventListener('keydown', handleKeydown, true);
+        };
+
+        const handleAction = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        const handleDismiss = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        const handleBackdrop = (e) => {
+            if (e.target === modal) {
+                handleDismiss();
+            }
+        };
+
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                handleDismiss();
+            }
+        };
+
+        actionBtn.addEventListener('click', handleAction);
+        if (cancelBtn) cancelBtn.addEventListener('click', handleDismiss);
+        if (closeBtn) closeBtn.addEventListener('click', handleDismiss);
+        modal.addEventListener('click', handleBackdrop);
+        document.addEventListener('keydown', handleKeydown, true);
+
+        modal.style.display = 'flex';
+        actionBtn.focus();
+    });
+}
+window.showUpdateModal = showUpdateModal;
 
 // Show cleanup modal and return boolean for delete files
 function showCleanupModal(message) {

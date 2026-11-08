@@ -120,6 +120,23 @@ test('app info modal is wired to the brand icon and exposes info', () => {
     assert.match(rendererScript, /appInfoGithubLink/);
 });
 
+test('update prompt modal exists, matches app info modal structure, and is wired in renderer', () => {
+    assert.match(html, /id="updateModal"/);
+    assert.match(html, /id="updateModalTitle"/);
+    assert.match(html, /id="updateModalVersion"/);
+    assert.match(html, /id="updateModalCloseBtn"/);
+    assert.match(html, /id="updateModalStatus"/);
+    assert.match(html, /id="updateModalCurrentVersion"/);
+    assert.match(html, /id="updateModalLatestVersion"/);
+    assert.match(html, /id="updateModalNotesSection"/);
+    assert.match(html, /id="updateModalNotes"/);
+    assert.match(html, /id="updateModalActionBtn"/);
+    assert.match(html, /id="updateModalCancelBtn"/);
+    assert.match(rendererScript, /function showUpdateModal/);
+    assert.match(rendererScript, /showUpdateModal\(/);
+    assert.match(css, /#updateModal,\s*#confirmModal\s*\{\s*z-index:\s*2200;/);
+});
+
 test('download-folder-updated event is exposed by preload, handled by main and received in renderer', () => {
     assert.match(preload, /onDownloadFolderUpdated:\s*\(callback\)\s*=>/);
     assert.match(preload, /ipcRenderer\.on\('download-folder-updated'/);
