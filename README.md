@@ -2,7 +2,7 @@
   <img src="build/icon.svg" alt="Video Downloader Icon" width="128">
 </p>
 
-# YT Downloader
+# VidButler
 
 A desktop video downloader and media processor built with Electron, powered by **yt-dlp** and **FFmpeg**. Download videos and audio from YouTube, X (Twitter), Instagram, and hundreds of other sites, with support for format selection, subtitle extraction, re-encoding, and hardsubbing.
 
@@ -11,10 +11,10 @@ The app provides two interfaces you can switch between at any time:
 - **Classic Mode**: A traditional form with URL input, action selection, and cookie/proxy settings.
 - **AI Mode**: Describe what you want in plain language (e.g., *"Download this video and add an English hardsub to it"*). The app translates your request into safe `yt-dlp` or `FFmpeg` commands and runs them for you.
 
-![YT Downloader Electron UI](public/YT-Downloader-UI.png)
+![VidButler UI](public/YT-Downloader-UI.png)
 *Classic UI*
 
-![YT Downloader Electron UI AI Mode](public/YT-Downloader-UI-AI.png)
+![VidButler UI AI Mode](public/YT-Downloader-UI-AI.png)
 *AI Mode UI*
 
 ## Features
@@ -37,14 +37,14 @@ The app provides two interfaces you can switch between at any time:
 Install and update using Homebrew:
 
 ```bash
-brew install --cask Shawshank01/tap/yt-downloader
+brew install --cask Shawshank01/tap/vidbutler
 ```
 
 To update in the future:
 
 ```bash
 git -C "$(brew --repository Shawshank01/tap)" pull
-brew upgrade --cask yt-downloader
+brew upgrade --cask vidbutler
 ```
 
 ### Method 2: Direct Download
@@ -55,10 +55,10 @@ brew upgrade --cask yt-downloader
    - **Windows:** `.exe` installer (select `win-x64` for most users)
    - **Linux:** `.AppImage`
 3. **macOS First Run Note:**  
-   Drag `YT Downloader.app` to `/Applications`. If macOS prevents opening it because it is not notarised, run this in Terminal:
+   Drag `VidButler.app` to `/Applications`. If macOS prevents opening it because it is not notarised, run this in Terminal:
 
    ```bash
-   xattr -cr /Applications/"YT Downloader.app"
+   xattr -cr /Applications/"VidButler.app"
    ```
 
 ### Method 3: From Source
@@ -186,7 +186,7 @@ The app includes a built-in update checker:
 
 2. **Browser Cookies Access (macOS)**
    - When reading cookies from Chrome, Firefox, or Safari, macOS may request permission.
-   - If access is denied, go to **System Settings > Privacy & Security > Files & Folders** and ensure `YT Downloader.app` is enabled.
+   - If access is denied, go to **System Settings > Privacy & Security > Files & Folders** and ensure `VidButler.app` is enabled.
 
 3. **AI Mode Connection Issues**
    - **HTTP 503 (Overloaded)**: Google Gemini free tier can occasionally experience high demand. The app automatically retries; if it persists, wait a moment or try another provider.

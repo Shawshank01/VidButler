@@ -76,9 +76,9 @@ async function promptInitialDownloadFolder(win) {
 
     let defaultFolder;
     try {
-        defaultFolder = join(app.getPath('downloads'), 'YT Downloader');
+        defaultFolder = join(app.getPath('downloads'), 'VidButler');
     } catch {
-        defaultFolder = join(app.getPath('home'), 'Downloads', 'YT Downloader');
+        defaultFolder = join(app.getPath('home'), 'Downloads', 'VidButler');
     }
 
     let hasValidFolder = false;
@@ -103,7 +103,7 @@ async function promptInitialDownloadFolder(win) {
         buttons: ['Create Default Folder', 'Select Existing Folder…', 'Cancel'],
         defaultId: 0,
         cancelId: 2,
-        title: 'Welcome to YT Downloader',
+        title: 'Welcome to VidButler',
         message: 'Set Download Location',
         detail: `Where would you like to save your downloads?\n\nYou can create the default folder:\n${defaultFolder}\n\nor select a different folder instead.`
     });
@@ -269,7 +269,7 @@ ipcMain.handle('get-app-info', async () => {
         // Fall back to default pinned versions
     }
     return {
-        name: 'YT Downloader',
+        name: 'VidButler',
         version: app.getVersion(),
         developer: 'Michifumi',
         isPackaged: app.isPackaged,

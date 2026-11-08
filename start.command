@@ -39,7 +39,7 @@ if [ ! -f "package.json" ]; then
 fi
 
 # Start the application
-echo "🚀 Starting YT Downloader..."
+echo "🚀 Starting VidButler..."
 if ! pnpm start; then
 	show_error "Failed to start the application. Please check the error message above."
 fi

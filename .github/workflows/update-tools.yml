@@ -26,7 +26,7 @@ jobs:
         import fs from 'node:fs';
         const versions = JSON.parse(fs.readFileSync('tools-versions.json', 'utf8'));
         const get = async (url) => {
-          const headers = { 'User-Agent': 'yt-downloader-tool-check' };
+          const headers = { 'User-Agent': 'vidbutler-tool-check' };
           if (process.env.GITHUB_TOKEN) {
             headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
           }

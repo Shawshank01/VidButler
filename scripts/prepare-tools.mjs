@@ -73,7 +73,7 @@ async function download(url, destination) {
             '--retry-all-errors',
             '--connect-timeout', '30',
             '--max-time', '600',
-            '--user-agent', 'yt-downloader-electron-build',
+            '--user-agent', 'vidbutler-build',
             '--output', destination,
             url
         ], { maxBuffer: 1024 * 1024 });

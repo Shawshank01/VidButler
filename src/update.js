@@ -65,7 +65,7 @@ export async function checkAppUpdate() {
     try {
         const response = await fetch(manifestUrl, {
             headers: {
-                'User-Agent': `YT-Downloader/${currentVersion}`
+                'User-Agent': `VidButler/${currentVersion}`
             },
             signal: AbortSignal.timeout(10000)
         });

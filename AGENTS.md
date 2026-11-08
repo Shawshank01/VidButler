@@ -132,7 +132,7 @@ Call model, run requested tools **one at a time** (the app allows one yt-dlp/ffm
 
 ## 6. Where data lives
 
-macOS (dev run): `~/Library/Application Support/yt-downloader-electron/`
+macOS (dev run): `~/Library/Application Support/vidbutler/` (or `VidButler/` in production)
 
 | File | Content |
 | --- | --- |

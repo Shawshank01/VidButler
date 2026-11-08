@@ -218,33 +218,33 @@ jobs:
         git clone "https://x-access-token:${TAP_TOKEN}@github.com/Shawshank01/homebrew-tap.git" homebrew-tap
         mkdir -p homebrew-tap/Casks
 
-        cat <<EOF | sed 's/^        //' > homebrew-tap/Casks/yt-downloader.rb
-        cask "yt-downloader" do
+        cat <<EOF | sed 's/^        //' > homebrew-tap/Casks/vidbutler.rb
+        cask "vidbutler" do
           version "${VER}"
 
           on_arm do
             sha256 "${ARM64_SHA}"
-            url "https://github.com/Shawshank01/yt-downloader-electron/releases/download/v#{version}/YT-Downloader-mac-arm64-#{version}.dmg"
+            url "https://github.com/Shawshank01/yt-downloader-electron/releases/download/v#{version}/VidButler-mac-arm64-#{version}.dmg"
           end
           on_intel do
             sha256 "${X64_SHA}"
-            url "https://github.com/Shawshank01/yt-downloader-electron/releases/download/v#{version}/YT-Downloader-mac-x64-#{version}.dmg"
+            url "https://github.com/Shawshank01/yt-downloader-electron/releases/download/v#{version}/VidButler-mac-x64-#{version}.dmg"
           end
 
-          name "YT Downloader"
-          desc "Video downloader using yt-dlp and FFmpeg with AI assistance"
+          name "VidButler"
+          desc "Video downloader and media processor using yt-dlp and FFmpeg with AI assistance"
           homepage "https://github.com/Shawshank01/yt-downloader-electron"
 
-          app "YT Downloader.app"
+          app "VidButler.app"
 
           # Automatically strips quarantine upon installation
           postflight_steps do
-            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/YT Downloader.app"]
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/VidButler.app"]
           end
 
           zap trash: [
-            "~/Library/Application Support/yt-downloader-electron",
-            "~/Library/Preferences/com.ytdownloader.app.plist",
+            "~/Library/Application Support/VidButler",
+            "~/Library/Preferences/com.vidbutler.app.plist",
           ]
         end
         EOF
@@ -252,12 +252,12 @@ jobs:
         cd homebrew-tap
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git add Casks/yt-downloader.rb
+        git add Casks/vidbutler.rb
 
         if git diff --staged --quiet; then
           echo "No changes to commit in homebrew-tap."
         else
-          git commit -m "chore(cask): update yt-downloader to ${VER}"
+          git commit -m "chore(cask): update vidbutler to ${VER}"
           git push origin main
         fi
 
