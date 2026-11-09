@@ -19,6 +19,7 @@ It originally had only a form-based UI ("Classic mode"). The goal of the current
 | 3A. Main-process integration | Encrypted API-key storage, chat service (settings, conversation, confirmations, cancel), IPC and preload API (`window.electronAPI.ai`). | Done, user-verified (key save, connection test) |
 | 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / SOCKS5 context controls. | Done, user-verified |
 | Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines. | Done |
+| Built-in updates | Packaged apps check GitHub Releases at launch. Windows and Linux AppImages ask before downloading, then install and restart. Unsigned macOS builds offer a copyable Homebrew tap command plus a GitHub fallback; the cask removes quarantine. | Done, unit-tested; packaged flow needs live verification |
 
 ## 3. Architecture
 
@@ -51,6 +52,7 @@ src/ai-ui.js             AI UI (classic script, IIFE, uses window.electronAPI.ai
 src/markdown.js          Safe Markdown renderer (classic script, exposes window.MarkdownLite)
 src/settings-store.js    user-settings.json: queued merges, atomic writes, explicit first-run defaults
 src/settings-schema.js   Allow-list for the generic 'set-settings' IPC channel
+src/update.js            Electron-free update coordinator (support detection, check, download/install state)
 src/dependencies.js      PATH setup (login-shell PATH is cached), bundled-tool lookup, dependency checks
 src/core/                Electron-free: tools.js, task-manager.js, ffmpeg.js, media-files.js,
                          log-filter.js, logger.js (redacts proxy credentials)
@@ -69,7 +71,7 @@ src/llm/                 Electron-free:
   providers/               gemini, xai, ollama, openai-compatible, index (PROVIDER_TYPES capabilities),
                            http.js (requestJson/requestStream, retries), stream.js (SSE / NDJSON readers)
   prompt.js, messages.js, limits.js, redact.js, validate.js, errors.js, key-store.js
-test/                    node:test suite (178 tests)
+test/                    node:test suite (188 tests)
 ```
 
 `core/` and `llm/` never import Electron. Anything Electron-specific (safeStorage, userData path, windows) is injected from `main.js`.
@@ -139,13 +141,14 @@ macOS (dev run): `~/Library/Application Support/vidbutler/` (or `VidButler/` in 
 | `user-settings.json` | Classic settings plus `aiMode`, `aiProvider`, `aiConfirmMode`, `aiProviderConfigs`. No secrets. Written atomically; a missing file means first run (defaults to AI mode), an unreadable one is treated as empty and logged. |
 | `ai-keys.json` | API keys, encrypted (`safeStorage`), file mode 0600. |
 | OS temp folder | Short-lived yt-dlp "manifest" files, deleted after each download. |
+| electron-updater cache | On Windows/Linux, a verified pending app update after the user chooses Download and Restart. |
 
 ## 7. Testing and verification
 
 ```bash
 pn install
 pn run lint     # ESLint, src/ and test/
-pn test         # node --test test/   (178 tests, no network, no API key)
+pn test         # node --test test/   (188 tests, no network, no API key)
 ```
 
 Test files: `validate`, `providers` (adapters with mocked `fetch`, retries), `agent` (scripted fake model), `chat-service`, `llm-core` (conversation, confirmations, redaction, streaming, prompt/registry consistency, security checks), `infrastructure` (settings store, logger, bundled-tool detection), `api-contract` (`electron.d.ts` matches `preload.cjs`; every invoked IPC channel has a handler), `key-store`, `markdown`, `ui-wiring` (static checks: element IDs, script order, no `innerHTML`).
@@ -155,6 +158,7 @@ CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull request
 **Not covered by automated tests / not verified live:**
 
 - The Electron window: no end-to-end test exists. UI behaviour is checked only by static tests plus manual runs.
+- A packaged Windows/Linux automatic update from an older release through download, install, and relaunch. The macOS launch prompt, copied Homebrew command, tap refresh/upgrade, and cask quarantine removal also need a live run.
 - **Everything changed in the 2026-11 review pass has been verified only by unit tests.** Click through before releasing: mode switch, a chat turn with streaming, an Allow/Deny dialog (including the new "address was not in your message" text), Stop mid-download, closing/reloading the window during a request, saving AI settings, a packaged build finding the bundled `yt-dlp`/`ffmpeg`.
 - Live runs of: hardsub / re-encode / delete via the assistant, the thinking-level setting, xAI, Ollama, the generic OpenAI-compatible provider, Windows and Linux (safeStorage and PATH behaviour differ).
 - The xAI and Ollama adapters have only been tested against mocked responses.
@@ -196,7 +200,7 @@ Electron end-to-end smoke test (Playwright for Electron, run outside restricted 
 - Do not commit or push on the owner's behalf; the owner commits manually.
 - Keep `core/` and `llm/` free of Electron imports. Keep renderer scripts as classic scripts. Keep `preload.cjs` CommonJS. Keep `electron.d.ts` in step with `preload.cjs` (a test checks it).
 - Put new limits in `limits.js`, new user/model-facing strings in `messages.js`, new tool names in `TOOL_NAMES`, new provider capabilities in `PROVIDER_TYPES`.
-- Add dependencies only when justified (none have been added by the AI work).
+- Add dependencies only when justified (`electron-updater` is the sole production dependency added for built-in app updates).
 - Never log or return API keys; never render model text as HTML; never let the model choose paths or raw flags.
 - State plainly what was and was not tested, especially anything that touches the Electron window.
 - Do not rely on memory for provider APIs and model IDs; check current documentation.

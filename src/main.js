@@ -1,10 +1,11 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, clipboard } from 'electron';
+import updaterPackage from 'electron-updater';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import { mkdir, stat } from 'fs/promises';
 
-import { checkAppUpdate, getCurrentVersion, isAutoUpdaterSupported } from './update.js';
+import { AppUpdateService, MAC_UPDATE_COMMAND } from './update.js';
 import {
     setupEnvironmentPaths,
     checkSystemDependencies
@@ -22,6 +23,8 @@ import { ChatService, AiSettingsError } from './llm/chat-service.js';
 import { sanitizeClassicSettings } from './settings-schema.js';
 import { SettingsStore } from './settings-store.js';
 import { KeyStore } from './llm/key-store.js';
+
+const { autoUpdater } = updaterPackage;
 
 // ESM-compatible dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -46,6 +49,34 @@ function getSettingsStore() {
 
 const readSettings = () => getSettingsStore().read();
 const mergeSettings = (updates) => getSettingsStore().merge(updates);
+
+let appUpdateService = null;
+
+function getAppUpdateService() {
+    if (!appUpdateService) {
+        appUpdateService = new AppUpdateService({
+            app,
+            updater: autoUpdater,
+            log: console
+        });
+        appUpdateService.onProgress((progress) => {
+            for (const win of BrowserWindow.getAllWindows()) {
+                if (win.isDestroyed()) continue;
+                win.setProgressBar(progress.percent / 100);
+                if (!win.webContents.isDestroyed()) {
+                    win.webContents.send('app-update-progress', progress);
+                }
+            }
+        });
+    }
+    return appUpdateService;
+}
+
+function clearUpdateProgress() {
+    for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.setProgressBar(-1);
+    }
+}
 
 ipcMain.handle('get-settings', async () => readSettings());
 
@@ -162,6 +193,80 @@ async function promptInitialDownloadFolder(win) {
     }
 }
 
+function plainReleaseNotes(notes) {
+    return String(notes || '')
+        .replace(/<[^>]*>/g, '')
+        .trim()
+        .slice(0, 2000);
+}
+
+async function checkForUpdatesOnLaunch(win) {
+    const service = getAppUpdateService();
+    if (!service.canCheckForUpdates() || !win || win.isDestroyed()) return;
+
+    const update = await service.checkForUpdates();
+    if (update.error) {
+        console.error(`[update] Launch check failed: ${update.message}`);
+        return;
+    }
+    if (!update.hasUpdate || win.isDestroyed()) return;
+
+    const notes = plainReleaseNotes(update.releaseNotes);
+    if (update.updateMethod === 'homebrew') {
+        const { response } = await dialog.showMessageBox(win, {
+            type: 'info',
+            buttons: ['Copy Homebrew Command', 'Open GitHub Release', 'Later'],
+            defaultId: 0,
+            cancelId: 2,
+            title: 'VidButler Update Available',
+            message: `VidButler ${update.version} is available`,
+            detail:
+                `You are using version ${update.currentVersion}. This unsigned macOS build updates through Homebrew.\n\n` +
+                `Recommended command:\n${MAC_UPDATE_COMMAND}\n\n` +
+                'If you installed VidButler from a DMG instead, open the GitHub release.' +
+                (notes ? `\n\n${notes}` : '')
+        });
+
+        if (response === 0) {
+            clipboard.writeText(MAC_UPDATE_COMMAND);
+        } else if (response === 1) {
+            await shell.openExternal(update.releaseUrl);
+        }
+        return;
+    }
+
+    const { response } = await dialog.showMessageBox(win, {
+        type: 'info',
+        buttons: ['Download and Restart', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+        title: 'VidButler Update Available',
+        message: `VidButler ${update.version} is available`,
+        detail:
+            `You are using version ${update.currentVersion}. ` +
+            'Download the verified update now? VidButler will restart automatically when it is ready.' +
+            (notes ? `\n\n${notes}` : '')
+    });
+
+    if (response !== 0 || win.isDestroyed()) return;
+
+    const result = await service.downloadUpdate();
+    clearUpdateProgress();
+    if (!result.success) {
+        if (!win.isDestroyed()) {
+            await dialog.showMessageBox(win, {
+                type: 'error',
+                title: 'Update Failed',
+                message: 'VidButler could not download the update.',
+                detail: result.error
+            });
+        }
+        return;
+    }
+
+    service.installUpdate();
+}
+
 function createWindow() {
     const iconPath = join(__dirname, '../build/icon.png');
     const win = new BrowserWindow({
@@ -178,10 +283,13 @@ function createWindow() {
     // Maximise the window
     win.maximize();
 
-    win.webContents.once('did-finish-load', () => {
-        promptInitialDownloadFolder(win).catch((err) => {
-            console.error('[main] Error prompting initial download folder:', err);
-        });
+    win.webContents.once('did-finish-load', async () => {
+        try {
+            await promptInitialDownloadFolder(win);
+            await checkForUpdatesOnLaunch(win);
+        } catch (err) {
+            console.error('[main] Error during launch setup:', err);
+        }
     });
 }
 
@@ -252,10 +360,21 @@ ipcMain.handle('open-external', async (_event, url) => {
     }
 });
 
-// App update-related IPC handlers
-ipcMain.handle('check-app-update', checkAppUpdate);
-ipcMain.handle('get-current-version', getCurrentVersion);
-ipcMain.handle('is-auto-updater-supported', isAutoUpdaterSupported);
+// App update-related IPC handlers. Checking never downloads; the renderer asks for explicit
+// consent before calling download-app-update, and installation is allowed only after that download.
+ipcMain.handle('check-app-update', async () => getAppUpdateService().checkForUpdates());
+ipcMain.handle('download-app-update', async () => {
+    const result = await getAppUpdateService().downloadUpdate();
+    clearUpdateProgress();
+    return result;
+});
+ipcMain.handle('install-app-update', async () => getAppUpdateService().installUpdate());
+ipcMain.handle('copy-mac-update-command', async () => {
+    clipboard.writeText(MAC_UPDATE_COMMAND);
+    return true;
+});
+ipcMain.handle('get-current-version', async () => app.getVersion());
+ipcMain.handle('is-auto-updater-supported', async () => getAppUpdateService().canInstallUpdate());
 ipcMain.handle('get-app-info', async () => {
     let bundledTools = {
         'yt-dlp': '2026.10.26',

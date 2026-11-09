@@ -44,6 +44,9 @@
     "email": "lelouch@outlook.ie"
   },
   "license": "GPL-2.0-only",
+  "dependencies": {
+    "electron-updater": "^6.8.12"
+  },
   "bugs": {
     "url": "https://github.com/Shawshank01/Vidbutler/issues"
   },
@@ -51,7 +54,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "electron": "^45.2.3",
-    "electron-builder": "^26.18.0",
+    "electron-builder": "^26.18.1",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
     "prettier": "^3.9.10"
@@ -75,15 +78,15 @@
       "icon": "build/icon.png",
       "category": "public.app-category.utilities",
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ]
     },
     "win": {
       "icon": "build/icon.png",
       "target": [
         "nsis"
-      ],
-      "signAndEditExecutable": false
+      ]
     },
     "linux": {
       "icon": "build/icon.png",

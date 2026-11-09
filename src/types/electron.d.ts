@@ -97,6 +97,8 @@ interface ElectronAPI {
     onProgress: (callback: (progress: string) => void) => () => void;
     onDownloadFolderUpdated: (callback: (folder: string) => void) => () => void;
     checkAppUpdate: () => Promise<{
+        supported?: boolean;
+        installSupported?: boolean;
         error?: boolean;
         hasUpdate?: boolean;
         version?: string;
@@ -104,8 +106,23 @@ interface ElectronAPI {
         releaseNotes?: string;
         releaseUrl?: string;
         downloadUrl?: string;
+        updateMethod?: 'automatic' | 'homebrew';
+        updateCommand?: string;
         message?: string;
     }>;
+    downloadAppUpdate: () => Promise<{
+        success: boolean;
+        version?: string;
+        error?: string;
+    }>;
+    installAppUpdate: () => Promise<boolean>;
+    copyMacUpdateCommand: () => Promise<boolean>;
+    onUpdateProgress: (callback: (progress: {
+        percent: number;
+        bytesPerSecond: number;
+        transferred: number;
+        total: number;
+    }) => void) => () => void;
     getCurrentVersion: () => Promise<string>;
     getAppInfo: () => Promise<{
         name: string;

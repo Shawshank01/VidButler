@@ -185,44 +185,40 @@ window.checkUpdate = async function () {
 
     let currentVersion = '';
     try {
-        // Get current version
         currentVersion = await window.electronAPI.getCurrentVersion();
         log(`Current version: ${currentVersion}\n`);
 
-        // Check if auto-updater is supported
-        const isSupported = await window.electronAPI.isAutoUpdaterSupported();
-        if (!isSupported) {
-            log('\nAuto-updater is not supported on this platform.\n');
-            log('Please download updates manually from GitHub releases.\n');
+        const openReleasePage = async (url) => {
+            const targetUrl = url || 'https://github.com/Shawshank01/Vidbutler/releases/latest';
+            if (window.electronAPI?.openExternal) {
+                try {
+                    const opened = await window.electronAPI.openExternal(targetUrl);
+                    if (opened) return;
+                } catch {
+                    // Fall through to the browser API.
+                }
+            }
+            window.open(targetUrl, '_blank');
+        };
+
+        const appUpdate = await window.electronAPI.checkAppUpdate();
+
+        if (appUpdate.supported === false) {
+            log('\nThis build cannot check for or install updates automatically.\n');
             const openReleases = await showUpdateModal({
                 title: 'VidButler',
                 currentVersion,
                 sectionTitle: 'Update Status',
                 status: 'Manual update required',
                 message:
-                    'Auto-updater is not supported in this environment.\n\n' +
+                    'Update checking is not supported in this environment.\n\n' +
                     'You can check for and download updates manually from GitHub releases.',
                 confirmText: 'Open Releases Page',
                 cancelText: 'Close'
             });
-            if (openReleases) {
-                const targetUrl = 'https://github.com/Shawshank01/Vidbutler/releases/latest';
-                if (window.electronAPI?.openExternal) {
-                    try {
-                        const opened = await window.electronAPI.openExternal(targetUrl);
-                        if (!opened) window.open(targetUrl, '_blank');
-                    } catch {
-                        window.open(targetUrl, '_blank');
-                    }
-                } else {
-                    window.open(targetUrl, '_blank');
-                }
-            }
+            if (openReleases) await openReleasePage(appUpdate.releaseUrl);
             return;
         }
-
-        // Check app update
-        const appUpdate = await window.electronAPI.checkAppUpdate();
 
         if (appUpdate.error) {
             log(`\nError checking for updates: ${appUpdate.message}`);
@@ -243,41 +239,95 @@ window.checkUpdate = async function () {
             const stripHtml = (v) => (v || '').replace(/<[^>]*>/g, '').trim();
             const cleanedNotes = stripHtml(appUpdate.releaseNotes);
 
-            const openNow = await showUpdateModal({
-                title: 'VidButler',
-                currentVersion,
-                latestVersion: appUpdate.version,
-                sectionTitle: 'Update Available',
-                status: '🎉 New version available',
-                notes: cleanedNotes,
-                message: 'Do you want to open the GitHub releases page to download the latest version?',
-                confirmText: 'Open Releases Page',
-                cancelText: 'Later'
-            });
-
-            // Then print to output (also using cleaned notes)
             log(`\n✅ Update available!\n`);
             log(`New version: ${appUpdate.version}\n`);
             if (cleanedNotes) {
                 log(`Release notes: ${cleanedNotes}\n`);
             }
 
-            if (openNow) {
-                const targetUrl =
-                    appUpdate.releaseUrl ||
-                    'https://github.com/Shawshank01/Vidbutler/releases/latest';
+            if (appUpdate.updateMethod === 'homebrew') {
+                const command =
+                    appUpdate.updateCommand ||
+                    'brew update --force && brew upgrade --cask Shawshank01/tap/vidbutler';
+                const action = await showUpdateModal({
+                    title: 'VidButler',
+                    currentVersion,
+                    latestVersion: appUpdate.version,
+                    sectionTitle: 'Update Available',
+                    status: '🎉 New version available',
+                    notes: cleanedNotes,
+                    message:
+                        `Installed with Homebrew? Copy and run this command in Terminal:\n\n${command}\n\n` +
+                        'Installed from a DMG? Open the GitHub release instead.',
+                    confirmText: 'Copy Homebrew Command',
+                    secondaryText: 'Open GitHub Release',
+                    cancelText: 'Later'
+                });
 
-                if (window.electronAPI?.openExternal) {
-                    try {
-                        const opened = await window.electronAPI.openExternal(targetUrl);
-                        if (!opened) {
-                            window.open(targetUrl, '_blank');
-                        }
-                    } catch {
-                        window.open(targetUrl, '_blank');
+                if (action === 'confirm') {
+                    await window.electronAPI.copyMacUpdateCommand();
+                    log('Homebrew update command copied to the clipboard.\n');
+                    await showUpdateModal({
+                        title: 'VidButler',
+                        currentVersion,
+                        latestVersion: appUpdate.version,
+                        sectionTitle: 'Update Available',
+                        status: 'Command copied',
+                        message: 'Paste the command into Terminal and press Return.',
+                        confirmText: 'OK',
+                        cancelText: null
+                    });
+                } else if (action === 'secondary') {
+                    await openReleasePage(appUpdate.releaseUrl);
+                }
+                return;
+            }
+
+            const installNow = await showUpdateModal({
+                title: 'VidButler',
+                currentVersion,
+                latestVersion: appUpdate.version,
+                sectionTitle: 'Update Available',
+                status: '🎉 New version available',
+                notes: cleanedNotes,
+                message:
+                    'Download and install this verified update now? VidButler will restart automatically when it is ready.',
+                confirmText: 'Download and Restart',
+                cancelText: 'Later'
+            });
+
+            if (installNow) {
+                if (updateBtn) updateBtn.textContent = 'Downloading…';
+                let lastReportedPercent = -10;
+                const removeProgressListener = window.electronAPI.onUpdateProgress((progress) => {
+                    const percent = Math.floor(Number(progress?.percent) || 0);
+                    if (percent >= lastReportedPercent + 10 || percent === 100) {
+                        lastReportedPercent = percent;
+                        log(`Update download: ${percent}%\n`);
                     }
-                } else {
-                    window.open(targetUrl, '_blank');
+                });
+
+                try {
+                    const download = await window.electronAPI.downloadAppUpdate();
+                    if (!download.success) {
+                        log(`\nUpdate download failed: ${download.error}\n`);
+                        await showUpdateModal({
+                            title: 'VidButler',
+                            currentVersion,
+                            latestVersion: appUpdate.version,
+                            sectionTitle: 'Update Status',
+                            status: 'Download failed',
+                            message: download.error,
+                            confirmText: 'OK',
+                            cancelText: null
+                        });
+                    } else {
+                        log(`\nUpdate downloaded. Restarting VidButler…\n`);
+                        const installing = await window.electronAPI.installAppUpdate();
+                        if (!installing) throw new Error('The downloaded update was not ready to install.');
+                    }
+                } finally {
+                    removeProgressListener();
                 }
             }
         } else {
@@ -1439,7 +1489,8 @@ function showUpdateModal({
     notes = '',
     message = '',
     confirmText = 'OK',
-    cancelText = null
+    cancelText = null,
+    secondaryText = null
 } = {}) {
     return new Promise((resolve) => {
         const modal = document.getElementById('updateModal');
@@ -1456,6 +1507,7 @@ function showUpdateModal({
         const notesContent = document.getElementById('updateModalNotes');
         const messageEl = document.getElementById('updateModalMessage');
         const cancelBtn = document.getElementById('updateModalCancelBtn');
+        const secondaryBtn = document.getElementById('updateModalSecondaryBtn');
         const actionBtn = document.getElementById('updateModalActionBtn');
 
         if (!modal || !actionBtn) {
@@ -1522,12 +1574,22 @@ function showUpdateModal({
         } else {
             cancelBtn.style.display = 'none';
         }
+        if (secondaryText && secondaryBtn) {
+            secondaryBtn.textContent = secondaryText;
+            secondaryBtn.style.display = '';
+        } else if (secondaryBtn) {
+            secondaryBtn.style.display = 'none';
+        }
+
+        const hasSecondaryAction = Boolean(secondaryText && secondaryBtn);
 
         const cleanup = () => {
             modal.style.display = 'none';
             cancelBtn.style.display = '';
+            if (secondaryBtn) secondaryBtn.style.display = 'none';
             actionBtn.removeEventListener('click', handleAction);
             if (cancelBtn) cancelBtn.removeEventListener('click', handleDismiss);
+            if (secondaryBtn) secondaryBtn.removeEventListener('click', handleSecondary);
             if (closeBtn) closeBtn.removeEventListener('click', handleDismiss);
             modal.removeEventListener('click', handleBackdrop);
             document.removeEventListener('keydown', handleKeydown, true);
@@ -1535,12 +1597,17 @@ function showUpdateModal({
 
         const handleAction = () => {
             cleanup();
-            resolve(true);
+            resolve(hasSecondaryAction ? 'confirm' : true);
+        };
+
+        const handleSecondary = () => {
+            cleanup();
+            resolve('secondary');
         };
 
         const handleDismiss = () => {
             cleanup();
-            resolve(false);
+            resolve(hasSecondaryAction ? 'cancel' : false);
         };
 
         const handleBackdrop = (e) => {
@@ -1559,6 +1626,7 @@ function showUpdateModal({
 
         actionBtn.addEventListener('click', handleAction);
         if (cancelBtn) cancelBtn.addEventListener('click', handleDismiss);
+        if (secondaryBtn) secondaryBtn.addEventListener('click', handleSecondary);
         if (closeBtn) closeBtn.addEventListener('click', handleDismiss);
         modal.addEventListener('click', handleBackdrop);
         document.addEventListener('keydown', handleKeydown, true);

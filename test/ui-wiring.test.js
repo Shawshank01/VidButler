@@ -132,8 +132,18 @@ test('update prompt modal exists, matches app info modal structure, and is wired
     assert.match(html, /id="updateModalNotes"/);
     assert.match(html, /id="updateModalActionBtn"/);
     assert.match(html, /id="updateModalCancelBtn"/);
+    assert.match(html, /id="updateModalSecondaryBtn"/);
     assert.match(rendererScript, /function showUpdateModal/);
     assert.match(rendererScript, /showUpdateModal\(/);
+    assert.match(rendererScript, /downloadAppUpdate\(\)/);
+    assert.match(rendererScript, /installAppUpdate\(\)/);
+    assert.match(rendererScript, /Download and Restart/);
+    assert.match(rendererScript, /Copy Homebrew Command/);
+    assert.match(rendererScript, /copyMacUpdateCommand\(\)/);
+    assert.match(preload, /ipcRenderer\.invoke\('copy-mac-update-command'\)/);
+    assert.match(main, /ipcMain\.handle\('copy-mac-update-command'/);
+    assert.match(preload, /ipcRenderer\.on\('app-update-progress'/);
+    assert.match(main, /checkForUpdatesOnLaunch\(win\)/);
     assert.match(css, /#updateModal,\s*#confirmModal\s*\{\s*z-index:\s*2200;/);
 });
 

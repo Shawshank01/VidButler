@@ -69,6 +69,9 @@ jobs:
         "build-tools/${{ matrix.target }}/ffmpeg.exe" -filters 2>&1 | grep -E '[[:space:]]subtitles[[:space:]]'
 
     - name: Build Windows installer
+      env:
+        WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+        WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
       run: pnpm exec electron-builder build ${{ matrix.builder_args }} --publish never
 
     - name: Upload Windows installer

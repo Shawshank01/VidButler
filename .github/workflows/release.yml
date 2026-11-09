@@ -34,6 +34,14 @@ jobs:
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
 
+    - name: Verify release tag matches package version
+      env:
+        TAG_NAME: ${{ github.ref_name }}
+      shell: bash
+      run: |
+        PACKAGE_VERSION=$(node -p "require('./package.json').version")
+        test "$TAG_NAME" = "v$PACKAGE_VERSION"
+
     - name: Run lint
       run: pnpm run lint
 
@@ -116,8 +124,23 @@ jobs:
           test -s "build-tools/${{ matrix.target }}/deno.exe"
         fi
 
-    - name: Build Electron app
+    - name: Build unsigned macOS app
+      if: runner.os == 'macOS'
       run: pnpm exec electron-builder build ${{ matrix.builder_args }} --publish never
+
+    - name: Build Electron app
+      if: runner.os != 'macOS'
+      env:
+        WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+        WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      run: pnpm exec electron-builder build ${{ matrix.builder_args }} --publish never
+
+    - name: Preserve architecture-specific update manifest
+      shell: bash
+      run: |
+        while IFS= read -r manifest; do
+          mv "$manifest" "${manifest%.yml}-${{ matrix.arch }}.yml"
+        done < <(find dist -maxdepth 1 -type f -name "latest*.yml")
 
     - name: List build artifacts
       shell: bash
@@ -147,7 +170,6 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         path: dist/
-        merge-multiple: true
 
     - name: List all downloaded artifacts
       shell: bash
@@ -161,9 +183,21 @@ jobs:
         mkdir release_assets
         echo "Moving release assets..."
         find dist -type f -name "*.dmg" -exec mv {} release_assets/ \;
-        find dist -type f -name "YT-Downloader-*.exe" -exec mv {} release_assets/ \;
+        find dist -type f -name "*.zip" -exec mv {} release_assets/ \;
+        find dist -type f -name "VidButler-*.exe" -exec mv {} release_assets/ \;
         find dist -type f -name "*.AppImage" -exec mv {} release_assets/ \;
-        find dist -type f -name "latest*.yml" -exec mv {} release_assets/ \;
+        find dist -type f -name "*.blockmap" -exec mv {} release_assets/ \;
+
+        mapfile -t MAC_MANIFESTS < <(find dist -type f -name "latest-mac-*.yml" | sort)
+        mapfile -t WIN_MANIFESTS < <(find dist -type f -name "latest-*.yml" ! -name "latest-mac-*.yml" ! -name "latest-linux-*.yml" | sort)
+        mapfile -t LINUX_MANIFESTS < <(find dist -type f -name "latest-linux-*.yml" | sort)
+        test "${#MAC_MANIFESTS[@]}" -eq 2
+        test "${#WIN_MANIFESTS[@]}" -eq 2
+        test "${#LINUX_MANIFESTS[@]}" -eq 2
+        node scripts/merge-update-manifests.mjs release_assets/latest-mac.yml "${MAC_MANIFESTS[@]}"
+        node scripts/merge-update-manifests.mjs release_assets/latest.yml "${WIN_MANIFESTS[@]}"
+        node scripts/merge-update-manifests.mjs release_assets/latest-linux.yml "${LINUX_MANIFESTS[@]}"
+
         # Try to collect release notes from the tag annotation if available
         TAG_NAME=${{ github.ref_name }}
         echo "Fetching annotated tag message for $TAG_NAME..."
@@ -200,8 +234,8 @@ jobs:
         fi
 
         VER="${TAG_NAME#v}"
-        ARM64_DMG=$(find release_assets -type f -name "YT-Downloader-mac-arm64-*.dmg" | head -n 1)
-        X64_DMG=$(find release_assets -type f -name "YT-Downloader-mac-x64-*.dmg" | head -n 1)
+        ARM64_DMG=$(find release_assets -type f -name "VidButler-mac-arm64-*.dmg" | head -n 1)
+        X64_DMG=$(find release_assets -type f -name "VidButler-mac-x64-*.dmg" | head -n 1)
 
         if [ -z "$ARM64_DMG" ] || [ -z "$X64_DMG" ]; then
           echo "macOS DMG files not found in release_assets. Skipping Homebrew tap update."
@@ -237,9 +271,11 @@ jobs:
 
           app "VidButler.app"
 
-          # Automatically strips quarantine upon installation
+          # VidButler is not notarized. Tap installations remove the downloaded quarantine
+          # attribute so users do not need to run xattr manually.
           postflight_steps do
-            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/VidButler.app"]
+            run "/usr/bin/xattr",
+                args: ["-dr", "com.apple.quarantine", "{{appdir}}/VidButler.app"]
           end
 
           zap trash: [

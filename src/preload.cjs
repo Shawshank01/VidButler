@@ -21,6 +21,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         };
     },
     checkAppUpdate: () => ipcRenderer.invoke('check-app-update'),
+    downloadAppUpdate: () => ipcRenderer.invoke('download-app-update'),
+    installAppUpdate: () => ipcRenderer.invoke('install-app-update'),
+    copyMacUpdateCommand: () => ipcRenderer.invoke('copy-mac-update-command'),
+    onUpdateProgress: (callback) => {
+        const listener = (_, progress) => callback(progress);
+        ipcRenderer.on('app-update-progress', listener);
+        return () => {
+            ipcRenderer.removeListener('app-update-progress', listener);
+        };
+    },
     getCurrentVersion: () => ipcRenderer.invoke('get-current-version'),
     getAppInfo: () => ipcRenderer.invoke('get-app-info'),
     checkDependencies: () => ipcRenderer.invoke('check-dependencies'),

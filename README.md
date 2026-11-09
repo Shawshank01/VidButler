@@ -43,8 +43,8 @@ brew install --cask Shawshank01/tap/vidbutler
 To update in the future:
 
 ```bash
-git -C "$(brew --repository Shawshank01/tap)" pull
-brew upgrade --cask vidbutler
+brew update --force
+brew upgrade --cask Shawshank01/tap/vidbutler
 ```
 
 ### Method 2: Direct Download
@@ -54,12 +54,9 @@ brew upgrade --cask vidbutler
    - **macOS:** `.dmg` (select `mac-arm64` for Apple Silicon M-series Macs)
    - **Windows:** `.exe` installer (select `win-x64` for most users)
    - **Linux:** `.AppImage`
-3. **macOS First Run Note:**  
-   Drag `VidButler.app` to `/Applications`. If macOS prevents opening it because it is not notarised, run this in Terminal:
 
-   ```bash
-   xattr -cr /Applications/"VidButler.app"
-   ```
+> [!IMPORTANT]
+> The macOS DMG is unsigned and not notarised because the project does not have an Apple Developer Program membership. macOS may block a direct DMG installation. Homebrew is the recommended macOS installation method, direct-download users may need **Open Anyway** in **System Settings > Privacy > & Security**, or as a fallback run `xattr -cr /Applications/VidButler.app`.
 
 ### Method 3: From Source
 
@@ -93,6 +90,8 @@ pnpm run build
 ```
 
 Installers and executables are output to the `dist/` directory.
+
+macOS release builds are unsigned and do not require Apple Developer Program credentials. Windows signing is used when the optional `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD` secrets are configured.
 
 ## AI Mode Usage
 
@@ -167,10 +166,20 @@ To stop an ongoing task, click **Cancel Action**. The active `yt-dlp` or `FFmpeg
 
 ## Updating
 
-The app includes a built-in update checker:
+Installed release builds check for updates each time VidButler launches:
 
-1. Click the app icon in the header to open the **About** modal, then click **Check for Updates**.
-2. If an update is available, you will be prompted to open the [GitHub Releases](https://github.com/Shawshank01/Vidbutler/releases/latest) page to grab the latest installer.
+1. VidButler checks for a newer version from the official GitHub Releases feed each time it launches.
+2. On **Windows and Linux AppImage**, choose **Download and Restart**. The update is checksum-verified, installed, and the new version launches automatically.
+3. On **macOS**, choose **Copy Homebrew Command**, then paste the command into Terminal. The command refreshes the custom tap before upgrading:
+
+   ```bash
+   brew update --force && brew upgrade --cask Shawshank01/tap/vidbutler
+   ```
+
+   If VidButler was installed directly from a DMG, choose **Open GitHub Release** instead.
+4. You can also check manually from **About > Check for Updates**. Nothing is downloaded until you agree.
+
+Source runs and extracted Linux builds cannot replace themselves; they link to the [latest release](https://github.com/Shawshank01/Vidbutler/releases/latest) instead.
 
 > [!NOTE]
 > Packaged release builds bundle their own copies of `yt-dlp`, `FFmpeg`, and `Deno` (used for solving YouTube JavaScript challenges). In development runs (`pnpm start`), the app looks for tools installed on your system `PATH`.
@@ -206,7 +215,7 @@ src/
   check-dependencies.js Pre-flight dependency checks
   settings-store.js    Atomic JSON configuration store
   settings-schema.js   Schema validation for settings
-  update.js            Release version checker
+  update.js            Platform update coordinator (check, Homebrew guidance, download/install)
   core/                Shared yt-dlp / FFmpeg operations (Electron-free)
     tools.js           Download, query, subtitle, and media operations
     task-manager.js    Task queueing, concurrency, and cancellation
