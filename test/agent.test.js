@@ -249,6 +249,54 @@ test('download_video reconciles format_code from user text or affirmative respon
     assert.match(starts[0].description, /format 299\+140/);
 });
 
+test('an affirmative answer never turns ordinary words after "format" into a format_code', async () => {
+    for (const assistantText of [
+        'The best format is mp4, shall I go ahead?',
+        'Which format would you like?',
+        'Both formats available work fine. Proceed?'
+    ]) {
+        const events = [];
+        const provider = scriptedProvider([
+            { toolCalls: [call('download_video', { url: 'https://youtube.com/watch?v=fmt-words' })] },
+            { text: 'done' }
+        ]);
+        const history = [
+            { role: 'user', text: 'download https://youtube.com/watch?v=fmt-words' },
+            { role: 'assistant', text: assistantText, toolCalls: [] }
+        ];
+        await runAgent({
+            provider,
+            system: 's',
+            history,
+            userText: 'yes',
+            ctx: { downloadFolder: '/tmp' },
+            onEvent: (e) => events.push(e)
+        });
+        const start = events.find((e) => e.type === 'tool_start');
+        assert.ok(start, assistantText);
+        assert.equal(start.args.format_code, undefined, assistantText);
+    }
+});
+
+test('a delete_files call with non-string entries is rejected instead of crashing the turn', async () => {
+    const provider = scriptedProvider([
+        { toolCalls: [call('delete_files', { files: [123] })] },
+        { text: 'ok' }
+    ]);
+    const history = [];
+    const res = await runAgent({
+        provider,
+        system: 's',
+        history,
+        userText: 'delete it',
+        ctx: { downloadFolder: '/tmp' },
+        confirm: () => true
+    });
+    assert.equal(res.stoppedBecause, 'done');
+    const toolMessage = history.find((m) => m.role === 'tool');
+    assert.equal(toolMessage.result.ok, false);
+});
+
 test('download_video reconciles max_height from user text (e.g. 720p)', async () => {
     const events = [];
     const provider = scriptedProvider([

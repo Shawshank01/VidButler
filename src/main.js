@@ -6,10 +6,8 @@ import { readFileSync, existsSync } from 'fs';
 import { mkdir, stat } from 'fs/promises';
 
 import { AppUpdateService, MAC_UPDATE_COMMAND } from './update.js';
-import {
-    setupEnvironmentPaths,
-    checkSystemDependencies
-} from './dependencies.js';
+import { checkSystemDependencies } from './dependencies.js';
+import { isAllowedExternalUrl } from './external-url.js';
 import {
     cancelCurrentTask,
     runYtDlp,
@@ -86,12 +84,15 @@ ipcMain.handle('set-settings', async (_event, updates) => {
     return mergeSettings(sanitizeClassicSettings(updates));
 });
 
-// Fix PATH globally so yt-dlp and ffmpeg are found across all environments (MacPorts, Homebrew, system)
-setupEnvironmentPaths();
+// PATH is configured when dependencies.js is first imported, so yt-dlp and ffmpeg are found across all
+// environments (MacPorts, Homebrew, system) and bundled tools take precedence.
 
-// Helper: forward progress text from core operations to the renderer that requested them
+// Helper: forward progress text from core operations to the renderer that requested them.
+// The window may be closed while a task is still running; sending to it would then throw.
 function progressReporter(event) {
-    return (text) => event.sender.send('download-progress', text);
+    return (text) => {
+        if (!event.sender.isDestroyed()) event.sender.send('download-progress', text);
+    };
 }
 
 // Unified IPC handler for cancelling the current action
@@ -345,14 +346,14 @@ ipcMain.handle('re-encode-to-mp4', async (event, downloadFolder, videoId) =>
     reEncodeToMp4(downloadFolder, videoId, progressReporter(event))
 );
 
-// IPC handler for opening external links
+// IPC handler for opening external links (http(s) and the macOS privacy settings pane only)
 ipcMain.handle('open-external', async (_event, url) => {
-    if (typeof url !== 'string' || url.trim() === '') {
+    if (!isAllowedExternalUrl(url)) {
         return false;
     }
 
     try {
-        await shell.openExternal(url);
+        await shell.openExternal(url.trim());
         return true;
     } catch (error) {
         console.error('Failed to open external URL:', error);
@@ -374,7 +375,7 @@ ipcMain.handle('copy-mac-update-command', async () => {
     return true;
 });
 ipcMain.handle('get-current-version', async () => app.getVersion());
-ipcMain.handle('is-auto-updater-supported', async () => getAppUpdateService().canInstallUpdate());
+
 ipcMain.handle('get-app-info', async () => {
     let bundledTools = {
         'yt-dlp': '2026.10.26',

@@ -52,6 +52,7 @@ src/ai-ui.js             AI UI (classic script, IIFE, uses window.electronAPI.ai
 src/markdown.js          Safe Markdown renderer (classic script, exposes window.MarkdownLite)
 src/settings-store.js    user-settings.json: queued merges, atomic writes, explicit first-run defaults
 src/settings-schema.js   Allow-list for the generic 'set-settings' IPC channel
+src/external-url.js      Which addresses 'open-external' may open (http(s) and the macOS privacy pane)
 src/update.js            Electron-free update coordinator (support detection, check, download/install state)
 src/dependencies.js      PATH setup (login-shell PATH is cached), bundled-tool lookup, dependency checks
 src/core/                Electron-free: tools.js, task-manager.js, ffmpeg.js, media-files.js,
@@ -71,7 +72,7 @@ src/llm/                 Electron-free:
   providers/               gemini, xai, ollama, openai-compatible, index (PROVIDER_TYPES capabilities),
                            http.js (requestJson/requestStream, retries), stream.js (SSE / NDJSON readers)
   prompt.js, messages.js, limits.js, redact.js, validate.js, errors.js, key-store.js
-test/                    node:test suite (188 tests)
+test/                    node:test suite (202 tests)
 ```
 
 `core/` and `llm/` never import Electron. Anything Electron-specific (safeStorage, userData path, windows) is injected from `main.js`.
@@ -94,7 +95,7 @@ Tools are declared with `defineTool()` using names from `TOOL_NAMES`; the system
 { role: 'tool', toolCallId, providerCallId?, name, result }
 ```
 
-`raw` stores provider-specific response parts. Gemini 3 requires "thought signatures" to be returned with function calls, so the Gemini adapter replays `raw.parts` verbatim.
+`raw` stores provider-specific response data. For Gemini it holds the interaction ID: the adapter sends only the messages after the last assistant message that has one, chained with `previous_interaction_id`, so earlier turns (and Gemini 3's thought signatures) stay server-side and are not replayed.
 
 ### Agent loop (`agent.js`)
 
@@ -148,10 +149,10 @@ macOS (dev run): `~/Library/Application Support/vidbutler/` (or `VidButler/` in 
 ```bash
 pn install
 pn run lint     # ESLint, src/ and test/
-pn test         # node --test test/   (188 tests, no network, no API key)
+pn test         # node --test test/   (202 tests, no network, no API key; a few need ffmpeg/ffprobe on PATH)
 ```
 
-Test files: `validate`, `providers` (adapters with mocked `fetch`, retries), `agent` (scripted fake model), `chat-service`, `llm-core` (conversation, confirmations, redaction, streaming, prompt/registry consistency, security checks), `infrastructure` (settings store, logger, bundled-tool detection), `api-contract` (`electron.d.ts` matches `preload.cjs`; every invoked IPC channel has a handler), `key-store`, `markdown`, `ui-wiring` (static checks: element IDs, script order, no `innerHTML`).
+Test files: `validate`, `providers` (adapters with mocked `fetch`, retries), `agent` (scripted fake model), `chat-service`, `llm-core` (conversation, confirmations, redaction, streaming, prompt/registry consistency, security checks), `infrastructure` (settings store, logger, bundled-tool detection), `api-contract` (`electron.d.ts` matches `preload.cjs`; every invoked IPC channel has a handler), `key-store`, `markdown`, `ui-wiring` (static checks: element IDs, script order, no `innerHTML`), `update` and `update-manifest` (update coordinator, release manifest merge), `media-info` (ffprobe summary, media file lookup; uses the real `ffmpeg`/`ffprobe`), `core-io` (output decoding, hardsub source discovery, ffmpeg arguments), `external-url` (`open-external` allow-list).
 
 CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull requests to `main` that touch `src/`, `test/`, `*.js`, `package.json`, the lockfile or the workflow. Run the tests on a clean checkout before pushing; a local working tree can differ from what CI sees (this once hid a changed retry default).
 
@@ -168,11 +169,11 @@ CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull request
 - The assistant can do only what the 13 tools allow. **No trimming, GIFs, joining, resizing, speed change, SponsorBlock, chapter/metadata editing, or downloading a time range.** It says so and suggests a command instead.
 - One conversation at a time; history is lost on New chat or quit; capped at 40 messages.
 - UI strings and the system prompt are English only (the model answers in the user's language). `messages.js` centralises the text but is not a translation layer.
-- **`renderer.js` (about 1,200 lines) and `ai-ui.js` (about 760 lines) are large classic scripts** sharing global state and DOM IDs. They were deliberately not split because nothing but a manual click-through can catch wiring mistakes. If you split them, do it with a smoke test of each dialog.
+- **`renderer.js` (about 1,670 lines) and `ai-ui.js` (about 900 lines) are large classic scripts** sharing global state and DOM IDs. They were deliberately not split because nothing but a manual click-through can catch wiring mistakes. If you split them, do it with a smoke test of each dialog.
 - Re-encoding an `.mp4` replaces the original file (flagged high risk and described in the confirmation text).
 - Small local models have not been evaluated; expect weaker tool selection.
 - The login-shell `PATH` is read once per app run, so changes to shell config are picked up after a restart.
-- `src/index.html` has no Content-Security-Policy and `open-external` in `main.js` only checks that the argument is a non-empty string (the renderer limits AI links to `http(s)`).
+- `src/index.html` has no Content-Security-Policy (it still uses inline `onclick` and `style` attributes, which a strict policy would block). `open-external` only opens `http(s)` and the macOS privacy settings pane (`external-url.js`).
 
 ## 9. Roadmap (suggested order)
 
@@ -192,7 +193,7 @@ Add a model dropdown from each provider's list-models endpoint; honour `Retry-Af
 
 ### D. Quality and security
 
-Electron end-to-end smoke test (Playwright for Electron, run outside restricted sandboxes); prompt to tool-call evaluation suite per provider (including small models); prompt-injection tests with malicious titles and subtitles; add a CSP meta tag and a `will-navigate` guard; restrict `open-external` to `http(s)` and known schemes; test the packaged app on Windows and Linux; AI-mode screenshots in the README.
+Electron end-to-end smoke test (Playwright for Electron, run outside restricted sandboxes); prompt to tool-call evaluation suite per provider (including small models); prompt-injection tests with malicious titles and subtitles; add a CSP meta tag and a `will-navigate` guard; test the packaged app on Windows and Linux; AI-mode screenshots in the README.
 
 ## 10. Working agreements for whoever continues
 

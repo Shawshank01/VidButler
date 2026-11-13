@@ -9,8 +9,11 @@ interface AiProviderSettings {
     needsApiKey: boolean;
     editableBaseUrl: boolean;
     supportsThinkingLevel: boolean;
+    supportsReasoningEffort: boolean;
     /** Empty when the provider has no such setting. */
     thinkingLevel: 'low' | 'medium' | 'high' | '';
+    /** Empty when the provider has no such setting. */
+    reasoningEffort: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | '';
     model: string;
     baseUrl: string;
     defaultModel: string;
@@ -36,6 +39,7 @@ interface AiContext {
 
 type AiEvent =
     | { type: 'assistant_text'; text: string }
+    | { type: 'assistant_delta'; text: string }
     | { type: 'progress'; text: string }
     | { type: 'retrying'; provider: string; attempt: number; retries: number; delayMs: number; reason: string }
     | { type: 'tool_start'; id: string; name: string; args: Record<string, unknown>; description: string; risk: 'low' | 'high' }
@@ -73,6 +77,8 @@ interface AiApi {
         model?: string;
         baseUrl?: string;
         apiKey?: string;
+        thinkingLevel?: 'low' | 'medium' | 'high';
+        reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
     }) => Promise<{ ok: boolean; message: string }>;
     send: (message: string, context: AiContext) => Promise<
         | { ok: true; text: string; stoppedBecause: 'done' | 'max_steps' | 'aborted'; steps: number }
@@ -105,7 +111,6 @@ interface ElectronAPI {
         currentVersion?: string;
         releaseNotes?: string;
         releaseUrl?: string;
-        downloadUrl?: string;
         updateMethod?: 'automatic' | 'homebrew';
         updateCommand?: string;
         message?: string;
@@ -147,7 +152,7 @@ interface ElectronAPI {
         platform?: string;
         message?: string;
     }>;
-    isAutoUpdaterSupported: () => Promise<boolean>;
+
     reEncodeToMp4: (downloadFolder: string, videoId: string) => Promise<{
         success: boolean;
         cancelled: boolean;
@@ -181,11 +186,8 @@ interface ElectronAPI {
         tmpFiles: string[];
         error?: string;
     }>;
-    cancelCommand: () => Promise<{
-        success: boolean;
-        message: string;
-        cancelledTaskId?: string | null;
-    }>;
+    /** Resolves to true if a task was running and has been cancelled. */
+    cancelCommand: () => Promise<boolean>;
     deleteTemporaryFiles: (paths: string[]) => Promise<void>;
     getFormatInfo: (args: string[]) => Promise<{ ok: boolean; output: string; error: string }>;
     getSettings: () => Promise<Record<string, any>>;

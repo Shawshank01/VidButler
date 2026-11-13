@@ -27,7 +27,7 @@ export const mediaTools = [
             const folder = requireFolder(ctx);
             let fileHint = typeof args.file === 'string' ? args.file.trim() : '';
             if (!fileHint) {
-                // If file is omitted, see if there is an unambiguous media file in the download folder
+                // If file is omitted, fall back to the most recently modified media file in the download folder
                 try {
                     const candidate = await findMediaFile(folder, '');
                     if (candidate) {
@@ -102,7 +102,7 @@ export const mediaTools = [
         describe: (a) => `Re-encode "${a.file || 'video'}" to MP4 (H.264/AAC); an existing .mp4 of the same name is replaced`,
         async run(args, ctx) {
             const folder = requireFolder(ctx);
-            let fileHint = typeof args.file === 'string' ? args.file.trim() : '';
+            const fileHint = typeof args.file === 'string' ? args.file.trim() : '';
             if (!fileHint) {
                 return {
                     ok: false,

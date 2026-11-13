@@ -145,6 +145,9 @@ export async function queryYtDlp(args) {
     return new Promise((resolve) => {
         try {
             const child = spawn(executable, args);
+            // Decode as a stream so multi-byte characters split across chunks stay intact.
+            child.stdout.setEncoding('utf8');
+            child.stderr.setEncoding('utf8');
             let stdout = '';
             let stderr = '';
             child.stdout.on('data', (d) => stdout += d);
@@ -247,12 +250,16 @@ export function listSubtitles(url, browser, proxy) {
             return;
         }
         try {
-            let args = ['-j', '--skip-download', '--remote-components', 'ejs:github'];
+            // --no-playlist: for a link like watch?v=X&list=Y, -j would otherwise print one JSON document
+            // per playlist entry, which cannot be parsed as a single video.
+            const args = ['-j', '--no-playlist', '--skip-download', '--remote-components', 'ejs:github'];
             if (proxy) args.push('--proxy', proxy);
             if (browser) args.push('--cookies-from-browser', browser);
             args.push(url);
 
             const child = spawn(executable, args);
+            child.stdout.setEncoding('utf8');
+            child.stderr.setEncoding('utf8');
             let stdout = '';
             let stderr = '';
 
@@ -399,8 +406,6 @@ export async function getLocalMediaInfo(downloadFolder, fileHint) {
     return summarizeMediaInfo(res.data, media.file);
 }
 
-// Backward-compatible alias
-export const getMediaInfo = getLocalMediaInfo;
 
 /**
  * Extract audio from a media file in downloadFolder using ffmpeg.
@@ -578,7 +583,8 @@ export async function downloadWithHardsub(options, onProgress = noop) {
         // Step 1: Download video with subtitle (limit to avc1/H.264)
         const manifestFile = join(tmpdir(), `ytdl-sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.txt`);
         const subsFlag = subtitleType === 'manual' ? '--write-subs' : '--write-auto-subs';
-        let args = [
+        const args = [
+            '--no-playlist',
             '-f', 'bestvideo[vcodec^=avc1]+bestaudio/best[vcodec^=avc1]',
             subsFlag, '--sub-langs', subtitleLang,
             '--convert-subs', 'vtt',

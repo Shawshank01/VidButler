@@ -56,7 +56,7 @@ brew upgrade --cask Shawshank01/tap/vidbutler
    - **Linux:** `.AppImage`
 
 > [!IMPORTANT]
-> The macOS DMG is unsigned and not notarised because the project does not have an Apple Developer Program membership. macOS may block a direct DMG installation. Homebrew is the recommended macOS installation method, direct-download users may need **Open Anyway** in **System Settings > Privacy > & Security**, or as a fallback run `xattr -cr /Applications/VidButler.app`.
+> The macOS DMG is unsigned and not notarised because the project does not have an Apple Developer Program membership. macOS may block a direct DMG installation. Homebrew is the recommended macOS installation method, direct-download users may need **Open Anyway** in **System Settings > Privacy & Security**, or as a fallback run `xattr -cr /Applications/VidButler.app`.
 
 ### Method 3: From Source
 
@@ -154,8 +154,9 @@ Classic mode provides a straightforward, no-fuss interface:
 1. Paste a video URL and select your destination folder.
 2. Choose your action:
    - **Download Video (Best Quality)**: Grabs the best available stream.
-   - **Download (Custom Format)**: Enter a specific format code (run **List Formats** first to view available options).
-   - **Download Audio**: Extracts audio directly into your preferred format.
+   - **List Formats**: Shows every available stream and its format code.
+   - **Download (Custom Format)**: Enter a specific format code (run **List Formats** first to view available options). Choose an audio-only format code to download just the audio.
+   - **Download Thumbnail**: Saves only the thumbnail image.
    - **Download Subtitles**: Displays available subtitle tracks and lets you pick which to save.
    - **Download & Re-encode to MP4**: Re-encodes with H.264/AAC for maximum playback compatibility.
    - **Download & Add Hardsub**: Burns subtitles directly into the video stream with customizable position (top or bottom).

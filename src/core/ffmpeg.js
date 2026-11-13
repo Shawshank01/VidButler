@@ -28,7 +28,7 @@ export const TRANSCODE_CONFIG = {
 
 // Helper to construct FFmpeg arguments for re-encoding
 export function buildFfmpegReEncodeArgs({ filePath, outputPath, thumbnailPath, audioCodec }) {
-    const args = ['-i', filePath];
+    const args = ['-y', '-i', filePath];
     if (thumbnailPath) {
         args.push('-i', thumbnailPath);
         args.push('-map', '0:v:0', '-map', '0:a:0', '-map', '1:v:0');
@@ -63,7 +63,7 @@ export function buildFfmpegReEncodeArgs({ filePath, outputPath, thumbnailPath, a
 
 // Helper to construct FFmpeg arguments for hardcoding subtitles
 export function buildFfmpegHardsubArgs({ videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec, subtitlePosition = 'bottom' }) {
-    const args = [];
+    const args = ['-y'];
     const escapedSubPath = subtitlePath.replace(/\\/g, '/').replace(/'/g, "'\\''").replace(/:/g, '\\:');
 
     args.push('-i', videoPath);
@@ -268,6 +268,8 @@ export async function probeMedia(filePath) {
             return;
         }
 
+        child.stdout.setEncoding('utf8');
+        child.stderr.setEncoding('utf8');
         let stdout = '';
         let stderr = '';
 

@@ -34,7 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCurrentVersion: () => ipcRenderer.invoke('get-current-version'),
     getAppInfo: () => ipcRenderer.invoke('get-app-info'),
     checkDependencies: () => ipcRenderer.invoke('check-dependencies'),
-    isAutoUpdaterSupported: () => ipcRenderer.invoke('is-auto-updater-supported'),
+
     reEncodeToMp4: (downloadFolder, videoId) =>
         ipcRenderer.invoke('re-encode-to-mp4', downloadFolder, videoId),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),

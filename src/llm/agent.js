@@ -320,7 +320,11 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
             if (single && single.toLowerCase() !== 'all' && single !== '*') {
                 args.files = [single];
             }
-        } else if (args.files.length === 1 && (args.files[0]?.toLowerCase() === 'all' || args.files[0] === '*')) {
+        } else if (
+            args.files.length === 1 &&
+            typeof args.files[0] === 'string' &&
+            (args.files[0].toLowerCase() === 'all' || args.files[0] === '*')
+        ) {
             delete args.files;
         }
 
@@ -411,7 +415,10 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
                         break;
                     }
                 }
-                const assistFormatMatch = lastAssistantText.match(/\bformats?\s+([0-9a-zA-Z_-]+(?:\+[0-9a-zA-Z_-]+)?)/i);
+                // A format ID always contains a digit; without that check "the format is ..." would yield "is".
+                const assistFormatMatch = lastAssistantText.match(
+                    /\bformats?\s+(?:codes?\s+)?((?=[0-9a-zA-Z_-]*\d)[0-9a-zA-Z_-]+(?:\+(?=[0-9a-zA-Z_-]*\d)[0-9a-zA-Z_-]+)?)/i
+                );
                 if (assistFormatMatch) {
                     args.format_code = assistFormatMatch[1];
                 }

@@ -53,11 +53,11 @@
   "homepage": "https://github.com/Shawshank01/Vidbutler#readme",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "electron": "^45.2.3",
+    "electron": "^45.3.0",
     "electron-builder": "^26.18.1",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
-    "prettier": "^3.9.10"
+    "prettier": "^3.10.0"
   },
   "optionalDependencies": {
     "dmg-license": "^1.0.11"

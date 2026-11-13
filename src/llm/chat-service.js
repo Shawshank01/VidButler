@@ -23,7 +23,6 @@ import { redactSecrets } from './redact.js';
 // Re-exported for the app and tests, which import everything AI-related from here.
 export { AiSettingsError, MODES, CONFIRM_MODES, ALLOWED_BROWSERS, sanitizeProviderConfig, trimHistory };
 
-
 const failure = (kind, message) => ({ ok: false, error: { kind, message } });
 
 /**
@@ -46,7 +45,7 @@ export class ChatService {
         this.aiSettings = new AiSettings({ store: settings, keyStore, fetchImpl });
         this.conversation = new Conversation();
         this.confirmations = new ConfirmationBroker({ timeoutMs: confirmationTimeoutMs });
-        this.running = null; // { controller, emit }
+        this.running = null; // { controller } while a request is in progress
     }
 
     // ---------- settings (see ai-settings.js) ----------
@@ -85,7 +84,6 @@ export class ChatService {
     isBusy() {
         return this.running !== null;
     }
-
 
     /**
      * Run one user message through the agent.

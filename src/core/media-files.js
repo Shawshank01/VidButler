@@ -26,11 +26,9 @@ export function findMatchingThumbnail(files, baseName) {
     }
 
     // Priority 2: File begins with baseName and has an image extension
-    const basePrefix = `${baseName}.`;
     for (const name of fileNames) {
         const lower = name.toLowerCase();
-        if ((name.startsWith(basePrefix) || name.startsWith(baseName)) &&
-            IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+        if (name.startsWith(baseName) && IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
             return name;
         }
     }
@@ -84,6 +82,10 @@ export async function findVideoToReEncode(downloadFolder, targetIdentifier) {
     return { file: chosenFile, filePath, filename, thumbnailPath };
 }
 
+// Files this app produces itself (`<name>_H264.mp4`, `<name>_HEVC.mp4`, their `_temp` form, and the older
+// `_hardsub` naming) must never be picked as the source of a new hardsub.
+const HARDSUB_OUTPUT_RE = /_hardsub|_(?:H264|HEVC)(?:_temp)?\.[^.]+$/;
+
 // Find media, subtitles, and thumbnail for hardsubbing
 export async function findHardsubSourceFiles(downloadFolder, subtitleLang, downloadedFilePath = null) {
     const allFiles = await fs.readdir(downloadFolder);
@@ -100,7 +102,7 @@ export async function findHardsubSourceFiles(downloadFolder, subtitleLang, downl
     if (!videoFile) {
         const candidates = allFiles.filter((file) => {
             const lower = file.toLowerCase();
-            return VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext)) && !file.includes('_hardsub');
+            return VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext)) && !HARDSUB_OUTPUT_RE.test(file);
         });
 
         if (candidates.length === 0) return null;

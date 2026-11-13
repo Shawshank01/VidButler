@@ -1,3 +1,5 @@
+import { StringDecoder } from 'string_decoder';
+
 // Rule list for log noise reduction
 const LOG_NOISE_PATTERNS = [
     /Opening 'https?:\/\//i,                                // HLS segment download spam
@@ -44,10 +46,12 @@ class LineStreamFilter {
     constructor(onLine) {
         this.buffer = '';
         this.onLine = onLine;
+        // Keeps a multi-byte character (CJK titles, emoji) that is split across two chunks intact.
+        this.decoder = new StringDecoder('utf8');
     }
 
     push(chunk) {
-        this.buffer += chunk.toString();
+        this.buffer += typeof chunk === 'string' ? chunk : this.decoder.write(chunk);
         const lines = this.buffer.split(/\r\n|\r|\n/);
         this.buffer = lines.pop(); // Keep incomplete trailing fragment in buffer
 
@@ -60,6 +64,7 @@ class LineStreamFilter {
     }
 
     flush() {
+        this.buffer += this.decoder.end();
         if (this.buffer.length > 0) {
             const trimmed = this.buffer.trim();
             if (trimmed.length > 0 && !shouldSuppressLogLine(trimmed)) {

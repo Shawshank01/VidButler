@@ -28,7 +28,6 @@ export class XaiProvider {
     } = {}) {
         this.id = 'xai';
         this.displayName = 'xAI';
-        this.requireApiKey = true;
         this.retries = retries;
         this.retryDelayMs = retryDelayMs;
         this.apiKey = apiKey;
@@ -39,10 +38,10 @@ export class XaiProvider {
     }
 
     #headers() {
-        if (this.requireApiKey && !this.apiKey) {
+        if (!this.apiKey) {
             throw new ProviderError(`No ${this.displayName} API key is configured. Add one in settings.`, { kind: 'auth' });
         }
-        return this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
+        return { Authorization: `Bearer ${this.apiKey}` };
     }
 
     /** Check connectivity by listing models. */

@@ -564,16 +564,6 @@ button.run-button:active {
     border: 1px solid #734515;
 }
 
-.app-footer {
-    flex: 0 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding-top: 6px;
-}
-
 .update-button {
     background-color: transparent;
     color: var(--accent-teal);

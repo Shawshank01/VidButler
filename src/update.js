@@ -130,10 +130,6 @@ export class AppUpdateService {
     return this.platform === "linux" && Boolean(this.env.APPIMAGE);
   }
 
-  // Kept for callers that only need to know whether in-app installation is available.
-  isSupported() {
-    return this.canInstallUpdate();
-  }
 
   onProgress(listener) {
     this.progressListeners.add(listener);

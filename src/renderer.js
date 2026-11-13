@@ -830,7 +830,7 @@ window.runCommand = async function () {
         await handleSubtitleDownload(url, browser, downloadFolder);
         return;
     }
-    if (action === 'Download & Add Hardsub' || action === 'Download & Add Hardsub (Only Support on macOS)') {
+    if (action === 'Download & Add Hardsub') {
         await handleHardsubAction(url, browser, downloadFolder);
         return;
     }
@@ -929,8 +929,7 @@ function updateFormatCodeVisibility() {
     if (formatGroup) {
         formatGroup.style.display = action === 'Download (Custom Format)' ? '' : 'none';
     }
-    const isHardsub =
-        action === 'Download & Add Hardsub' || action === 'Download & Add Hardsub (Only Support on macOS)';
+    const isHardsub = action === 'Download & Add Hardsub';
     if (codecGroup) {
         codecGroup.style.display = isHardsub ? '' : 'none';
     }
@@ -976,7 +975,7 @@ async function handleSubtitleDownload(url, browser, downloadFolder) {
 
         output.textContent = `Downloading ${selectedSubtitle.name} (${selectedSubtitle.code}) subtitle...`;
 
-        let args = [...getProxyArgs(), '--remote-components', 'ejs:github'];
+        const args = [...getProxyArgs(), '--remote-components', 'ejs:github'];
         if (browser) {
             args.push('--cookies-from-browser', browser);
         }

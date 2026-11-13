@@ -15,9 +15,6 @@ export class OpenAICompatibleProvider {
      * @param {string} config.model
      * @param {string} [config.apiKey]   Optional for local servers.
      * @param {string} [config.baseUrl]
-     * @param {string} [config.id]           Identifier for presets built on this adapter (e.g. "xai").
-     * @param {string} [config.displayName]  Name used in error messages.
-     * @param {boolean} [config.requireApiKey]  Refuse to send requests without a key (hosted services).
      * @param {number} [config.retries]
      * @param {number} [config.retryDelayMs]
      * @param {typeof fetch} [config.fetchImpl]
@@ -26,16 +23,12 @@ export class OpenAICompatibleProvider {
         apiKey,
         model,
         baseUrl,
-        id = 'openai-compatible',
-        displayName = 'OpenAI-compatible server',
-        requireApiKey = false,
         retries = DEFAULT_RETRIES,
         retryDelayMs = DEFAULT_RETRY_DELAY_MS,
         fetchImpl = globalThis.fetch
     } = {}) {
-        this.id = id;
-        this.displayName = displayName;
-        this.requireApiKey = requireApiKey;
+        this.id = 'openai-compatible';
+        this.displayName = 'OpenAI-compatible server';
         this.retries = retries;
         this.retryDelayMs = retryDelayMs;
         this.apiKey = apiKey;
@@ -45,9 +38,6 @@ export class OpenAICompatibleProvider {
     }
 
     #headers() {
-        if (this.requireApiKey && !this.apiKey) {
-            throw new ProviderError(`No ${this.displayName} API key is configured. Add one in settings.`, { kind: 'auth' });
-        }
         return this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
     }
 

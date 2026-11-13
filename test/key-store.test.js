@@ -86,6 +86,34 @@ test('unreadable or corrupt data is treated as "no key", not a crash', async () 
     assert.equal(await store.get('gemini'), 'fresh-key-1234');
 });
 
+test('saving replaces the key file atomically: no temporary file is left and the file stays private', async () => {
+    const filePath = await tempFile();
+    const store = new KeyStore({ filePath, crypto: fakeCrypto() });
+    await store.set('gemini', 'key-one-aaaa');
+    await store.set('xai', 'key-two-bbbb');
+    await store.remove('gemini');
+
+    const dir = join(filePath, '..');
+    assert.deepEqual(await fs.readdir(dir), ['ai-keys.json']);
+    if (process.platform !== 'win32') {
+        assert.equal((await fs.stat(filePath)).mode & 0o777, 0o600);
+    }
+    assert.equal(await store.get('xai'), 'key-two-bbbb');
+});
+
+test('a failed write rejects and leaves the previous keys untouched', async () => {
+    const filePath = await tempFile();
+    const store = new KeyStore({ filePath, crypto: fakeCrypto() });
+    await store.set('gemini', 'key-one-aaaa');
+
+    const broken = new KeyStore({
+        filePath: join(filePath, '..', 'missing-dir', 'ai-keys.json'),
+        crypto: fakeCrypto()
+    });
+    await assert.rejects(broken.set('gemini', 'key-three-cccc'));
+    assert.equal(await store.get('gemini'), 'key-one-aaaa');
+});
+
 test('a crypto adapter that throws counts as unavailable', async () => {
     const store = new KeyStore({
         filePath: await tempFile(),

@@ -45,8 +45,16 @@ export class KeyStore {
         }
     }
 
+    /** Write via a temporary file so a crash cannot leave a half-written file (which would read as "no keys"). */
     async #writeFile(data) {
-        await fs.writeFile(this.filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 });
+        const tempPath = `${this.filePath}.${process.pid}.tmp`;
+        try {
+            await fs.writeFile(tempPath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 });
+            await fs.rename(tempPath, this.filePath);
+        } catch (err) {
+            await fs.unlink(tempPath).catch(() => { });
+            throw err;
+        }
     }
 
     /** @returns {Promise<string>} The key, or '' if none is stored. */
