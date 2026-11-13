@@ -141,7 +141,19 @@ export async function resolveSubtitle(url, lang, ctx) {
         throw new ValidationError(`Could not list subtitles: ${listing.message}`);
     }
     const available = listing.subtitles.map((s) => `${s.code} (${s.type})`).join(', ') || 'none';
-    const match = listing.subtitles.find((s) => s.code === lang);
+    let match = listing.subtitles.find((s) => s.code === lang);
+    if (!match) {
+        match = listing.subtitles.find((s) => s.code.toLowerCase() === lang.toLowerCase());
+    }
+    if (!match) {
+        match = listing.subtitles.find((s) => s.name && s.name.toLowerCase() === lang.toLowerCase());
+    }
+    if (!match) {
+        const prefixMatches = listing.subtitles.filter((s) => s.code.toLowerCase().startsWith(`${lang.toLowerCase()}-`));
+        if (prefixMatches.length === 1) {
+            match = prefixMatches[0];
+        }
+    }
     if (!match) {
         throw new ValidationError(
             `Subtitle language "${lang}" is not available for this video. Available: ${available}.`

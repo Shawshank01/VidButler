@@ -576,6 +576,155 @@ test('delete_files recovers file list when user says delete all files', async ()
     assert.equal(requests[0].description, 'Delete 2 file(s): video1.mp4, video2.m4a');
 });
 
+test('download_with_hardsub normalizes aliases and user prompt (reproduces user scenario)', async () => {
+    const requests = [];
+    const provider = scriptedProvider([
+        {
+            toolCalls: [
+                call('download_with_hardsub', {
+                    // LLM passed subtitle instead of lang, and omitted url
+                    subtitle: 'en',
+                    position: 'bottom'
+                })
+            ]
+        },
+        { text: 'done' }
+    ]);
+    const history = [
+        { role: 'user', text: 'what subtitle does it have https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        {
+            role: 'assistant',
+            text: 'Available subtitles:',
+            toolCalls: [{ id: 's1', name: 'list_subtitles', args: { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' } }]
+        },
+        {
+            role: 'tool',
+            toolCallId: 's1',
+            name: 'list_subtitles',
+            result: {
+                ok: true,
+                is_auto_generated: false,
+                subtitles: [
+                    { code: 'en', name: 'English', type: 'manual' },
+                    { code: 'de-DE', name: 'German (Germany)', type: 'manual' },
+                    { code: 'ja', name: 'Japanese', type: 'manual' }
+                ]
+            }
+        }
+    ];
+
+    await runAgent({
+        provider,
+        system: 's',
+        history,
+        userText: 'add en hardsub at the bottom',
+        ctx: { downloadFolder: '/tmp' },
+        confirm: async (r) => {
+            requests.push(r);
+            return false; // decline to stop before actual tool.run execution
+        }
+    });
+
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].args.url, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    assert.equal(requests[0].args.lang, 'en');
+    assert.equal(requests[0].args.position, 'bottom');
+    assert.equal(requests[0].args.codec, 'h264');
+    assert.equal(
+        requests[0].description,
+        'Download https://www.youtube.com/watch?v=dQw4w9WgXcQ and hardcode "en" subtitles (h264, bottom)'
+    );
+    assert.doesNotMatch(requests[0].description, /undefined/);
+});
+
+test('download_with_hardsub recovers missing lang from history and maps language name to code', async () => {
+    const requests = [];
+    const provider = scriptedProvider([
+        {
+            toolCalls: [
+                call('download_with_hardsub', {
+                    // LLM called with language name "Japanese"
+                    language: 'Japanese'
+                })
+            ]
+        },
+        { text: 'done' }
+    ]);
+    const history = [
+        { role: 'user', text: 'https://www.youtube.com/watch?v=sample-vid' },
+        {
+            role: 'assistant',
+            text: 'Listing...',
+            toolCalls: [{ id: 's1', name: 'list_subtitles', args: { url: 'https://www.youtube.com/watch?v=sample-vid' } }]
+        },
+        {
+            role: 'tool',
+            toolCallId: 's1',
+            name: 'list_subtitles',
+            result: {
+                ok: true,
+                subtitles: [
+                    { code: 'en', name: 'English', type: 'manual' },
+                    { code: 'ja', name: 'Japanese', type: 'manual' }
+                ]
+            }
+        }
+    ];
+
+    await runAgent({
+        provider,
+        system: 's',
+        history,
+        userText: 'hardsub japanese subtitles at the top',
+        ctx: { downloadFolder: '/tmp' },
+        confirm: async (r) => {
+            requests.push(r);
+            return false;
+        }
+    });
+
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].args.lang, 'ja');
+    assert.equal(requests[0].args.position, 'top');
+    assert.equal(requests[0].args.codec, 'h264');
+    assert.equal(
+        requests[0].description,
+        'Download https://www.youtube.com/watch?v=sample-vid and hardcode "ja" subtitles (h264, top)'
+    );
+});
+
+test('download_subtitles normalizes alias and recovers language from user text', async () => {
+    const events = [];
+    const provider = scriptedProvider([
+        {
+            toolCalls: [
+                call('download_subtitles', {
+                    url: 'https://www.youtube.com/watch?v=sample-vid',
+                    subtitles: ['de-DE']
+                })
+            ]
+        },
+        { text: 'done' }
+    ]);
+
+    await runAgent({
+        provider,
+        system: 's',
+        history: [],
+        userText: 'download de-DE subtitles for https://www.youtube.com/watch?v=sample-vid',
+        ctx: { downloadFolder: '/tmp' },
+        onEvent: (e) => events.push(e)
+    });
+
+    const starts = events.filter((e) => e.type === 'tool_start');
+    assert.equal(starts.length, 1);
+    assert.equal(starts[0].args.lang, 'de-DE');
+    assert.equal(
+        starts[0].description,
+        'Download "de-DE" subtitles for https://www.youtube.com/watch?v=sample-vid'
+    );
+});
+
 test('delete_files on empty download folder reports empty without asking confirmation', async () => {
     const emptyFolder = await makeFolder({});
     const requests = [];

@@ -62,7 +62,7 @@ export const mediaTools = [
         },
         required: ['url', 'lang'],
         describe: (a) =>
-            `Download ${a.url} and hardcode "${a.lang}" subtitles (${a.codec || 'h264'}, ${a.position || 'bottom'})`,
+            `Download ${a.url || 'video'} and hardcode "${a.lang || 'selected'}" subtitles (${a.codec || 'h264'}, ${a.position || 'bottom'})`,
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const lang = validateLang(args.lang);

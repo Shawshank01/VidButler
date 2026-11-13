@@ -242,6 +242,103 @@ function recoverFileFromHistory(history) {
     return undefined;
 }
 
+/**
+ * Extract a candidate language string from possible model aliases.
+ */
+function extractRawLang(args) {
+    if (!args || typeof args !== 'object') return undefined;
+    const raw =
+        args.lang ??
+        args.language ??
+        args.subtitle ??
+        args.subtitles ??
+        args.subtitle_lang ??
+        args.sub_lang ??
+        args.subtitleLang ??
+        args.subLanguage ??
+        args.lang_code ??
+        args.language_code ??
+        args.code;
+
+    if (raw === undefined || raw === null) return undefined;
+    if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        return trimmed || undefined;
+    }
+    if (Array.isArray(raw) && raw.length > 0) {
+        const first = raw[0];
+        if (typeof first === 'string') return first.trim() || undefined;
+        if (first && typeof first === 'object') return (first.code || first.lang || first.name || '').trim() || undefined;
+    }
+    if (typeof raw === 'object') {
+        return (raw.code || raw.lang || raw.name || '').trim() || undefined;
+    }
+    return undefined;
+}
+
+/**
+ * Recover a subtitle language code from recent conversation turns (e.g. list_subtitles result,
+ * previous tool calls, or user mentions) when the model omitted it.
+ */
+function recoverLangFromHistory(history) {
+    if (!Array.isArray(history) || history.length === 0) return undefined;
+
+    const lastUser = history.findLast((m) => m.role === 'user');
+    const userText = lastUser?.text || '';
+
+    // 1. Look backwards for recent list_subtitles tool result or earlier tool calls with lang
+    for (let i = history.length - 1; i >= 0; i--) {
+        const msg = history[i];
+        if (msg.role === 'tool' && msg.name === TOOL_NAMES.listSubtitles && msg.result?.ok && Array.isArray(msg.result.subtitles)) {
+            const subs = msg.result.subtitles;
+            if (subs.length > 0) {
+                // If user explicitly mentioned a subtitle code (e.g. "en", "ja", "de-DE", "es-419")
+                if (userText) {
+                    for (const s of subs) {
+                        if (s.code && new RegExp(`\\b${s.code.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(userText)) {
+                            return s.code;
+                        }
+                    }
+                    // Match language name (e.g. "English", "Japanese", "German")
+                    for (const s of subs) {
+                        if (s.name) {
+                            const baseName = s.name.split('(')[0].trim();
+                            if (baseName && new RegExp(`\\b${baseName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(userText)) {
+                                return s.code;
+                            }
+                        }
+                    }
+                }
+                // If there is only one available subtitle track, select it
+                if (subs.length === 1 && subs[0].code) {
+                    return subs[0].code;
+                }
+            }
+            break;
+        }
+        if (msg.role === 'assistant' && Array.isArray(msg.toolCalls)) {
+            const prevCallWithLang = msg.toolCalls.find(
+                (tc) => typeof tc.args?.lang === 'string' && tc.args.lang.trim()
+            );
+            if (prevCallWithLang) {
+                return prevCallWithLang.args.lang.trim();
+            }
+        }
+    }
+
+    // 2. Fall back to user text pattern (e.g. "add en hardsub", "burn ja subtitles", "with de-DE subs")
+    if (userText) {
+        const subMatch =
+            userText.match(/\b(?:add|burn|hardsub|with|in|download)\s+([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]+)?)(?:\s+(?:hardsub|subtitles?|subs?|captions?))?\b/i) ||
+            userText.match(/\b([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]+)?)\s+(?:hardsub|subtitles?|subs?|captions?)\b/i);
+        if (subMatch) {
+            return subMatch[1];
+        }
+    }
+
+    return undefined;
+}
+
 async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMode, signal }) {
     const tool = getTool(call.name);
     if (!tool) {
@@ -378,6 +475,37 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
         }
     }
 
+    // Normalise common model parameter hallucinations if the tool expects a 'lang'
+    if (tool.parameters?.properties?.lang) {
+        let lang = extractRawLang(args);
+        if (lang) {
+            // Check if lang is a language name (e.g. "English") matching any known subtitle track in history
+            for (let i = history.length - 1; i >= 0; i--) {
+                const msg = history[i];
+                if (msg.role === 'tool' && msg.name === TOOL_NAMES.listSubtitles && msg.result?.ok && Array.isArray(msg.result.subtitles)) {
+                    const matched = msg.result.subtitles.find(
+                        (s) =>
+                            s.code?.toLowerCase() === lang.toLowerCase() ||
+                            s.name?.toLowerCase() === lang.toLowerCase() ||
+                            s.name?.split('(')[0].trim().toLowerCase() === lang.toLowerCase()
+                    );
+                    if (matched) {
+                        lang = matched.code;
+                    }
+                    break;
+                }
+            }
+        } else {
+            lang = recoverLangFromHistory(history);
+        }
+        if (lang) {
+            args.lang = lang;
+            if (call.args && typeof call.args === 'object') {
+                call.args.lang = lang;
+            }
+        }
+    }
+
     // Reconcile container and format_code for download_video
     if (call.name === TOOL_NAMES.downloadVideo) {
         if (!args.container) {
@@ -478,6 +606,49 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
             }
             if (call.args && typeof call.args === 'object' && args.format) {
                 call.args.format = args.format;
+            }
+        }
+    }
+
+    // Reconcile position and codec for download_with_hardsub
+    if (call.name === TOOL_NAMES.downloadWithHardsub) {
+        if (!args.position) {
+            const rawPos = args.subtitle_position || args.subtitlePosition || args.placement || args.align || args.alignment;
+            if (typeof rawPos === 'string' && /^(?:bottom|top)$/i.test(rawPos.trim())) {
+                args.position = rawPos.trim().toLowerCase();
+            } else {
+                const lastUser = history.findLast((m) => m.role === 'user');
+                const userText = lastUser?.text || '';
+                if (/\b(?:at the |on the )?top\b/i.test(userText)) {
+                    args.position = 'top';
+                } else {
+                    args.position = 'bottom';
+                }
+            }
+            if (call.args && typeof call.args === 'object' && args.position) {
+                call.args.position = args.position;
+            }
+        }
+        if (!args.codec) {
+            const rawCodec = args.video_codec || args.videoCodec || args.vcodec;
+            if (typeof rawCodec === 'string') {
+                const trimmed = rawCodec.trim().toLowerCase();
+                if (trimmed === 'hevc' || trimmed === 'h265' || trimmed === 'x265') {
+                    args.codec = 'hevc';
+                } else if (trimmed === 'h264' || trimmed === 'avc' || trimmed === 'x264') {
+                    args.codec = 'h264';
+                }
+            } else {
+                const lastUser = history.findLast((m) => m.role === 'user');
+                const userText = lastUser?.text || '';
+                if (/\b(?:hevc|h\.?265|x265)\b/i.test(userText)) {
+                    args.codec = 'hevc';
+                } else {
+                    args.codec = 'h264';
+                }
+            }
+            if (call.args && typeof call.args === 'object' && args.codec) {
+                call.args.codec = args.codec;
             }
         }
     }

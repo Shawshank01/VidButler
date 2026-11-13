@@ -137,7 +137,7 @@ export const downloadTools = [
             playlist: playlistProperty
         },
         required: ['url'],
-        describe: (a) => `Download audio (${a.format || 'best'}) from ${a.url}`,
+        describe: (a) => `Download audio (${a.format || 'best'}) from ${a.url || 'video'}`,
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const format = validateEnum(args.format, AUDIO_FORMATS, 'format', 'best');
@@ -156,7 +156,7 @@ export const downloadTools = [
         description: 'Download only the thumbnail image of a video.',
         properties: { url: urlProperty },
         required: ['url'],
-        describe: (a) => `Download thumbnail of ${a.url}`,
+        describe: (a) => `Download thumbnail of ${a.url || 'video'}`,
         async run(args, ctx) {
             const url = validateUrl(args.url);
             return runDownload(['--write-thumbnail', '--skip-download'], url, ctx);
@@ -168,7 +168,7 @@ export const downloadTools = [
             'Download a subtitle file (converted to .vtt) for a video without downloading the video. Call list_subtitles first to see which language codes exist.',
         properties: { url: urlProperty, lang: langProperty },
         required: ['url', 'lang'],
-        describe: (a) => `Download "${a.lang}" subtitles for ${a.url}`,
+        describe: (a) => `Download "${a.lang || 'selected'}" subtitles for ${a.url || 'video'}`,
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const lang = validateLang(args.lang);

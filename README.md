@@ -11,10 +11,12 @@ The app provides two interfaces you can switch between at any time:
 - **Classic Mode**: A traditional form with URL input, action selection, and cookie/proxy settings.
 - **AI Mode**: Describe what you want in plain language (e.g., *"Download this video and add an English hardsub to it"*). The app translates your request into safe `yt-dlp` or `FFmpeg` commands and runs them for you.
 
+<!--
 ![VidButler UI](public/YT-Downloader-UI.png)
 *Classic UI*
+-->
 
-![VidButler UI AI Mode](public/YT-Downloader-UI-AI.png)
+![VidButler UI AI Mode](public/VidButler-UI.png)
 *AI Mode UI*
 
 ## Features
