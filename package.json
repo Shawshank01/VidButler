@@ -9,7 +9,6 @@
     "prestart": "node src/check-dependencies.js",
     "start": "electron .",
     "lint": "eslint \"src/**/*.js\" \"test/**/*.js\"",
-    "format": "prettier --write \"src/**/*.{js,html,css}\"",
     "postinstall": "electron-builder install-app-deps",
     "prepare-tools": "node scripts/prepare-tools.mjs",
     "build": "pnpm prepare-tools && electron-builder --publish never",
@@ -56,15 +55,10 @@
     "electron": "^45.3.0",
     "electron-builder": "^26.18.1",
     "eslint": "^10.14.0",
-    "globals": "^17.14.0",
-    "prettier": "^3.10.0"
+    "globals": "^17.14.0"
   },
   "optionalDependencies": {
     "dmg-license": "^1.0.11"
-  },
-  "overrides": {
-    "@electron/rebuild": "4.0.3",
-    "tar": "^7.5.11"
   },
   "build": {
     "appId": "com.vidbutler.app",

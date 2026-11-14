@@ -576,6 +576,53 @@ test('delete_files recovers file list when user says delete all files', async ()
     assert.equal(requests[0].description, 'Delete 2 file(s): video1.mp4, video2.m4a');
 });
 
+test('delete_files recovers temporary files after hardsub completion when user asks or confirms', async () => {
+    const requests = [];
+    const provider = scriptedProvider([
+        { toolCalls: [call('delete_files', {})] },
+        { text: 'done' }
+    ]);
+    const history = [
+        { role: 'user', text: 'add zh hardsub https://youtube.com/watch?v=SSFO3Y8OfCs' },
+        {
+            role: 'assistant',
+            text: 'I will burn subtitles.',
+            toolCalls: [{ id: 'h1', name: 'download_with_hardsub', args: { url: 'https://youtube.com/watch?v=SSFO3Y8OfCs', lang: 'zh' } }]
+        },
+        {
+            role: 'tool',
+            toolCallId: 'h1',
+            name: 'download_with_hardsub',
+            result: {
+                ok: true,
+                message: 'Hardsub completed! Saved as: video_H264.mp4',
+                temporary_files: ['video.mp4', 'video.zh.vtt', 'video.jpg']
+            }
+        },
+        {
+            role: 'assistant',
+            text: 'Hardsub completed! Would you like me to delete the intermediate temporary files?',
+            toolCalls: []
+        }
+    ];
+
+    await runAgent({
+        provider,
+        system: 's',
+        history,
+        userText: 'yes, delete the temporary files',
+        ctx: { downloadFolder: '/tmp' },
+        confirm: async (r) => {
+            requests.push(r);
+            return false;
+        }
+    });
+
+    assert.equal(requests.length, 1);
+    assert.deepEqual(requests[0].args.files, ['video.mp4', 'video.zh.vtt', 'video.jpg']);
+    assert.equal(requests[0].description, 'Delete 3 file(s): video.mp4, video.zh.vtt, video.jpg');
+});
+
 test('download_with_hardsub normalizes aliases and user prompt (reproduces user scenario)', async () => {
     const requests = [];
     const provider = scriptedProvider([

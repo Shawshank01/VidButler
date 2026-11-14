@@ -580,12 +580,12 @@ export async function downloadWithHardsub(options, onProgress = noop) {
     });
 
     try {
-        // Step 1: Download video with subtitle (limit to avc1/H.264)
+        // Step 1: Download video with subtitle (highest quality available)
         const manifestFile = join(tmpdir(), `ytdl-sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.txt`);
         const subsFlag = subtitleType === 'manual' ? '--write-subs' : '--write-auto-subs';
         const args = [
             '--no-playlist',
-            '-f', 'bestvideo[vcodec^=avc1]+bestaudio/best[vcodec^=avc1]',
+            '-f', 'bestvideo+bestaudio/best',
             subsFlag, '--sub-langs', subtitleLang,
             '--convert-subs', 'vtt',
             '--write-thumbnail', '--convert-thumbnails', 'jpg',

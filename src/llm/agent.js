@@ -441,7 +441,22 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
                 }
             }
 
-            if (isAll) {
+            // Check if there are temporary files reported by a recent hardsub / re-encode in history
+            let tempFilesFromHistory = [];
+            for (let i = history.length - 1; i >= 0; i--) {
+                const msg = history[i];
+                if (msg.role === 'tool' && Array.isArray(msg.result?.temporary_files) && msg.result.temporary_files.length > 0) {
+                    tempFilesFromHistory = msg.result.temporary_files;
+                    break;
+                }
+            }
+            const isTemp =
+                /\b(?:temp|temporary|intermediate)\b/i.test(userText) ||
+                (/^(?:yes|yep|sure|ok|proceed|go ahead|please|delete them)\b/i.test(userText) && tempFilesFromHistory.length > 0);
+
+            if (isTemp && tempFilesFromHistory.length > 0) {
+                args.files = tempFilesFromHistory;
+            } else if (isAll) {
                 if (filesFromHistory.length > 0) {
                     args.files = filesFromHistory.slice(0, MAX_DELETE_FILES);
                 } else if (ctx?.downloadFolder) {
