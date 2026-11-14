@@ -55,48 +55,7 @@ async function isImageFormat(formatCode, browser, url) {
     return meta?.ext === 'mhtml';
 }
 
-// Function to check if a line is a progress update
-function isProgressLine(line) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('[download]')) {
-        if (trimmed.includes('%') || trimmed.includes('ETA')) {
-            return true;
-        }
-        if (/\s+[\d.]+\s*[kKmMgGtT]?i?B\s+at\s+/i.test(trimmed) || /\bat\s+\S*B\/s/i.test(trimmed)) {
-            return true;
-        }
-        return false;
-    }
-    if ((/^(?:frame|size)=\s*\S+/i.test(trimmed) && trimmed.includes('time=')) ||
-        (/^time=\S+/i.test(trimmed) && trimmed.includes('bitrate='))) {
-        return true;
-    }
-    return false;
-}
-
-// Function to check if a line is intermediate extractor or probe noise
-function isExtractorOrNoiseLine(line) {
-    const trimmed = line.trim();
-    if (/^\s*Duration:\s*[\d:.]+/i.test(trimmed)) {
-        return true;
-    }
-    if (/^\[[^\]]+\]\s+Extracting URL:/i.test(trimmed)) {
-        return true;
-    }
-    if (/^\[(?!download\])[^\]]+\]\s+(?:.*:\s+)?Downloading\s+/i.test(trimmed)) {
-        return true;
-    }
-    if (/^Extract(?:ing|ed)\s+(?:\d+\s+)?cookies from/i.test(trimmed)) {
-        return true;
-    }
-    if (/\[jsc:[^\]]+\]\s+Solving JS challenges/i.test(trimmed)) {
-        return true;
-    }
-    if (/^\[SubtitlesConvertor\]/i.test(trimmed)) {
-        return true;
-    }
-    return false;
-}
+const { isProgressLine, isExtractorOrNoiseLine } = window.LogClassification;
 
 // Function to clean yt-dlp output by removing progress lines and intermediate noise,
 // keeping only the final progress line when progress lines are present
@@ -134,22 +93,9 @@ function cleanYtDlpResult(result) {
     return filteredLines.length > 0 ? filteredLines.join('\n') : result.trim();
 }
 
-// Resolve proxy URL if proxy is enabled
-function getProxyUrl() {
-    const proxyEnabled = document.getElementById('proxyEnabled');
-    const proxyAddress = document.getElementById('proxyAddress');
-    if (proxyEnabled && proxyEnabled.checked && proxyAddress) {
-        const addr = proxyAddress.value.trim();
-        if (addr) {
-            return `socks5://${addr}/`;
-        }
-    }
-    return '';
-}
-
 // Build proxy args for yt-dlp if proxy is enabled
 function getProxyArgs() {
-    const proxyUrl = getProxyUrl();
+    const proxyUrl = window.SharedContext.getProxyUrl();
     return proxyUrl ? ['--proxy', proxyUrl] : [];
 }
 
@@ -950,7 +896,7 @@ async function handleSubtitleDownload(url, browser, downloadFolder) {
     output.textContent = 'Fetching available subtitles...';
 
     try {
-        const proxyUrl = getProxyUrl();
+        const proxyUrl = window.SharedContext.getProxyUrl();
         const result = await window.electronAPI.listSubtitles(url, browser, proxyUrl);
 
         if (result.error) {
@@ -1071,7 +1017,7 @@ async function handleHardsubAction(url, browser, downloadFolder) {
     output.textContent = 'Fetching available subtitles...';
 
     try {
-        const proxyUrl = getProxyUrl();
+        const proxyUrl = window.SharedContext.getProxyUrl();
         const result = await window.electronAPI.listSubtitles(url, browser, proxyUrl);
 
         if (result.error) {

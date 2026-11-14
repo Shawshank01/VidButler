@@ -147,13 +147,10 @@
     }
 
     function getContext() {
-        const proxyEnabled = $('proxyEnabled');
-        const proxyAddress = $('proxyAddress');
-        const address = proxyEnabled && proxyEnabled.checked && proxyAddress ? proxyAddress.value.trim() : '';
         return {
             downloadFolder: $('downloadFolder') ? $('downloadFolder').value.trim() : '',
             browser: $('browser') ? $('browser').value : '',
-            proxy: address ? `socks5://${address}/` : ''
+            proxy: window.SharedContext.getProxyUrl()
         };
     }
 
