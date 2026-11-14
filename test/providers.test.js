@@ -253,6 +253,15 @@ test('Gemini: blocked / malformed responses become errors', async () => {
     assert.match(err.message, /SAFETY/);
 });
 
+test('Gemini rejects a legacy candidates response without interaction steps', async () => {
+    const provider = new GeminiProvider({
+        apiKey: 'k',
+        fetchImpl: fakeFetch([{ json: { candidates: [{ content: { parts: [{ text: 'old response' }] } }] } }])
+    });
+    const error = await provider.chat({ system: '', messages: [{ role: 'user', text: 'x' }] }).catch((e) => e);
+    assert.equal(error.kind, 'bad_response');
+});
+
 test('Gemini: network failure and abort', async () => {
     const down = new GeminiProvider({ apiKey: 'k', retries: 0, fetchImpl: fakeFetch([new TypeError('fetch failed')]) });
     const err = await down.chat({ system: '', messages: [] }).catch((e) => e);
@@ -267,8 +276,9 @@ test('Gemini: network failure and abort', async () => {
 
 test('Gemini streaming keeps accumulated text when the final chunk has no text', async () => {
     const chunks = [
-        'data: {"candidates":[{"content":{"parts":[{"text":"hello "}]},"finishReason":"STOP"}]}\n\n',
-        'data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":1}}\n\n'
+        'data: {"event_type":"step.start","index":0,"step":{"type":"model_output"}}\n\n',
+        'data: {"event_type":"step.delta","index":0,"delta":{"type":"text","text":"hello "}}\n\n',
+        'data: {"event_type":"interaction.completed","interaction":{"id":"int_text","status":"completed","usage":{"total_input_tokens":1}}}\n\n'
     ];
     const fetchImpl = async () => ({
         ok: true,
@@ -292,8 +302,8 @@ test('Gemini streaming keeps accumulated text when the final chunk has no text',
 
 test('Gemini streaming keeps tool calls when the final chunk has no content', async () => {
     const chunks = [
-        'data: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"list_formats","args":{"url":"https://x.test/v"}}}]}}]}\n\n',
-        'data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}]}\n\n'
+        'data: {"event_type":"step.start","index":0,"step":{"type":"function_call","id":"call_1","name":"list_formats","arguments":{"url":"https://x.test/v"}}}\n\n',
+        'data: {"event_type":"interaction.completed","interaction":{"id":"int_tool","status":"requires_action"}}\n\n'
     ];
     const fetchImpl = async () => ({
         ok: true,
@@ -578,7 +588,7 @@ test('OpenAI-compatible: streaming error cases', async () => {
     assert.match(err2.message, /returned no answer/);
 });
 
-const okReply = { json: { candidates: [{ content: { parts: [{ text: 'ok' }] } }] } };
+const okReply = { json: { id: 'int_ok', status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: 'ok' }] }] } };
 const busy503 = { status: 503, json: { error: { message: 'This model is currently experiencing high demand.' } } };
 const userMessages = [{ role: 'user', text: 'x' }];
 

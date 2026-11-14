@@ -268,7 +268,7 @@ test('thinking level: Gemini-only, validated, saved, and used in requests', asyn
 });
 
 test('send: logs timing and token counts for each model call (no content)', async () => {
-    const reply = { json: { candidates: [{ content: { parts: [{ text: 'secret answer' }] } }], usageMetadata: { promptTokenCount: 321, thoughtsTokenCount: 45, candidatesTokenCount: 6 } } };
+    const reply = { json: { id: 'int_test', status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: 'secret answer' }] }], usage: { total_input_tokens: 321, total_thought_tokens: 45, total_output_tokens: 6 } } };
     const { service } = await makeService({ fetchImpl: fakeFetch([reply]) });
     const lines = [];
     service.log = (line) => lines.push(line);

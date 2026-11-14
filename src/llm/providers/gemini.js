@@ -340,39 +340,7 @@ export class GeminiProvider {
                 currentStep = null;
             }
 
-            // 5. Fallback for candidate chunks (legacy / backwards compatibility)
-            if (data.candidates?.[0]?.content?.parts) {
-                const parts = data.candidates[0].content.parts;
-                for (const part of parts) {
-                    if (typeof part.text === 'string' && !part.thought) {
-                        onTextDelta(part.text);
-                    }
-                }
-                const existingModelStep = accumulatedSteps.find((s) => s?.type === 'model_output');
-                const textPart = parts.find((p) => typeof p.text === 'string' && !p.thought);
-                if (textPart) {
-                    if (existingModelStep) {
-                        if (Array.isArray(existingModelStep.content)) {
-                            existingModelStep.content[0].text += textPart.text;
-                        }
-                    } else {
-                        accumulatedSteps.push({ type: 'model_output', content: [{ type: 'text', text: textPart.text }] });
-                    }
-                }
-                for (const part of parts) {
-                    if (part.functionCall) {
-                        accumulatedSteps.push({
-                            type: 'function_call',
-                            id: part.functionCall.id,
-                            name: part.functionCall.name,
-                            arguments: part.functionCall.args || {}
-                        });
-                    }
-                }
-                if (data.usageMetadata && !completedInteraction?.usage) {
-                    completedInteraction = { ...completedInteraction, usage: data.usageMetadata };
-                }
-            }
+
         });
 
         if (completedInteraction) {
@@ -414,42 +382,7 @@ export class GeminiProvider {
             throw new ProviderError(`Gemini returned no answer (${reason}).`, { kind: 'bad_response' });
         }
 
-        // Support both Interactions API steps and candidates fallback
-        let steps = Array.isArray(data.steps) ? data.steps : [];
-
-        if (steps.length === 0 && Array.isArray(data.candidates)) {
-            const candidate = data.candidates[0];
-            if (candidate?.finishReason === 'MALFORMED_FUNCTION_CALL') {
-                throw new ProviderError('Gemini produced an invalid tool call. Try rephrasing the request.', {
-                    kind: 'bad_response'
-                });
-            }
-            if (candidate?.content?.parts) {
-                const parts = candidate.content.parts;
-                const text = parts.filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('').trim();
-                const toolCalls = parts
-                    .filter((p) => p.functionCall)
-                    .map((p, idx) => ({
-                        id: p.functionCall.id || `gemini-call-${Date.now()}-${idx}`,
-                        providerCallId: p.functionCall.id,
-                        name: p.functionCall.name,
-                        args: p.functionCall.args || {}
-                    }));
-                const usage = data.usageMetadata || data.usage || {};
-                return {
-                    text,
-                    toolCalls,
-                    raw: { provider: this.id, interactionId: data.id || `int_${Date.now()}`, steps: [] },
-                    stats: {
-                        ms: elapsedMs,
-                        thinkingLevel: this.thinkingLevel || 'default',
-                        promptTokens: usage.total_input_tokens ?? usage.promptTokenCount,
-                        thoughtTokens: usage.total_thought_tokens ?? usage.thoughtsTokenCount,
-                        outputTokens: usage.total_output_tokens ?? usage.candidatesTokenCount
-                    }
-                };
-            }
-        }
+        const steps = Array.isArray(data.steps) ? data.steps : [];
 
         const textParts = [];
         const toolCalls = [];
