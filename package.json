@@ -52,7 +52,7 @@
   "homepage": "https://github.com/Shawshank01/Vidbutler#readme",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "electron": "^45.3.0",
+    "electron": "^45.3.2",
     "electron-builder": "^26.18.1",
     "eslint": "^10.14.0",
     "globals": "^17.14.0"

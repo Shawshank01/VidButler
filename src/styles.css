@@ -94,6 +94,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px;
     padding-bottom: 4px;
     margin-bottom: 10px;
 }
@@ -102,6 +103,7 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 .brand-icon {
@@ -161,6 +163,7 @@ button.brand-icon:focus-visible {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
 }
 
 /* Elevated Download Controls Card */
@@ -591,6 +594,7 @@ button.run-button:active {
     border: 1px solid var(--border-default);
     border-radius: 8px;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .mode-btn {
@@ -628,10 +632,14 @@ button.run-button:active {
 .mode-notice {
     font-size: 12px;
     color: #ffcc80;
-    max-width: 280px;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.mode-notice:empty {
+    display: none;
 }
 
 .ai-settings-btn {
@@ -645,6 +653,7 @@ button.run-button:active {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
+    flex-shrink: 0;
 }
 
 .ai-settings-btn:hover {

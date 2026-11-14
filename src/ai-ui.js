@@ -115,9 +115,15 @@
     // ------------------------------------------------------------------ helpers
 
     function showNotice(text) {
-        els.notice.textContent = text;
+        els.notice.textContent = text || '';
+        els.notice.title = text || '';
         clearTimeout(noticeTimer);
-        if (text) noticeTimer = setTimeout(() => { els.notice.textContent = ''; }, 5000);
+        if (text) {
+            noticeTimer = setTimeout(() => {
+                els.notice.textContent = '';
+                els.notice.title = '';
+            }, 5000);
+        }
     }
 
     function currentProvider() {
@@ -303,6 +309,7 @@
             showNotice('The assistant is still working. Press Stop first.');
             return;
         }
+        showNotice('');
         applyMode(next);
         const res = await api.setSettings({ mode: next });
         if (res.ok) {

@@ -186,6 +186,13 @@ test('chat messages container scrolling avoids scrollIntoView traps and flex cla
     assert.match(css, /overflow-anchor:\s*none;/);
 });
 
+test('mode switch notice accommodates full text without artificial truncation', () => {
+    assert.doesNotMatch(css, /\.mode-notice\s*\{[^}]*max-width:\s*280px/);
+    assert.match(css, /\.mode-notice\s*\{/);
+    assert.match(css, /\.mode-notice:empty\s*\{\s*display:\s*none;\s*\}/);
+    assert.match(aiUi, /els\.notice\.title\s*=\s*text/);
+});
+
 
 
 
