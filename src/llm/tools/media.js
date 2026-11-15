@@ -90,7 +90,7 @@ export const mediaTools = [
     defineTool({
         name: TOOL_NAMES.reencodeMp4,
         description:
-            'Re-encode an existing video file that is already in the download folder to a high-quality, widely compatible MP4 (H.264/AAC) with ffmpeg. Slow and CPU-intensive. Do NOT use this tool for newly downloaded videos; use download_video with container: "mp4" instead to download native MP4 directly in seconds.',
+            'Re-encode an existing video file in the download folder to MP4 (H.264/AAC) with ffmpeg. Slow and CPU-intensive, and may reduce quality. Use when the user requests or agrees to conversion.',
         risk: 'high',
         properties: {
             file: {

@@ -7,7 +7,7 @@ import { runAgent, shapeResult } from '../src/llm/agent.js';
 import { TOOLS, getToolDeclarations, getRisk, getTool } from '../src/llm/tool-registry.js';
 import { ProviderError } from '../src/llm/errors.js';
 import { buildSystemPrompt } from '../src/llm/prompt.js';
-import { resolveFormatCode } from '../src/llm/tools/download.js';
+import { resolveFormatCode, videoFormatArgs } from '../src/llm/tools/download.js';
 import { MESSAGES } from '../src/llm/messages.js';
 
 /** A scripted provider: returns the queued replies in order and records what it was sent. */
@@ -37,6 +37,26 @@ async function makeFolder(files = {}) {
 }
 
 const call = (name, args, id = `c-${name}`) => ({ id, name, args });
+
+test('resolution-limited downloads prefer resolution over codec and allow a container fallback', () => {
+    const args = videoFormatArgs({ maxHeight: 1440, container: 'mp4' });
+    assert.equal(args[args.indexOf('-f') + 1], 'bv*[height<=1440]+ba/b[height<=1440]');
+    assert.equal(args[args.indexOf('--format-sort') + 1], 'res,vcodec:h264,ext:mp4:m4a');
+    assert.equal(args[args.indexOf('--merge-output-format') + 1], 'mp4/mkv');
+    assert.ok(!args.includes('--remux-video'));
+    const explicit = videoFormatArgs({ maxHeight: 1440, formatCode: '400+140', container: 'mp4' });
+    assert.match(explicit[explicit.indexOf('-f') + 1], /^400\+140/);
+});
+
+test('compatible video download requires H.264 and AAC without a codec fallback', async () => {
+    const args = videoFormatArgs({ maxHeight: 1440, container: 'mp4', compatible: true });
+    assert.equal(args[args.indexOf('-f') + 1], 'bv*[vcodec^=avc][height<=1440]+ba[acodec^=mp4a]/b[vcodec^=avc][acodec^=mp4a][height<=1440]');
+    assert.equal(args[args.indexOf('--merge-output-format') + 1], 'mp4');
+    const tool = getTool('download_video');
+    await assert.rejects(tool.run({ url: 'https://example.com/v', compatible: true, container: 'webm' }, {}), /compatible requires MP4/);
+    await assert.rejects(tool.run({ url: 'https://example.com/v', compatible: true, format_code: '400+140' }, {}), /compatible requires MP4/);
+    await assert.rejects(tool.run({ url: 'https://example.com/v', compatible: 'true' }, {}), /compatible/);
+});
 
 test('every tool has a valid declaration and risk', () => {
     const decls = getToolDeclarations();

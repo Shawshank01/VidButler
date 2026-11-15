@@ -5,7 +5,8 @@ import {
     validateFormatCode,
     validateEnum,
     validateIntRange,
-    validateBool
+    validateBool,
+    ValidationError
 } from '../validate.js';
 import { TOOL_NAMES } from './names.js';
 import { AUDIO_FORMATS, defineTool, playlistProperty, playlistRisk, resolveSubtitle, runDownload, urlProperty } from './common.js';
@@ -42,13 +43,37 @@ export function resolveFormatCode(formatCode) {
 
 const MERGE_FORMATS = ['mp4', 'mkv', 'webm'];
 
+export function videoFormatArgs({ maxHeight, formatCode, container, compatible }) {
+    const specific = [];
+    if (compatible) {
+        const height = maxHeight ? `[height<=${maxHeight}]` : '';
+        specific.push('-f', `bv*[vcodec^=avc]${height}+ba[acodec^=mp4a]/b[vcodec^=avc][acodec^=mp4a]${height}`);
+    } else if (formatCode) {
+        specific.push('-f', resolveFormatCode(formatCode));
+    } else if (maxHeight) {
+        specific.push('-f', `bv*[height<=${maxHeight}]+ba/b[height<=${maxHeight}]`);
+    } else if (container === 'mp4') {
+        specific.push('-f', 'bv*[vcodec^=avc]+ba[acodec^=mp4a]/bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b');
+    }
+
+    if (container === 'mp4' && maxHeight && !formatCode && !compatible) {
+        // Pick the highest resolution first; prefer MP4-compatible codecs only as a tie-breaker.
+        // Let yt-dlp use MKV when the chosen streams cannot be merged into MP4.
+        specific.push('--merge-output-format', 'mp4/mkv', '--format-sort', 'res,vcodec:h264,ext:mp4:m4a');
+    } else {
+        specific.push('--merge-output-format', container, '--remux-video', container);
+        if (container === 'mp4') specific.push('--format-sort', 'res,vcodec:h264,ext:mp4:m4a');
+    }
+    return specific;
+}
+
 const langProperty = { type: 'string', description: 'Subtitle language code from list_subtitles, e.g. "en".' };
 
 export const downloadTools = [
     defineTool({
         name: TOOL_NAMES.downloadVideo,
         description:
-            'Download a video to the user\'s download folder with thumbnail embedded. Can download specific quality (max_height), specific format codes from list_formats (format_code), or specific container (e.g. container: "mp4" for direct native MP4 without re-encoding). Only downloads a single video unless playlist is true.',
+            'Download a video to the user\'s download folder with thumbnail embedded. Supports a maximum resolution, exact format codes, or a compatible H.264/AAC download. Only downloads a single video unless playlist is true.',
         risk: playlistRisk,
         properties: {
             url: urlProperty,
@@ -63,7 +88,11 @@ export const downloadTools = [
             container: {
                 type: 'string',
                 enum: MERGE_FORMATS,
-                description: 'Optional output container. Default: "mp4". When "mp4", automatically favors universally compatible H.264 (avc1) video and AAC (mp4a) audio streams without re-encoding.'
+                description: 'Optional output container. Default: "mp4". With max_height, resolution takes priority over codecs and MP4 may fall back to MKV if needed.'
+            },
+            compatible: {
+                type: 'boolean',
+                description: 'Set true when the user chooses a broadly compatible H.264/AAC MP4 download, potentially at a lower resolution. Fails if compatible streams are unavailable; does not re-encode.'
             },
             playlist: playlistProperty
         },
@@ -72,6 +101,7 @@ export const downloadTools = [
             `Download ${a.playlist ? 'playlist' : 'video'} ${a.url}` +
             (a.max_height ? ` (max ${a.max_height}p)` : '') +
             (a.format_code ? ` (format ${a.format_code})` : '') +
+            (a.compatible ? ' (H.264/AAC compatible)' : '') +
             (a.container ? ` [${a.container}]` : ''),
         async run(args, ctx) {
             const url = validateUrl(args.url);
@@ -81,39 +111,12 @@ export const downloadTools = [
                 ? validateEnum(args.container, MERGE_FORMATS, 'container')
                 : 'mp4';
             const playlist = validateBool(args.playlist, 'playlist');
-
-            const specific = [];
-            if (formatCode) {
-                specific.push('-f', resolveFormatCode(formatCode));
-            } else if (container === 'mp4') {
-                if (maxHeight) {
-                    specific.push(
-                        '-f',
-                        `bv*[height<=${maxHeight}][vcodec^=avc]+ba[acodec^=mp4a]/` +
-                        `bv*[height<=${maxHeight}][ext=mp4]+ba[ext=m4a]/` +
-                        `b[height<=${maxHeight}][ext=mp4]/` +
-                        `bv*[height<=${maxHeight}]+ba/b[height<=${maxHeight}]`
-                    );
-                } else {
-                    specific.push(
-                        '-f',
-                        'bv*[vcodec^=avc]+ba[acodec^=mp4a]/' +
-                        'bv*[ext=mp4]+ba[ext=m4a]/' +
-                        'b[ext=mp4]/' +
-                        'bv*+ba/b'
-                    );
-                }
-            } else if (maxHeight) {
-                specific.push('-f', `bv*[height<=${maxHeight}]+ba/b[height<=${maxHeight}]`);
+            const compatible = validateBool(args.compatible, 'compatible');
+            if (compatible && (container !== 'mp4' || formatCode)) {
+                throw new ValidationError('compatible requires MP4 and cannot be combined with format_code');
             }
 
-            if (container) {
-                specific.push('--merge-output-format', container);
-                specific.push('--remux-video', container);
-                if (container === 'mp4') {
-                    specific.push('--format-sort', 'res,vcodec:h264,ext:mp4:m4a');
-                }
-            }
+            const specific = videoFormatArgs({ maxHeight, formatCode, container, compatible });
 
             if (container !== 'webm') {
                 specific.push('--convert-thumbnails', 'jpg', '--embed-thumbnail');
