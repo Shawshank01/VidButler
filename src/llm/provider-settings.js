@@ -5,7 +5,7 @@ export const MODES = ['classic', 'ai'];
 export const CONFIRM_MODES = ['always', 'risky', 'never'];
 export const ALLOWED_BROWSERS = ['', 'brave', 'chrome', 'firefox', 'safari'];
 
-export const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,99}$/;
+const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,99}$/;
 export const PROXY_PATTERN = /^(socks5h?|socks4a?|https?):\/\/[A-Za-z0-9.\-[\]:]+\/?$/;
 
 /** An invalid setting. The message is safe to show to the user. */

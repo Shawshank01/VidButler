@@ -17,11 +17,11 @@ import { ProviderError } from './errors.js';
 import { MAX_USER_MESSAGE_CHARS } from './limits.js';
 import { MESSAGES } from './messages.js';
 import { buildSystemPrompt } from './prompt.js';
-import { ALLOWED_BROWSERS, AiSettingsError, MODES, CONFIRM_MODES, sanitizeProviderConfig } from './provider-settings.js';
+import { AiSettingsError } from './provider-settings.js';
 import { redactSecrets } from './redact.js';
 
 // Re-exported for the app and tests, which import everything AI-related from here.
-export { AiSettingsError, MODES, CONFIRM_MODES, ALLOWED_BROWSERS, sanitizeProviderConfig, trimHistory };
+export { AiSettingsError, trimHistory };
 
 const failure = (kind, message) => ({ ok: false, error: { kind, message } });
 

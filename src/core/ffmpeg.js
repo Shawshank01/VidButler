@@ -5,14 +5,14 @@ import { taskManager } from './task-manager.js';
 import { logger } from './logger.js';
 
 // Platform-adaptive default subtitle font (single font family name without commas for ASS style)
-export const DEFAULT_SUBTITLE_FONT = process.platform === 'darwin'
+const DEFAULT_SUBTITLE_FONT = process.platform === 'darwin'
     ? 'PingFang SC'
     : process.platform === 'win32'
         ? 'Microsoft YaHei'
         : 'DejaVu Sans';
 
 // Centralised transcoding and encoding configuration parameters
-export const TRANSCODE_CONFIG = {
+const TRANSCODE_CONFIG = {
     crf: '22',
     preset: 'veryslow',
     audioBitrate: '128k',

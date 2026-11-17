@@ -8,7 +8,7 @@ const MAX_STRING_CHARS = 2048;
 const isShortString = (v) => typeof v === 'string' && v.length <= MAX_STRING_CHARS;
 
 /** Setting name -> predicate for an acceptable value. */
-export const CLASSIC_SETTINGS = {
+const CLASSIC_SETTINGS = {
     downloadFolder: isShortString,
     browser: (v) => ALLOWED_BROWSERS.includes(v),
     subtitlePosition: (v) => v === 'bottom' || v === 'top',

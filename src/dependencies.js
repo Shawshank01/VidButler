@@ -6,7 +6,7 @@ import fs from 'fs';
  * Get known standard binary directories across all environments.
  * Covers MacPorts, Homebrew, user paths, Linux package managers, and Windows paths.
  */
-export function getGlobalExtraPaths() {
+function getGlobalExtraPaths() {
     const home = process.env.HOME || '';
     if (process.platform === 'win32') {
         const localAppData = process.env.LOCALAPPDATA || '';
@@ -192,7 +192,7 @@ const MAX_BUFFER_BYTES = 20 * 1024 * 1024;
 /**
  * Execute a shell command and return captured stdout, stderr, and success status.
  */
-export function runCommandWithOutput(command) {
+function runCommandWithOutput(command) {
     return new Promise((resolve) => {
         exec(command, { maxBuffer: MAX_BUFFER_BYTES }, (error, stdout, stderr) => {
             if (error) {
@@ -259,7 +259,7 @@ export async function findExecutable(name) {
 /**
  * Check if a CLI binary exists on the system globally and fetch its version.
  */
-export async function getDependencyInfo(name, versionCommand) {
+async function getDependencyInfo(name, versionCommand) {
     const execPath = await findExecutable(name);
     if (!execPath) {
         return {
@@ -314,7 +314,7 @@ export async function checkFfmpegSubtitlesSupport(ffmpegPath = 'ffmpeg') {
 /**
  * Detect available package managers globally across platforms.
  */
-export async function detectPackageManagers() {
+async function detectPackageManagers() {
     const managers = {};
     if (process.platform === 'darwin') {
         const [portInfo, brewInfo] = await Promise.all([

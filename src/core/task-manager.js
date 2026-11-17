@@ -93,4 +93,4 @@ class TaskManager {
 
 const taskManager = new TaskManager();
 
-export { TaskManager, taskManager };
+export { taskManager };

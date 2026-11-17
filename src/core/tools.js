@@ -137,7 +137,7 @@ export async function runYtDlp(args, onProgress = noop) {
  * @param {string[]} args
  * @returns {Promise<{ok: boolean, output: string, error: string}>}
  */
-export async function queryYtDlp(args) {
+async function queryYtDlp(args) {
     const executable = await findExecutable('yt-dlp');
     if (!executable) {
         return { ok: false, output: '', error: 'yt-dlp is not installed.' };

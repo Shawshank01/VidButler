@@ -193,6 +193,10 @@ test('mode switch notice accommodates full text without artificial truncation', 
     assert.match(aiUi, /els\.notice\.title\s*=\s*text/);
 });
 
+test('aiThinkingSelect has no static options in index.html', () => {
+    assert.match(html, /<select\b[^>]*id="aiThinkingSelect"[^>]*>\s*<\/select>/);
+});
+
 
 
 

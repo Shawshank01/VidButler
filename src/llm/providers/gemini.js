@@ -5,7 +5,7 @@ import { isStreamable, parseStreamJson, readJsonBody, readSse } from './stream.j
 
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
-export const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
  * How much the model "thinks" before answering.

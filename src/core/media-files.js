@@ -5,13 +5,13 @@ import { promises as fs } from 'fs';
 export const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.m4v'];
 
 // Supported audio file extensions
-export const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.opus', '.flac', '.wav', '.aac', '.ogg', '.weba', '.wma', '.alac'];
+const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.opus', '.flac', '.wav', '.aac', '.ogg', '.weba', '.wma', '.alac'];
 
 // Combined media extensions for media discovery and inspection
-export const MEDIA_EXTENSIONS = [...VIDEO_EXTENSIONS, ...AUDIO_EXTENSIONS];
+const MEDIA_EXTENSIONS = [...VIDEO_EXTENSIONS, ...AUDIO_EXTENSIONS];
 
 // Supported image extensions for video thumbnails
-export const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.webp', '.png'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.webp', '.png'];
 
 // Find matching thumbnail file using exact basename match or basename prefix
 export function findMatchingThumbnail(files, baseName) {
