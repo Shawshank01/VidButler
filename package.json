@@ -8,7 +8,7 @@
     "test": "node --test test/",
     "prestart": "node src/check-dependencies.js",
     "start": "electron .",
-    "lint": "eslint \"src/**/*.js\" \"test/**/*.js\"",
+    "lint": "eslint .",
     "postinstall": "electron-builder install-app-deps",
     "prepare-tools": "node scripts/prepare-tools.mjs",
     "build": "pnpm prepare-tools && electron-builder --publish never",

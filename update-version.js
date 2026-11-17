@@ -47,7 +47,6 @@ const versionType = args[0]; // 'patch', 'minor', 'major', or specific version l
 
 if (!versionType) {
     error('Please specify version type: patch, minor, major, or specific version (e.g., 2.2.3)');
-    process.exit(1);
 }
 
 try {
@@ -109,7 +108,14 @@ try {
             rl.question(`\nSelect version type (1-5) or press Enter for ${newVersion}: `, resolve);
         });
 
-        switch (choice.trim()) {
+        const trimmedChoice = choice.trim();
+        if (trimmedChoice === '5') {
+            info('Version update cancelled.');
+            rl.close();
+            process.exit(0);
+        }
+
+        switch (trimmedChoice) {
             case '1':
                 selectedVersion = `${major}.${minor}.${patch + 1}`;
                 break;
@@ -119,7 +125,7 @@ try {
             case '3':
                 selectedVersion = `${major + 1}.0.0`;
                 break;
-            case '4':
+            case '4': {
                 const customVersion = await new Promise((resolve) => {
                     rl.question('Enter custom version (e.g., 2.3.0): ', resolve);
                 });
@@ -130,10 +136,7 @@ try {
                     continue;
                 }
                 break;
-            case '5':
-                info('Version update cancelled.');
-                rl.close();
-                process.exit(0);
+            }
             case '':
                 // Use the originally calculated version
                 selectedVersion = newVersion;
@@ -176,19 +179,18 @@ try {
         log('(You can use markdown formatting)', 'yellow');
 
         const notes = [];
-        let lineCount = 0;
+        let readingNotes = true;
 
-        while (true) {
+        while (readingNotes) {
             const line = await new Promise((resolve) => {
-                rl2.question(lineCount === 0 ? 'Release notes: ' : '> ', resolve);
+                rl2.question(notes.length === 0 ? 'Release notes: ' : '> ', resolve);
             });
 
-            if (line === '' && lineCount > 0) {
-                break; // Empty line after content means done
+            if (line === '' && notes.length > 0) {
+                readingNotes = false; // Empty line after content means done
+            } else {
+                notes.push(line);
             }
-
-            notes.push(line);
-            lineCount++;
         }
 
         releaseNotes = notes.join('\n');
@@ -209,7 +211,7 @@ try {
             console.log(gitStatus);
             process.exit(1);
         }
-    } catch (err) {
+    } catch {
         error('Failed to check git status. Make sure you are in a git repository.');
     }
 
@@ -271,7 +273,7 @@ try {
         success(`Created git tag: ${tagName}`);
 
         // Clean up temp file
-        try { unlinkSync(tagMessagePath); } catch { }
+        try { unlinkSync(tagMessagePath); } catch { /* ignore */ }
 
         // Push both the commit and tag together to GitHub
         const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim() || 'main';

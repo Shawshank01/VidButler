@@ -197,6 +197,36 @@ test('aiThinkingSelect has no static options in index.html', () => {
     assert.match(html, /<select\b[^>]*id="aiThinkingSelect"[^>]*>\s*<\/select>/);
 });
 
+test('index.html enforces a strict Content-Security-Policy without inline handlers', () => {
+    const cspMatch = html.match(/<meta\b[^>]*http-equiv="Content-Security-Policy"[^>]*content="([^"]+)"/i);
+    assert.ok(cspMatch, 'index.html should define a Content-Security-Policy meta tag');
+    const csp = cspMatch[1];
+    assert.match(csp, /\bdefault-src 'none'/);
+    assert.match(csp, /\bscript-src 'self' 'report-sample'/);
+    assert.match(csp, /\bconnect-src 'none'/);
+    assert.match(csp, /\bobject-src 'none'/);
+    assert.match(csp, /\bbase-uri 'none'/);
+    assert.match(csp, /\bform-action 'none'/);
+    assert.doesNotMatch(csp, /'unsafe-eval'/);
+    assert.doesNotMatch(csp, /\bframe-ancestors\b/);
+    const scriptSrc = csp.match(/\bscript-src[^;]*/)?.[0] ?? '';
+    assert.doesNotMatch(scriptSrc, /'unsafe-inline'/);
+    assert.doesNotMatch(html, /\son[a-z]+\s*=/i);
+});
+
+test('Choose, Run, and Check for Updates buttons are wired via addEventListener in renderer.js', () => {
+    for (const id of ['chooseFolderBtn', 'runCommandBtn', 'checkUpdateBtn']) {
+        assert.match(html, new RegExp(`id="${id}"`));
+        assert.match(rendererScript, new RegExp(`getElementById\\('${id}'\\)[\\s\\S]*?addEventListener\\('click'`));
+    }
+});
+
+test('main.js denies new windows and unexpected navigations', () => {
+    assert.match(main, /setWindowOpenHandler\(\(\)\s*=>\s*\(\{\s*action:\s*'deny'\s*\}\)\)/);
+    assert.match(main, /win\.webContents\.on\('will-navigate'/);
+    assert.match(main, /event\.preventDefault\(\)/);
+});
+
 
 
 

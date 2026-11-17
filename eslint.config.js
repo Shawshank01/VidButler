@@ -1,10 +1,17 @@
 import js from "@eslint/js";
 import globals from "globals";
 
+const sharedRules = {
+    "no-unused-vars": "warn",
+    "no-console": "off",
+    "no-undef": "warn"
+};
+
 export default [
+    { ignores: ["dist/**", "build-tools/**", "out/**", "coverage/**"] },
     js.configs.recommended,
     {
-        files: ["src/**/*.js", "test/**/*.js"],
+        files: ["**/*.{js,mjs}"],
         languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",
@@ -13,10 +20,18 @@ export default [
                 ...globals.node,
             }
         },
-        rules: {
-            "no-unused-vars": "warn",
-            "no-console": "off",
-            "no-undef": "warn"
-        }
+        rules: sharedRules
+    },
+    {
+        files: ["**/*.cjs"],
+        languageOptions: {
+            ecmaVersion: "latest",
+            sourceType: "commonjs",
+            globals: {
+                ...globals.browser,
+                ...globals.node,
+            }
+        },
+        rules: sharedRules
     }
 ];

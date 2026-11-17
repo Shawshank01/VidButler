@@ -1,5 +1,3 @@
-/* global process */
-
 import { chmod, copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

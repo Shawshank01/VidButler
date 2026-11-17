@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, clipboard } from 'electron';
 import updaterPackage from 'electron-updater';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import { mkdir, stat } from 'fs/promises';
@@ -279,7 +279,15 @@ function createWindow() {
             contextIsolation: true
         }
     });
-    win.loadFile(join(__dirname, 'index.html'));
+    const indexPath = join(__dirname, 'index.html');
+    const allowedAppUrl = pathToFileURL(indexPath).href;
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    win.webContents.on('will-navigate', (event, navigationUrl) => {
+        if (navigationUrl !== allowedAppUrl && !navigationUrl.startsWith(`${allowedAppUrl}#`)) {
+            event.preventDefault();
+        }
+    });
+    win.loadFile(indexPath);
 
     // Maximise the window
     win.maximize();
