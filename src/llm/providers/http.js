@@ -1,5 +1,33 @@
 import { ProviderError, errorFromResponse } from '../errors.js';
-import { MODEL_REQUEST_TIMEOUT_MS } from '../limits.js';
+import { MAX_RETRY_AFTER_MS, MODEL_REQUEST_TIMEOUT_MS } from '../limits.js';
+
+/**
+ * Parse an HTTP `Retry-After` header (non-negative seconds or HTTP-date) into milliseconds.
+ * Returns `null` when missing, malformed, or negative.
+ * @param {string | null | undefined} value
+ * @param {number} [now]
+ * @returns {number | null}
+ */
+export function parseRetryAfterMs(value, now = Date.now()) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (/^[+-]?\d+(?:\.\d+)?$/.test(trimmed)) {
+        const seconds = Number(trimmed);
+        if (!Number.isFinite(seconds) || seconds < 0) return null;
+        return Math.ceil(seconds * 1000);
+    }
+
+    if (/\d{2}:\d{2}:\d{2}/.test(trimmed)) {
+        const dateMs = Date.parse(trimmed);
+        if (!Number.isNaN(dateMs)) {
+            return Math.max(0, dateMs - now);
+        }
+    }
+
+    return null;
+}
 
 
 /** Default number of retries for model calls (so up to 2 attempts in total: 1 initial attempt + 1 retry). */
@@ -31,7 +59,9 @@ function sleep(ms, signal) {
 function isTransient(err) {
     if (!(err instanceof ProviderError)) return false;
     if (err.retryable === false) return false;
+    if (err.retryAfterMs !== null && err.retryAfterMs > MAX_RETRY_AFTER_MS) return false;
     if (err.kind === 'network') return true;
+    if (err.kind === 'rate_limit' && err.status === 429) return err.retryAfterMs !== null;
     return err.kind === 'server' && [500, 502, 503, 504].includes(err.status);
 }
 
@@ -65,7 +95,8 @@ async function attemptFetch({ fetchImpl, providerName, url, method, headers, bod
     }
 
     if (!response.ok) {
-        throw errorFromResponse(providerName, response.status, await response.text(), { model });
+        const retryAfterMs = parseRetryAfterMs(response.headers?.get?.('retry-after'));
+        throw errorFromResponse(providerName, response.status, await response.text(), { model, retryAfterMs });
     }
     return response;
 }
@@ -88,7 +119,7 @@ async function withRetries(attempt, { retries, retryDelayMs, signal, onRetry }) 
             return await attempt();
         } catch (err) {
             if (n >= retries || !isTransient(err) || signal?.aborted) throw err;
-            const delayMs = retryDelayMs * 2 ** n;
+            const delayMs = err.retryAfterMs ?? retryDelayMs * 2 ** n;
             if (onRetry) {
                 onRetry({
                     attempt: n + 1,

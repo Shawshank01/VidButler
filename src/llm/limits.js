@@ -20,3 +20,4 @@ export const CONFIRMATION_TIMEOUT_MS = 5 * 60 * 1000;
 export const MODEL_REQUEST_TIMEOUT_MS = 240000;
 export const LOCAL_MODEL_REQUEST_TIMEOUT_MS = 300000; // local models can be slow to load
 export const CONNECTION_TEST_TIMEOUT_MS = 15000;
+export const MAX_RETRY_AFTER_MS = 60 * 1000;

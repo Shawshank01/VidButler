@@ -3,11 +3,12 @@
 // kind: 'auth' | 'rate_limit' | 'not_found' | 'bad_request' | 'server' | 'network' | 'aborted' | 'bad_response'
 
 export class ProviderError extends Error {
-    constructor(message, { kind = 'server', status = 0 } = {}) {
+    constructor(message, { kind = 'server', status = 0, retryAfterMs = null } = {}) {
         super(message);
         this.name = 'ProviderError';
         this.kind = kind;
         this.status = status;
+        this.retryAfterMs = retryAfterMs;
     }
 }
 
@@ -28,37 +29,40 @@ function extractMessage(bodyText) {
  * @param {string} providerName  Display name, e.g. "Gemini".
  * @param {number} status        HTTP status.
  * @param {string} bodyText      Raw response body.
- * @param {{model?: string}} [info]
+ * @param {{model?: string, retryAfterMs?: number | null}} [info]
  */
-export function errorFromResponse(providerName, status, bodyText, { model } = {}) {
+export function errorFromResponse(providerName, status, bodyText, { model, retryAfterMs = null } = {}) {
     const detail = extractMessage(bodyText);
 
     if (status === 429) {
+        const waitAdvice = typeof retryAfterMs === 'number' && retryAfterMs >= 1000
+            ? `Wait ${Math.ceil(retryAfterMs / 1000)} s`
+            : 'Wait a moment';
         return new ProviderError(
-            `${providerName} rate limit or quota reached. Wait a moment, switch provider, or use Classic mode.${detail ? ` (${detail})` : ''}`,
-            { kind: 'rate_limit', status }
+            `${providerName} rate limit or quota reached. ${waitAdvice}, switch provider, or use Classic mode.${detail ? ` (${detail})` : ''}`,
+            { kind: 'rate_limit', status, retryAfterMs }
         );
     }
     if (status === 401 || status === 403 || /api key not valid|API_KEY_INVALID/i.test(detail)) {
         return new ProviderError(
             `${providerName} rejected the API key. Check it in settings.${detail ? ` (${detail})` : ''}`,
-            { kind: 'auth', status }
+            { kind: 'auth', status, retryAfterMs }
         );
     }
     if (status === 404) {
         return new ProviderError(
             `${providerName} could not find ${model ? `model "${model}"` : 'the requested resource'}. Check the model ID in settings.${detail ? ` (${detail})` : ''}`,
-            { kind: 'not_found', status }
+            { kind: 'not_found', status, retryAfterMs }
         );
     }
     if (status >= 500) {
         return new ProviderError(
             `${providerName} is having problems (HTTP ${status}). This is on their side, not yours: try again in a minute, switch provider in AI Settings, or use Classic mode.${detail ? ` (${detail})` : ''}`,
-            { kind: 'server', status }
+            { kind: 'server', status, retryAfterMs }
         );
     }
     return new ProviderError(
         `${providerName} rejected the request (HTTP ${status})${detail ? `: ${detail}` : '.'}`,
-        { kind: 'bad_request', status }
+        { kind: 'bad_request', status, retryAfterMs }
     );
 }

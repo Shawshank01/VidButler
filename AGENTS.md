@@ -18,7 +18,7 @@ It originally had only a form-based UI ("Classic mode"). The goal of the current
 | 2. AI backend | `src/llm/`: 13 tools, input validation, agent loop, four provider adapters, system prompt. | Done |
 | 3A. Main-process integration | Encrypted API-key storage, chat service (settings, conversation, confirmations, cancel), IPC and preload API (`window.electronAPI.ai`). | Done, user-verified (key save, connection test) |
 | 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / SOCKS5 context controls. | Done, user-verified |
-| Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines. | Done |
+| Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines, CSP and navigation guards, repo-wide ESLint. | Done |
 | Built-in updates | Packaged apps check GitHub Releases at launch. Windows and Linux AppImages ask before downloading, then install and restart. Unsigned macOS builds offer a copyable Homebrew tap command plus a GitHub fallback; the cask removes quarantine. | Done, unit-tested; packaged flow needs live verification |
 
 ## 3. Architecture
@@ -72,7 +72,7 @@ src/llm/                 Electron-free:
   providers/               gemini, xai, ollama, openai-compatible, index (PROVIDER_TYPES capabilities),
                            http.js (requestJson/requestStream, retries), stream.js (SSE / NDJSON readers)
   prompt.js, messages.js, limits.js, redact.js, validate.js, errors.js, key-store.js
-test/                    node:test suite (202 tests)
+test/                    node:test suite (222 tests)
 ```
 
 `core/` and `llm/` never import Electron. Anything Electron-specific (safeStorage, userData path, windows) is injected from `main.js`.
@@ -131,7 +131,7 @@ Call model, run requested tools **one at a time** (the app allows one yt-dlp/ffm
 
 **Ollama**: `/api/chat`, needs a tool-capable model, streamed NDJSON. Unsupported-tools and unreachable-server errors are turned into actionable messages for both streaming and non-streaming calls. lfm3:1.7b has passed testing.
 
-**Retries** (`providers/http.js`): `DEFAULT_RETRIES` is **1** (up to 2 attempts), 3.0 s backoff, only for HTTP 500/502/503/504 and connection errors; not for 4xx, 429 or a request that already hit its timeout. They apply to requests before a streamed response starts. Cancelling during the wait stops immediately. The UI shows "retrying". Tests derive their expectations from `DEFAULT_RETRIES`.
+**Retries** (`providers/http.js`): `DEFAULT_RETRIES` is **1** (up to 2 attempts), 3.0 s backoff, for HTTP 500/502/503/504, connection errors, and HTTP 429 responses that include a `Retry-After` header; not for other 4xx errors, bare 429s without `Retry-After`, or requests that already hit their timeout. When a `Retry-After` header (delay-seconds or HTTP-date) is present up to `MAX_RETRY_AFTER_MS` (60 s), it overrides exponential backoff; longer waits fail immediately instead of blocking. Retries apply to requests before a streamed response starts. Cancelling during the wait stops immediately. The UI shows "retrying". Tests derive their expectations from `DEFAULT_RETRIES`.
 
 ## 6. Where data lives
 
@@ -147,20 +147,20 @@ macOS (dev run): `~/Library/Application Support/vidbutler/` (or `VidButler/` in 
 ## 7. Testing and verification
 
 ```bash
-pn install
-pn run lint     # ESLint, src/ and test/
-pn test         # node --test test/   (202 tests, no network, no API key; a few need ffmpeg/ffprobe on PATH)
+pnpm install
+pnpm run lint   # ESLint across repo (.js, .mjs, .cjs)
+pnpm test       # node --test test/   (222 tests, no network, no API key; a few need ffmpeg/ffprobe on PATH)
 ```
 
-Test files: `validate`, `providers` (adapters with mocked `fetch`, retries), `agent` (scripted fake model), `chat-service`, `llm-core` (conversation, confirmations, redaction, streaming, prompt/registry consistency, security checks), `infrastructure` (settings store, logger, bundled-tool detection), `api-contract` (`electron.d.ts` matches `preload.cjs`; every invoked IPC channel has a handler), `key-store`, `markdown`, `ui-wiring` (static checks: element IDs, script order, no `innerHTML`), `update` and `update-manifest` (update coordinator, release manifest merge), `media-info` (ffprobe summary, media file lookup; uses the real `ffmpeg`/`ffprobe`), `core-io` (output decoding, hardsub source discovery, ffmpeg arguments), `external-url` (`open-external` allow-list).
+Test files: `validate`, `providers` (adapters with mocked `fetch`, retries), `agent` (scripted fake model), `chat-service`, `llm-core` (conversation, confirmations, redaction, streaming, prompt/registry consistency, security checks), `infrastructure` (settings store, logger, bundled-tool detection), `api-contract` (`electron.d.ts` matches `preload.cjs`; every invoked IPC channel has a handler), `key-store`, `markdown`, `ui-wiring` (static checks: element IDs, script order, no `innerHTML`, CSP, no inline handlers, navigation guards), `update` and `update-manifest` (update coordinator, release manifest merge), `homebrew-cask`, `shared-utilities`, `media-info` (ffprobe summary, media file lookup; uses the real `ffmpeg`/`ffprobe`), `core-io` (output decoding, hardsub source discovery, ffmpeg arguments), `external-url` (`open-external` allow-list).
 
-CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull requests to `main` that touch `src/`, `test/`, `*.js`, `package.json`, the lockfile or the workflow. Run the tests on a clean checkout before pushing; a local working tree can differ from what CI sees (this once hid a changed retry default).
+CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull requests to `main` that touch `src/`, `test/`, `scripts/`, `*.js`, `package.json`, the lockfile or the workflow. Run the tests on a clean checkout before pushing; a local working tree can differ from what CI sees (this once hid a changed retry default).
 
 **Not covered by automated tests / not verified live:**
 
 - The Electron window: no end-to-end test exists. UI behaviour is checked only by static tests plus manual runs.
 - A packaged Windows/Linux automatic update from an older release through download, install, and relaunch. The macOS launch prompt, copied Homebrew command, tap refresh/upgrade, and cask quarantine removal also need a live run.
-- **Everything changed in the 2026-11 review pass has been verified only by unit tests.** Click through before releasing: mode switch, a chat turn with streaming, an Allow/Deny dialog (including the new "address was not in your message" text), Stop mid-download, closing/reloading the window during a request, saving AI settings, a packaged build finding the bundled `yt-dlp`/`ffmpeg`.
+- **Everything changed in the 2026-11 review pass has been verified only by unit tests.** Click through before releasing: mode switch, a chat turn with streaming, an Allow/Deny dialog (including the new "address was not in your message" text), Stop mid-download, closing/reloading the window during a request, saving AI settings, a packaged build finding the bundled `yt-dlp`/`ffmpeg`, clicking `Choose` / `Run` / `Check for Updates` and verifying CSP in a live window after the inline-handler refactor.
 - Live runs of: hardsub / re-encode / delete via the assistant, the thinking-level setting, xAI, Ollama, the generic OpenAI-compatible provider, Windows and Linux (safeStorage and PATH behaviour differ).
 - The xAI and Ollama adapters have only been tested against mocked responses.
 
@@ -169,17 +169,17 @@ CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull request
 - The assistant can do only what the 13 tools allow. **No trimming, GIFs, joining, resizing, speed change, SponsorBlock, chapter/metadata editing, or downloading a time range.** It says so and suggests a command instead.
 - One conversation at a time; history is lost on New chat or quit; capped at 40 messages.
 - UI strings and the system prompt are English only (the model answers in the user's language). `messages.js` centralises the text but is not a translation layer.
-- **`renderer.js` (about 1,670 lines) and `ai-ui.js` (about 900 lines) are large classic scripts** sharing global state and DOM IDs. They were deliberately not split because nothing but a manual click-through can catch wiring mistakes. If you split them, do it with a smoke test of each dialog.
+- **`renderer.js` (about 1,620 lines) and `ai-ui.js` (about 900 lines) are large classic scripts** sharing global state and DOM IDs. They were deliberately not split because nothing but a manual click-through can catch wiring mistakes. If you split them, do it with a smoke test of each dialog.
 - Re-encoding an `.mp4` replaces the original file (flagged high risk and described in the confirmation text).
 - Small local models have not been evaluated; expect weaker tool selection.
 - The login-shell `PATH` is read once per app run, so changes to shell config are picked up after a restart.
-- `src/index.html` has no Content-Security-Policy (it still uses inline `onclick` and `style` attributes, which a strict policy would block). `open-external` only opens `http(s)` and the macOS privacy settings pane (`external-url.js`).
+- `src/index.html` enforces a `Content-Security-Policy` (`default-src 'none'; script-src 'self' 'report-sample'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`) and `src/main.js` blocks unexpected navigation and popups (`will-navigate`, `setWindowOpenHandler`), while `style-src` still allows `'unsafe-inline'` because `index.html`, `renderer.js`, and `ai-ui.js` use inline `style` attributes. `open-external` only opens `http(s)` and the macOS privacy settings pane (`external-url.js`).
 
 ## 9. Roadmap (suggested order)
 
 ### A. Close the capability gap (the original goal)
 
-1. Typed tools, each validated and building its own arguments: `trim_video` (start/end, stream copy or re-encode), `convert_media`, `extract_audio_from_file`, `make_gif`, `compress_video` (target size or CRF), `merge/concat`, `change_speed`, `resize`, `download_section` (`--download-sections`), SponsorBlock, chapters/metadata, playlist ranges. Add them as new files under `src/llm/tools/` with a name in `TOOL_NAMES`.
+1. Typed tools, each validated and building its own arguments: `trim_video` (start/end, stream copy or re-encode), `convert_media`, `make_gif`, `compress_video` (target size or CRF), `merge/concat`, `change_speed`, `resize`, `download_section` (`--download-sections`), SponsorBlock, chapters/metadata, playlist ranges. Add them as new files under `src/llm/tools/` with a name in `TOOL_NAMES`.
 2. Then a **guarded passthrough** (`run_ytdlp`, `run_ffmpeg`) for the long tail: flag **allowlist** (not denylist); block `--exec`, `--exec-before-download`, `--config-locations`, `--plugin-dirs`, `--cookies-from-browser` changes, output templates escaping the folder; for ffmpeg, restrict input/output paths to the download folder and block protocol/file-reading filters (`concat:`, `movie=`, `subtitles=` on outside files, `drawtext` with `textfile`, lavfi network sources); always show the exact command and require confirmation.
 3. Add tests for every new tool, including path-escape and flag-injection cases.
 
@@ -189,11 +189,11 @@ Show the command a step ran (collapsible), "Reveal in Finder / Open folder" butt
 
 ### C. Providers
 
-Add a model dropdown from each provider's list-models endpoint; honour `Retry-After`; optional automatic fallback to another model or provider after repeated 503; Anthropic adapter (add it to `PROVIDER_TYPES`); token and cost display; evaluate and document recommended Ollama models.
+Add a model dropdown from each provider's list-models endpoint; optional automatic fallback to another model or provider after repeated 503; Anthropic adapter (add it to `PROVIDER_TYPES`); token and cost display; evaluate and document recommended Ollama models.
 
 ### D. Quality and security
 
-Electron end-to-end smoke test (Playwright for Electron, run outside restricted sandboxes); prompt to tool-call evaluation suite per provider (including small models); prompt-injection tests with malicious titles and subtitles; add a CSP meta tag and a `will-navigate` guard; test the packaged app on Windows and Linux; AI-mode screenshots in the README.
+Electron end-to-end smoke test (Playwright for Electron, run outside restricted sandboxes); prompt to tool-call evaluation suite per provider (including small models); prompt-injection tests with malicious titles and subtitles; test the packaged app on Windows and Linux.
 
 ## 10. Working agreements for whoever continues
 

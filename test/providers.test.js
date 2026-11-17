@@ -6,7 +6,8 @@ import { OllamaProvider } from '../src/llm/providers/ollama.js';
 import { OpenAICompatibleProvider } from '../src/llm/providers/openai-compatible.js';
 import { createProvider } from '../src/llm/providers/index.js';
 import { ProviderError } from '../src/llm/errors.js';
-import { requestJson, DEFAULT_RETRIES, DEFAULT_RETRY_DELAY_MS } from '../src/llm/providers/http.js';
+import { requestJson, parseRetryAfterMs, DEFAULT_RETRIES, DEFAULT_RETRY_DELAY_MS } from '../src/llm/providers/http.js';
+import { MAX_RETRY_AFTER_MS } from '../src/llm/limits.js';
 
 const TOOLS = [
     {
@@ -24,10 +25,11 @@ function fakeFetch(responses) {
         calls.push({ url, init, body: init.body ? JSON.parse(init.body) : undefined });
         const next = queue.shift();
         if (next instanceof Error) throw next;
-        const { status = 200, json } = next;
+        const { status = 200, json, headers } = next;
         return {
             ok: status >= 200 && status < 300,
             status,
+            headers: new Headers(headers || {}),
             text: async () => (typeof json === 'string' ? json : JSON.stringify(json))
         };
     };
@@ -697,6 +699,114 @@ test('retry: also applies to Ollama and OpenAI-compatible servers', async () => 
     const openai = fakeFetch([{ status: 502, json: {} }, { json: { choices: [{ message: { content: 'yo' } }] } }]);
     const p = await new OpenAICompatibleProvider({ model: 'm', retryDelayMs: 1, fetchImpl: openai }).chat({ system: '', messages: userMessages });
     assert.equal(p.text, 'yo');
+});
+
+test('parseRetryAfterMs handles delay-seconds, HTTP-dates, and invalid values', () => {
+    const now = Date.UTC(2026, 0, 1, 0, 0, 0);
+    assert.equal(parseRetryAfterMs('5', now), 5000);
+    assert.equal(parseRetryAfterMs(' 1.5 ', now), 1500);
+    assert.equal(parseRetryAfterMs('0', now), 0);
+    assert.equal(parseRetryAfterMs(new Date(now + 4000).toUTCString(), now), 4000);
+    assert.equal(parseRetryAfterMs(new Date(now - 5000).toUTCString(), now), 0);
+    for (const invalid of ['-5', 'foo 1', 'soon', '', '   ', null, undefined]) {
+        assert.equal(parseRetryAfterMs(invalid, now), null);
+    }
+});
+
+test('retry: 503 with Retry-After overrides retryDelayMs for seconds and HTTP-date', async () => {
+    const secFetch = fakeFetch([
+        { status: 503, headers: { 'Retry-After': '0.02' }, json: { error: { message: 'busy' } } },
+        okReply
+    ]);
+    const secRetries = [];
+    const startedSec = Date.now();
+    const reply1 = await new GeminiProvider({ apiKey: 'k', retryDelayMs: 60000, fetchImpl: secFetch })
+        .chat({ system: '', messages: userMessages, onRetry: (i) => secRetries.push(i) });
+    assert.equal(reply1.text, 'ok');
+    assert.equal(secFetch.calls.length, 2);
+    assert.equal(secRetries[0].delayMs, 20);
+    assert.ok(Date.now() - startedSec < 5000, 'must override 60 s retryDelayMs');
+
+    const dateHeader = new Date(Date.now() + 1200).toUTCString();
+    const dateFetch = fakeFetch([
+        { status: 503, headers: { 'Retry-After': dateHeader }, json: { error: { message: 'busy' } } },
+        okReply
+    ]);
+    const dateRetries = [];
+    const startedDate = Date.now();
+    const reply2 = await new GeminiProvider({ apiKey: 'k', retryDelayMs: 60000, fetchImpl: dateFetch })
+        .chat({ system: '', messages: userMessages, onRetry: (i) => dateRetries.push(i) });
+    assert.equal(reply2.text, 'ok');
+    assert.equal(dateFetch.calls.length, 2);
+    assert.ok(dateRetries[0].delayMs >= 0 && dateRetries[0].delayMs <= 2000);
+    assert.ok(Date.now() - startedDate < 5000, 'HTTP-date Retry-After must override 60 s retryDelayMs');
+});
+
+test('retry: 429 with short Retry-After retries and succeeds (non-streaming and streaming)', async () => {
+    const fetchJson = fakeFetch([
+        { status: 429, headers: { 'Retry-After': '0.01' }, json: { error: { message: 'slow down' } } },
+        okReply
+    ]);
+    const retries = [];
+    const reply = await new GeminiProvider({ apiKey: 'k', retryDelayMs: 60000, fetchImpl: fetchJson })
+        .chat({ system: '', messages: userMessages, onRetry: (i) => retries.push(i) });
+    assert.equal(reply.text, 'ok');
+    assert.equal(fetchJson.calls.length, 2);
+    assert.equal(retries[0].reason, 'HTTP 429');
+    assert.equal(retries[0].delayMs, 10);
+
+    let streamCalls = 0;
+    const streamFetch = async () => {
+        streamCalls += 1;
+        if (streamCalls === 1) {
+            return new Response('{"error":{"message":"slow down"}}', {
+                status: 429,
+                headers: { 'Retry-After': '0.01' }
+            });
+        }
+        const chunks = [
+            'data: {"event_type":"step.start","index":0,"step":{"type":"model_output"}}\n\n',
+            'data: {"event_type":"step.delta","index":0,"delta":{"type":"text","text":"stream ok"}}\n\n',
+            'data: {"event_type":"interaction.completed","interaction":{"id":"int_429","status":"completed"}}\n\n'
+        ];
+        return {
+            ok: true,
+            status: 200,
+            body: new ReadableStream({
+                start(controller) {
+                    for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+                    controller.close();
+                }
+            })
+        };
+    };
+    const deltas = [];
+    const streamReply = await new GeminiProvider({ apiKey: 'k', retryDelayMs: 60000, fetchImpl: streamFetch })
+        .chat({ system: '', messages: userMessages, onTextDelta: (d) => deltas.push(d) });
+    assert.equal(streamCalls, 2);
+    assert.deepEqual(deltas, ['stream ok']);
+    assert.equal(streamReply.text, 'stream ok');
+});
+
+test('retry: 503 and 429 with Retry-After exceeding MAX_RETRY_AFTER_MS fail immediately', async () => {
+    assert.equal(MAX_RETRY_AFTER_MS, 60000);
+    for (const status of [503, 429]) {
+        const fetchImpl = fakeFetch([
+            { status, headers: { 'Retry-After': '120' }, json: { error: { message: 'try later' } } },
+            okReply
+        ]);
+        const started = Date.now();
+        const err = await new GeminiProvider({ apiKey: 'k', retryDelayMs: 1, fetchImpl })
+            .chat({ system: '', messages: userMessages })
+            .catch((e) => e);
+        assert.equal(fetchImpl.calls.length, 1, `HTTP ${status} with Retry-After > MAX_RETRY_AFTER_MS must not retry`);
+        assert.equal(err.status, status);
+        assert.equal(err.retryAfterMs, 120000);
+        assert.ok(Date.now() - started < 2000, 'must fail immediately without waiting');
+        if (status === 429) {
+            assert.match(err.message, /Wait 120 s/);
+        }
+    }
 });
 
 test('xAI uses the Responses API with native tool calling and fixed endpoint', async () => {
