@@ -11,22 +11,29 @@ async function readRecords(response, separator, { signal, providerName }, onReco
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    for (; ;) {
-        let chunk;
-        try {
-            chunk = await reader.read();
-        } catch {
-            if (signal?.aborted) throw new ProviderError('Request cancelled.', { kind: 'aborted' });
-            throw new ProviderError(`The connection to ${providerName} was interrupted.`, { kind: 'network' });
+    try {
+        for (; ;) {
+            let chunk;
+            try {
+                chunk = await reader.read();
+            } catch {
+                if (signal?.aborted) throw new ProviderError('Request cancelled.', { kind: 'aborted' });
+                throw new ProviderError(`The connection to ${providerName} was interrupted.`, { kind: 'network' });
+            }
+            const { done, value } = chunk;
+            buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+            const records = buffer.split(separator);
+            buffer = records.pop() || '';
+            for (const record of records) onRecord(record);
+            if (done) break;
         }
-        const { done, value } = chunk;
-        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-        const records = buffer.split(separator);
-        buffer = records.pop() || '';
-        for (const record of records) onRecord(record);
-        if (done) break;
+        if (buffer.trim()) onRecord(buffer);
+    } catch (err) {
+        void reader.cancel().catch(() => {});
+        throw err;
+    } finally {
+        reader.releaseLock();
     }
-    if (buffer.trim()) onRecord(buffer);
 }
 
 /** Whether the response body can be read incrementally. */

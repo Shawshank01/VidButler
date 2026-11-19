@@ -195,7 +195,7 @@ test('Gemini: multi-turn chains with previous_interaction_id and tool results', 
     assert.deepEqual(call.body.input[1].result, [{ type: 'text', text: '{"ok":false,"error":"x"}' }]);
 });
 
-test('Gemini: multi-turn input avoids sending empty text parts in content', async () => {
+test('Gemini: multi-turn input uses typed steps without empty text parts', async () => {
     const fetchImpl = fakeFetch([{ json: { id: 'int_turn3', status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: 'ok' }] }] } }]);
     const provider = new GeminiProvider({ apiKey: 'k', fetchImpl });
 
@@ -216,8 +216,13 @@ test('Gemini: multi-turn input avoids sending empty text parts in content', asyn
     });
 
     const call = fetchImpl.calls[0];
-    const inputStr = JSON.stringify(call.body.input);
-    assert.ok(!inputStr.includes('"text":""'), 'should never send empty text string in input');
+    assert.deepEqual(call.body.input, [
+        { type: 'user_input', content: [{ type: 'text', text: 'first question' }] },
+        { type: 'function_call', id: 'call-1', name: 'download_video', arguments: {} },
+        { type: 'function_result', name: 'download_video', call_id: 'call-1', result: [{ type: 'text', text: 'saved' }] },
+        { type: 'model_output', content: [{ type: 'text', text: 'Done with first' }] },
+        { type: 'user_input', content: [{ type: 'text', text: 'second question' }] }
+    ]);
 });
 
 test('Gemini: error mapping (404 model, 429 quota, bad key, no key)', async () => {
@@ -332,7 +337,8 @@ test('Gemini streaming captures tool arguments streamed via partial_arguments', 
     const chunks = [
         'data: {"event_type":"step.start","index":0,"step":{"type":"function_call","name":"list_formats","id":"call_1"}}\n\n',
         'data: {"event_type":"step.delta","index":0,"delta":{"type":"arguments","partial_arguments":"{\\"url\\":\\"https://x.test/v\\"}"}}\n\n',
-        'data: {"event_type":"step.stop","index":0}\n\n'
+        'data: {"event_type":"step.stop","index":0}\n\n',
+        'data: {"event_type":"interaction.completed","interaction":{"id":"int_tool","status":"requires_action"}}\n\n'
     ];
     const fetchImpl = async () => ({
         ok: true,
@@ -352,6 +358,49 @@ test('Gemini streaming captures tool arguments streamed via partial_arguments', 
     assert.equal(reply.toolCalls.length, 1);
     assert.equal(reply.toolCalls[0].name, 'list_formats');
     assert.deepEqual(reply.toolCalls[0].args, { url: 'https://x.test/v' });
+});
+
+test('Gemini retries a truncated tool call without streaming, using the same input', async () => {
+    const bodies = [];
+    const retries = [];
+    const result = { id: 'int_recovered', status: 'completed', output_text: 'Recovered.' };
+    const gemini = new GeminiProvider({
+        apiKey: 'k',
+        fetchImpl: async (_url, init) => {
+            bodies.push(JSON.parse(init.body));
+            if (bodies.length === 1) {
+                return new Response('data: {"event_type":"step.start","step":{"type":"function_call","name":"delete_files"}}\n\n');
+            }
+            return Response.json(result);
+        }
+    });
+
+    const reply = await gemini.chat({
+        messages: [{ role: 'user', text: 'What did you save?' }],
+        onTextDelta: () => assert.fail('No text was streamed'),
+        onRetry: (info) => retries.push(info)
+    });
+    assert.equal(reply.text, result.output_text);
+    assert.deepEqual(reply.toolCalls, []);
+    assert.equal(reply.raw.interactionId, result.id);
+    assert.equal(bodies.length, 2);
+    assert.deepEqual(bodies[0], { ...bodies[1], stream: true });
+    assert.equal(retries.length, 1);
+});
+
+test('Gemini reports an error event without retrying after text has streamed', async () => {
+    const chunks = [
+        'data: {"event_type":"step.delta","delta":{"type":"text","text":"Partial reply"}}\n\n',
+        'data: {"event_type":"error","error":{"code":"gateway_timeout","message":"Deadline expired"}}\n\n'
+    ];
+    const deltas = [];
+    const gemini = new GeminiProvider({ apiKey: 'k', fetchImpl: async () => new Response(chunks.join('')) });
+    await assert.rejects(gemini.chat({
+        messages: [{ role: 'user', text: 'hello' }],
+        onTextDelta: (text) => deltas.push(text),
+        onRetry: () => assert.fail('Retrying could duplicate the streamed text')
+    }), /Deadline expired/);
+    assert.deepEqual(deltas, ['Partial reply']);
 });
 
 test('Gemini: testConnection uses a free GET on the model', async () => {

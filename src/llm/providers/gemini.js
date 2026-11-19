@@ -1,11 +1,18 @@
 import { ProviderError } from '../errors.js';
 import { CONNECTION_TEST_TIMEOUT_MS, MODEL_REQUEST_TIMEOUT_MS } from '../limits.js';
+import { MESSAGES } from '../messages.js';
 import { requestJson, requestStream, DEFAULT_RETRIES, DEFAULT_RETRY_DELAY_MS } from './http.js';
 import { isStreamable, parseStreamJson, readJsonBody, readSse } from './stream.js';
 
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+
+class InterruptedGeminiStreamError extends ProviderError {
+    constructor(message) {
+        super(message, { kind: 'bad_response' });
+    }
+}
 
 /**
  * How much the model "thinks" before answering.
@@ -131,30 +138,24 @@ export class GeminiProvider {
                 const text = typeof msg.text === 'string' ? msg.text.trim() : '';
                 if (text) {
                     input.push({
-                        role: 'user',
+                        type: 'user_input',
                         content: [{ type: 'text', text }]
                     });
                 }
             } else if (msg.role === 'assistant') {
                 const text = typeof msg.text === 'string' ? msg.text.trim() : '';
-                const content = [];
                 if (text) {
-                    content.push({ type: 'text', text });
-                }
-                if (Array.isArray(msg.toolCalls)) {
-                    for (const call of msg.toolCalls) {
-                        content.push({
-                            type: 'function_call',
-                            id: call.providerCallId || call.id,
-                            name: call.name,
-                            arguments: typeof call.args === 'string' ? call.args : JSON.stringify(call.args || {})
-                        });
-                    }
-                }
-                if (content.length > 0) {
                     input.push({
-                        role: 'model',
-                        content
+                        type: 'model_output',
+                        content: [{ type: 'text', text }]
+                    });
+                }
+                for (const call of msg.toolCalls || []) {
+                    input.push({
+                        type: 'function_call',
+                        id: call.providerCallId || call.id,
+                        name: call.name,
+                        arguments: call.args || {}
                     });
                 }
             } else if (msg.role === 'tool') {
@@ -170,7 +171,7 @@ export class GeminiProvider {
             }
         }
 
-        return { input: input.length === 1 && typeof input[0] === 'string' ? input[0] : input, previousInteractionId };
+        return { input, previousInteractionId };
     }
 
     /**
@@ -242,7 +243,20 @@ export class GeminiProvider {
             body: { ...payload, stream: true },
             timeoutMs: MODEL_REQUEST_TIMEOUT_MS
         });
-        return this.#readStream(response, signal, onTextDelta);
+        let emittedText = false;
+        try {
+            return await this.#readStream(response, signal, (text) => {
+                emittedText ||= Boolean(text);
+                onTextDelta(text);
+            });
+        } catch (err) {
+            if (!(err instanceof InterruptedGeminiStreamError) || emittedText || signal?.aborted || this.retries < 1) {
+                throw err;
+            }
+            // Resend the same model request, including any results from tools that already ran.
+            onRetry?.({ attempt: 1, retries: 1, delayMs: 0, reason: MESSAGES.geminiStreamInterrupted });
+            return requestJson({ ...request, retries: 0, timeoutMs: MODEL_REQUEST_TIMEOUT_MS });
+        }
     }
 
     /** Read the SSE stream into an interaction-shaped document. */
@@ -256,22 +270,25 @@ export class GeminiProvider {
 
         await readSse(response, { signal, providerName: this.displayName }, (payload) => {
             const data = parseStreamJson(payload, this.displayName);
+            const eventType = data.event_type || data.type;
 
-            // 1. interaction.completed or full interaction payload
-            if (data.event_type === 'interaction.completed' && data.interaction) {
+            if (eventType === 'error') {
+                const { code, message } = data.error || {};
+                const description = MESSAGES.geminiStreamError(message || code);
+                if (code === 'gateway_timeout') throw new InterruptedGeminiStreamError(description);
+                throw new ProviderError(description, { kind: 'bad_response' });
+            }
+
+            if (data.interaction?.id) lastInteractionId = data.interaction.id;
+            if (eventType === 'interaction.completed' && data.interaction) {
                 completedInteraction = data.interaction;
-            } else if (data.interaction) {
-                completedInteraction = data.interaction;
-                if (data.interaction.id) lastInteractionId = data.interaction.id;
             } else if (data.id && Array.isArray(data.steps)) {
                 completedInteraction = data;
             }
 
             if (data.interaction_id) lastInteractionId = data.interaction_id;
-            if (data.id) lastInteractionId = data.id;
 
-            // 2. step.start
-            if (data.event_type === 'step.start' || data.type === 'step.start') {
+            if (eventType === 'step.start') {
                 currentStep = {
                     ...(data.step || {}),
                     index: data.index ?? accumulatedSteps.length
@@ -289,8 +306,7 @@ export class GeminiProvider {
                 accumulatedSteps[currentStep.index] = currentStep;
             }
 
-            // 3. step.delta
-            if (data.event_type === 'step.delta' || data.type === 'step.delta') {
+            if (eventType === 'step.delta') {
                 const delta = data.delta;
                 if (delta) {
                     if (typeof delta.text === 'string' && delta.type !== 'thought') {
@@ -335,37 +351,20 @@ export class GeminiProvider {
                 }
             }
 
-            // 4. step.stop
-            if (data.event_type === 'step.stop' || data.type === 'step.stop') {
+            if (eventType === 'step.stop') {
                 currentStep = null;
             }
-
-
         });
 
-        if (completedInteraction) {
-            if ((!completedInteraction.steps || completedInteraction.steps.length === 0) && accumulatedSteps.length > 0) {
-                completedInteraction.steps = accumulatedSteps.filter(Boolean);
-            }
-            if (!completedInteraction.id) {
-                completedInteraction.id = lastInteractionId || `int_${Date.now()}`;
-            }
-            if (!completedInteraction.status) {
-                completedInteraction.status = 'completed';
-            }
-            return completedInteraction;
+        if (!completedInteraction) {
+            throw new InterruptedGeminiStreamError(MESSAGES.geminiStreamIncomplete);
         }
-
-        if (accumulatedSteps.length > 0 || lastInteractionId) {
-            return {
-                id: lastInteractionId || `int_${Date.now()}`,
-                status: 'completed',
-                model: this.model,
-                steps: accumulatedSteps.filter(Boolean)
-            };
-        }
-
-        throw new ProviderError('Gemini ended the stream without a response.', { kind: 'bad_response' });
+        return {
+            ...completedInteraction,
+            id: completedInteraction.id || lastInteractionId,
+            status: completedInteraction.status || 'completed',
+            steps: completedInteraction.steps?.length ? completedInteraction.steps : accumulatedSteps.filter(Boolean)
+        };
     }
 
     #toReply(data, elapsedMs) {
@@ -433,7 +432,7 @@ export class GeminiProvider {
         return {
             text,
             toolCalls,
-            raw: { provider: this.id, interactionId: data.id || `int_${Date.now()}`, steps },
+            raw: { provider: this.id, interactionId: data.id, steps },
             stats: {
                 ms: elapsedMs,
                 thinkingLevel: this.thinkingLevel || 'default',

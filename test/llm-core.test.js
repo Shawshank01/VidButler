@@ -137,7 +137,10 @@ test('Gemini streaming retries a 503 before the stream starts and rejects invali
         fetchImpl: async () => {
             calls += 1;
             if (calls === 1) return new Response('{"error":{"message":"busy"}}', { status: 503 });
-            return streamResponse([event({ event_type: 'step.delta', index: 0, delta: { type: 'text', text: 'ok' } })]);
+            return streamResponse([
+                event({ event_type: 'step.delta', index: 0, delta: { type: 'text', text: 'ok' } }),
+                event({ event_type: 'interaction.completed', interaction: { id: 'int_ok', status: 'completed' } })
+            ]);
         }
     });
     const reply = await gemini.chat({ system: '', messages: [{ role: 'user', text: 'x' }], onTextDelta: () => { } });
@@ -162,7 +165,10 @@ test('Gemini streaming retries without thinkingLevel for models that reject it',
             if (bodies.length === 1) {
                 return new Response('{"error":{"message":"Thinking level is not supported"}}', { status: 400 });
             }
-            return streamResponse([`data: ${JSON.stringify({ event_type: 'step.delta', index: 0, delta: { type: 'text', text: 'fine' } })}\n\n`]);
+            return streamResponse([
+                'data: {"event_type":"step.delta","index":0,"delta":{"type":"text","text":"fine"}}\n\n',
+                'data: {"event_type":"interaction.completed","interaction":{"id":"int_fine","status":"completed"}}\n\n'
+            ]);
         }
     });
     const reply = await gemini.chat({ system: '', messages: [{ role: 'user', text: 'x' }], onTextDelta: () => { } });

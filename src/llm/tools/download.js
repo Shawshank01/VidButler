@@ -9,6 +9,7 @@ import {
     ValidationError
 } from '../validate.js';
 import { TOOL_NAMES } from './names.js';
+import { MESSAGES } from '../messages.js';
 import { AUDIO_FORMATS, defineTool, playlistProperty, playlistRisk, resolveSubtitle, runDownload, urlProperty } from './common.js';
 
 /**
@@ -162,7 +163,11 @@ export const downloadTools = [
         describe: (a) => `Download thumbnail of ${a.url || 'video'}`,
         async run(args, ctx) {
             const url = validateUrl(args.url);
-            return runDownload(['--write-thumbnail', '--skip-download'], url, ctx);
+            const result = await runDownload(['--write-thumbnail', '--skip-download'], url, ctx, { sidecarOnly: true });
+            if (result.ok && result.files.length === 0) {
+                return { ...result, ok: false, error: MESSAGES.noThumbnailSaved };
+            }
+            return result;
         }
     }),
     defineTool({

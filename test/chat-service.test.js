@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { taskManager } from '../src/core/task-manager.js';
 import { ChatService, AiSettingsError, trimHistory } from '../src/llm/chat-service.js';
 import { KeyStore } from '../src/llm/key-store.js';
 import { DEFAULT_RETRIES } from '../src/llm/providers/http.js';
@@ -28,6 +30,7 @@ function fakeFetch(responses) {
         const next = typeof queue[0] === 'function' ? await queue.shift()(calls.at(-1)) : queue.shift();
         if (!next) throw new Error('fake fetch: no more responses');
         if (next instanceof Error) throw next;
+        if (next instanceof Response) return next;
         const { status = 200, json } = next;
         return { ok: status >= 200 && status < 300, status, text: async () => JSON.stringify(json) };
     };
@@ -195,6 +198,52 @@ test('send: the second model call chains with previous_interaction_id and sends 
     assert.equal(secondBody.previous_interaction_id, 'int_call');
     assert.equal(secondBody.input[0].type, 'function_result');
     assert.equal(secondBody.input[0].name, 'list_downloads');
+});
+
+test('send: a saved thumbnail remains visible and Gemini accepts a follow-up after a failed reply', async (t) => {
+    const url = 'https://example.test/video';
+    const filename = '日本語 [video].webp';
+    const fetchImpl = fakeFetch([
+        geminiCall('download_thumbnail', { url }),
+        new Response(': keep-alive\n\n', { headers: { 'content-type': 'text/event-stream' } }),
+        { status: 503, json: { error: { message: 'Temporarily unavailable' } } },
+        geminiText('The thumbnail is already saved.')
+    ]);
+    const { service, events, dir } = await makeService({ fetchImpl });
+    t.after(() => fs.rm(dir, { recursive: true, force: true }));
+    const spawnThumbnail = t.mock.method(taskManager, 'spawnProcess', (_task, command, args) => {
+        assert.equal(command, 'yt-dlp');
+        assert.ok(args.includes('--write-thumbnail'));
+        assert.ok(args.includes('--skip-download'));
+        const report = args.indexOf('--print-to-file');
+        assert.equal(args[report + 1], 'after_video:%(requested_downloads.:.__files_to_move)j');
+        return spawn(process.execPath, ['-e', `
+            const { writeFileSync } = require('node:fs');
+            const [manifest, thumbnail] = process.argv.slice(1);
+            writeFileSync(thumbnail, 'image');
+            writeFileSync(manifest, JSON.stringify([{ [thumbnail]: thumbnail }]));
+        `, args[report + 2], join(dir, filename)]);
+    });
+    const result = await service.send(`Download the thumbnail of ${url}`, { downloadFolder: dir });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.kind, 'server');
+    assert.equal(await fs.readFile(join(dir, filename), 'utf8'), 'image');
+    const toolResult = events.find((event) => event.type === 'tool_result');
+    assert.equal(toolResult.ok, true);
+    assert.deepEqual(toolResult.result.files, [filename]);
+    assert.equal(toolResult.result.saved_to_folder, dir);
+
+    const stream = fetchImpl.calls[1].body;
+    const fallback = fetchImpl.calls[2].body;
+    assert.deepEqual(stream, { ...fallback, stream: true });
+    const followUp = await service.send('Did it save?', { downloadFolder: dir });
+    assert.equal(followUp.text, 'The thumbnail is already saved.');
+    const continuation = fetchImpl.calls[3].body;
+    assert.equal(continuation.previous_interaction_id, 'int_call');
+    assert.deepEqual(continuation.input.map((item) => item.type), ['function_result', 'model_output', 'user_input']);
+    assert.deepEqual(continuation.input[0], fallback.input[0]);
+    assert.deepEqual(continuation.input[2].content, [{ type: 'text', text: 'Did it save?' }]);
+    assert.equal(spawnThumbnail.mock.callCount(), 1);
 });
 
 test('send: system prompt carries the user context, key is only in the header', async () => {
@@ -373,8 +422,8 @@ test('send: provider errors come back as { ok: false } and the conversation stay
 
     const second = await service.send('second', { downloadFolder: folder });
     assert.equal(second.ok, true);
-    const roles = fetchImpl.calls[1].body.input.map((c) => c.role);
-    assert.deepEqual(roles, ['user', 'model', 'user'], 'failed turn is recorded so roles alternate');
+    const stepTypes = fetchImpl.calls[1].body.input.map((step) => step.type);
+    assert.deepEqual(stepTypes, ['user_input', 'model_output', 'user_input']);
 });
 
 test('send: missing API key gives an actionable error', async () => {

@@ -346,16 +346,17 @@
         els.progress.classList.add('retrying');
         const startTime = Date.now();
         const deadline = startTime + Math.max(0, event.delayMs || 0);
+        const details = `${event.provider}: ${event.reason}, attempt ${event.attempt} of ${event.retries}`;
 
         function tick() {
             const now = Date.now();
             if (now < deadline) {
                 const secondsLeft = Math.max(1, Math.ceil((deadline - now) / 1000));
-                els.progress.textContent = `${event.provider} is busy (${event.reason}). Retrying in ${secondsLeft} s (attempt ${event.attempt} of ${event.retries})\u2026`;
+                els.progress.textContent = `Retrying in ${secondsLeft} s (${details})\u2026`;
             } else {
                 const elapsedSinceRetry = Math.floor((now - deadline) / 1000);
                 const elapsedText = elapsedSinceRetry > 0 ? ` (${elapsedSinceRetry}s)` : '';
-                els.progress.textContent = `${event.provider} is busy (${event.reason}). Retrying now (attempt ${event.attempt} of ${event.retries})\u2026${elapsedText}`;
+                els.progress.textContent = `Retrying now (${details})\u2026${elapsedText}`;
             }
         }
 

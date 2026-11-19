@@ -87,7 +87,7 @@ export function outcome(res, extra = {}) {
 }
 
 /** Run a yt-dlp download and capture the final file paths via a temporary manifest file. */
-export async function runDownload(specificArgs, url, ctx, { playlist = false } = {}) {
+export async function runDownload(specificArgs, url, ctx, { playlist = false, sidecarOnly = false } = {}) {
     const folder = requireFolder(ctx);
     const manifestFile = join(
         tmpdir(),
@@ -98,7 +98,10 @@ export async function runDownload(specificArgs, url, ctx, { playlist = false } =
         ...commonArgs(ctx),
         ...(playlist ? [] : ['--no-playlist']),
         ...specificArgs,
-        '--print-to-file', 'after_move:filepath', manifestFile,
+        '--print-to-file',
+        // With --skip-download, yt-dlp moves the sidecars without running the after_move stage.
+        sidecarOnly ? 'after_video:%(requested_downloads.:.__files_to_move)j' : 'after_move:filepath',
+        manifestFile,
         '-P', folder,
         url
     ]);
@@ -106,11 +109,17 @@ export async function runDownload(specificArgs, url, ctx, { playlist = false } =
     let files = [];
     try {
         const content = await fs.readFile(manifestFile, 'utf8');
-        files = content.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
-    } catch { /* manifest is only written on success */ }
+        const lines = content.split(/[\r\n]+/).map((line) => line.trim()).filter(Boolean);
+        if (sidecarOnly) {
+            const paths = lines.filter((line) => line !== 'NA').flatMap((line) => JSON.parse(line));
+            files = [...new Set(paths.flatMap((moves) => Object.values(moves)))];
+        } else {
+            files = lines;
+        }
+    } catch { /* yt-dlp may exit without writing a report */ }
     try { await fs.unlink(manifestFile); } catch { /* ignore */ }
 
-    if (files.length === 0 && res.output) {
+    if (!sidecarOnly && files.length === 0 && res.output) {
         const alreadyMatch = res.output.match(/\[download\]\s+["']?(.+?)["']?\s+has already been downloaded/i);
         if (alreadyMatch) {
             files = [alreadyMatch[1].trim()];
