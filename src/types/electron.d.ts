@@ -23,7 +23,7 @@ interface AiProviderSettings {
 
 interface AiSettings {
     mode: 'classic' | 'ai';
-    provider: 'gemini' | 'xai' | 'ollama' | 'openai-compatible';
+    provider: 'gemini' | 'xai' | 'cohere' | 'ollama' | 'openai-compatible';
     confirmMode: 'always' | 'risky' | 'never';
     /** False when API keys can only be kept in memory for this session (no OS keychain). */
     keyStorageSecure: boolean;

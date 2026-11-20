@@ -37,6 +37,66 @@ function fakeFetch(responses) {
     return impl;
 }
 
+test('Cohere: reassembles interleaved streamed calls and sends their results back', async () => {
+    const toolEvent = (type, index, tool_calls) => ({ type, index, delta: { message: { tool_calls } } });
+    const events = [
+        { type: 'tool-plan-delta', delta: { message: { tool_plan: 'Planning' } } },
+        toolEvent('tool-call-start', 0, { id: 'call-a', function: { name: 'list_formats', arguments: '' } }),
+        toolEvent('tool-call-start', 1, { id: 'call-b', function: { name: 'list_downloads', arguments: '' } }),
+        toolEvent('tool-call-delta', 0, { function: { arguments: '{"url":' } }),
+        toolEvent('tool-call-delta', 1, { function: { arguments: '{}' } }),
+        toolEvent('tool-call-delta', 0, { function: { arguments: '"https://x.test/v"}' } }),
+        { type: 'tool-call-end', index: 1 },
+        { type: 'tool-call-end', index: 0 },
+        { type: 'message-end', delta: { finish_reason: 'TOOL_CALL' } }
+    ];
+    const requests = [];
+    const provider = createProvider({ type: 'cohere', apiKey: 'test-key', model: 'command-a-03-2025' }, {
+        fetchImpl: async (_url, init) => {
+            requests.push(JSON.parse(init.body));
+            return requests.length === 1
+                ? new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream' } })
+                : Response.json({ finish_reason: 'COMPLETE', message: { content: [{ type: 'thinking', thinking: 'Private plan' }, { type: 'text', text: 'Done.' }] } });
+        }
+    });
+    const messages = [{ role: 'user', text: 'List formats' }];
+    const deltas = [];
+    const reply = await provider.chat({ system: 'Help with videos', messages, tools: TOOLS, onTextDelta: (delta) => deltas.push(delta) });
+    assert.deepEqual(deltas, []);
+    assert.deepEqual(reply.toolCalls, [
+        { id: 'call-a', name: 'list_formats', args: { url: 'https://x.test/v' } },
+        { id: 'call-b', name: 'list_downloads', args: {} }
+    ]);
+    assert.equal(requests[0].model, 'command-a-03-2025');
+    assert.deepEqual(requests[0].messages[0], { role: 'system', content: 'Help with videos' });
+    assert.deepEqual(requests[0].tools, [{ type: 'function', function: TOOLS[0] }]);
+
+    messages.push({ role: 'assistant', text: reply.text, toolCalls: reply.toolCalls });
+    for (const call of reply.toolCalls) messages.push({ role: 'tool', toolCallId: call.id, result: { ok: true } });
+    const followUp = await provider.chat({ messages, tools: TOOLS });
+    assert.equal(followUp.text, 'Done.');
+    assert.equal(requests[1].stream, false);
+    assert.deepEqual(requests[1].messages[1].tool_calls, [
+        { id: 'call-a', type: 'function', function: { name: 'list_formats', arguments: '{"url":"https://x.test/v"}' } },
+        { id: 'call-b', type: 'function', function: { name: 'list_downloads', arguments: '{}' } }
+    ]);
+    assert.deepEqual(requests[1].messages.slice(2), ['call-a', 'call-b'].map((id) => ({
+        role: 'tool', tool_call_id: id, content: '{"ok":true}'
+    })));
+});
+
+test('Cohere: an interrupted stream is not returned as a completed reply', async () => {
+    const fetchImpl = async () => new Response('data: {"type":"content-delta","delta":{"message":{"content":{"text":"Partial"}}}}\n\n', {
+        headers: { 'Content-Type': 'text/event-stream' }
+    });
+    const provider = createProvider({ type: 'cohere', apiKey: 'test-key' }, { fetchImpl });
+    const deltas = [];
+    await assert.rejects(provider.chat({ messages: [{ role: 'user', text: 'hi' }], onTextDelta: (text) => deltas.push(text) }), {
+        kind: 'bad_response', message: /before completing/
+    });
+    assert.deepEqual(deltas, ['Partial']);
+});
+
 test('default Gemini model is gemini-3.5-flash-lite', () => {
     assert.equal(DEFAULT_GEMINI_MODEL, 'gemini-3.5-flash-lite');
     assert.equal(new GeminiProvider({ apiKey: 'k' }).model, 'gemini-3.5-flash-lite');

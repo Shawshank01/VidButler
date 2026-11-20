@@ -134,8 +134,11 @@ Rather than giving an LLM direct shell access, the app executes requests through
 | --- | --- | --- |
 | **Google Gemini** (default, model `gemini-3.5-flash-lite`) | Free API key from [Google AI Studio](https://aistudio.google.com/apikey) | Free tier can be busy (HTTP 503) or rate limited, the app retries automatically. Your messages go to Google. |
 | **xAI Grok** (model `grok-4.3`) | API key from the [xAI console](https://console.x.ai) | Uses xAI's Responses API at `https://api.x.ai/v1/responses`. Your messages go to Musk. |
+| **Cohere** (model `command-a-plus-05-2026`) | API key from the [Cohere dashboard](https://dashboard.cohere.com/api-keys) | Streams replies via the [Cohere Chat API](https://docs.cohere.com/docs/streaming). Your messages go to Cohere. |
 | **Ollama (local)** | [Ollama](https://ollama.com) running with a tool-capable model, for example `LFM3:1.7b`, `Qwen3`. | Everything stays on your computer if you run a local model. Small models are faster but less reliable. |
 | **OpenAI-compatible** | Server URL, model name, usually an API key | Works with llama.cpp, OpenAI, OpenRouter, Groq, LM Studio and similar. |
+
+To switch Cohere models, enter a [Chat-compatible model ID](https://docs.cohere.com/docs/models) such as `command-a-03-2025` in **Model**, then click **Test connection** and **Save**. Choose a model with tool calling for downloads and media operations. Clear **Model** to restore the default.
 
 Additional settings:
 
@@ -231,7 +234,7 @@ src/
     provenance.js      URL origin tracking to guard against indirect prompt injection
     chat-service.js    Conversation management, confirmation handling, and state
     key-store.js       Encrypted API key storage via Electron safeStorage
-    providers/         Provider implementations (Gemini, xAI, Ollama, OpenAI-compatible)
+    providers/         Provider implementations (Gemini, xAI, Cohere, Ollama, OpenAI-compatible)
 test/                  Unit tests using node:test runner
 ```
 

@@ -25,6 +25,12 @@ test('every id looked up by ai-ui.js exists in index.html', () => {
     assert.deepEqual(missing, []);
 });
 
+test('Gemini key help does not describe the API key as free', () => {
+    const label = 'Get a Gemini API key from Google AI Studio';
+    assert.ok(html.includes(`id="aiKeyHelpLink">${label}</a>`));
+    assert.ok(aiUi.includes(`text: '${label}'`));
+});
+
 test('scripts are loaded in the right order', () => {
     const renderer = html.indexOf('src="renderer.js"');
     const markdown = html.indexOf('src="markdown.js"');

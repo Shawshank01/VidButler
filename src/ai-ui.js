@@ -18,8 +18,9 @@
 
     // Where to get an API key, per provider (shown as a link under the key field).
     const KEY_HELP = {
-        gemini: { url: 'https://aistudio.google.com/apikey', text: 'Get a free Gemini API key from Google AI Studio' },
-        xai: { url: 'https://console.x.ai', text: 'Get an xAI API key from the xAI console' }
+        gemini: { url: 'https://aistudio.google.com/apikey', text: 'Get a Gemini API key from Google AI Studio' },
+        xai: { url: 'https://console.x.ai', text: 'Get an xAI API key from the xAI console' },
+        cohere: { url: 'https://dashboard.cohere.com/api-keys', text: 'Get a Cohere API key from the Cohere dashboard' }
     };
     const KEYLESS_PROVIDERS = new Set(['ollama']);
     const EXAMPLE_GROUPS = [
@@ -694,6 +695,8 @@
                 'Your messages, video links and the results of actions are sent to Google. Depending on your plan, Google may use free-tier data to improve its products, so check Google\u2019s terms. Choose Ollama if you want everything to stay on your computer.',
             xai:
                 'Your messages, video links and the results of actions are sent to xAI. Check xAI\u2019s data and privacy terms. Choose Ollama if you want everything to stay on your computer.',
+            cohere:
+                'Your messages, video links and the results of actions are sent to Cohere. Choose Ollama if you want everything to stay on your computer.',
             ollama:
                 'Everything stays on your computer. Ollama must be running, and the model must support tool calling (for example LFM3-1.7B, Qwen3). Small models are less reliable.',
             'openai-compatible':

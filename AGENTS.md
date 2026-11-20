@@ -15,7 +15,7 @@ It originally had only a form-based UI ("Classic mode"). The goal of the current
 | Phase | Result | Status |
 | --- | --- | --- |
 | 1. Refactor | `src/main.js` split into Electron-free modules in `src/core/`. `main.js` is thin IPC handlers. Classic behaviour unchanged. | Done, user-verified |
-| 2. AI backend | `src/llm/`: 13 tools, input validation, agent loop, four provider adapters, system prompt. | Done |
+| 2. AI backend | `src/llm/`: 13 tools, input validation, agent loop, five provider adapters, system prompt. | Done |
 | 3A. Main-process integration | Encrypted API-key storage, chat service (settings, conversation, confirmations, cancel), IPC and preload API (`window.electronAPI.ai`). | Done, user-verified (key save, connection test) |
 | 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / SOCKS5 context controls. | Done, user-verified |
 | Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines, CSP and navigation guards, repo-wide ESLint. | Done |
@@ -69,10 +69,10 @@ src/llm/                 Electron-free:
   tool-registry.js         Assembles tools/ ; getTool, getRisk, getToolDeclarations
   tools/                   names.js (TOOL_NAMES), common.js (defineTool, helpers),
                            info.js, download.js, media.js, files.js
-  providers/               gemini, xai, ollama, openai-compatible, index (PROVIDER_TYPES capabilities),
+  providers/               gemini, xai, cohere, ollama, openai-compatible, index (PROVIDER_TYPES capabilities),
                            http.js (requestJson/requestStream, retries), stream.js (SSE / NDJSON readers)
   prompt.js, messages.js, limits.js, redact.js, validate.js, errors.js, key-store.js
-test/                    node:test suite (222 tests)
+test/                    node:test suite
 ```
 
 `core/` and `llm/` never import Electron. Anything Electron-specific (safeStorage, userData path, windows) is injected from `main.js`.
@@ -129,6 +129,8 @@ Call model, run requested tools **one at a time** (the app allows one yt-dlp/ffm
 
 **xAI** (`XaiProvider`, type `xai`): `https://api.x.ai/v1`, default model `grok-4.3`, own key slot, key required, Responses API (`/responses`) with native function calling and SSE streaming. The endpoint is fixed; the UI exposes reasoning effort (`none`, `low`, `medium`, `high`, `xhigh`).
 
+**Cohere** (`CohereProvider`, type `cohere`): fixed `https://api.cohere.com`, requires its own API key. Sends text and function calls through `/v2/chat` with SSE streaming. The default model is `command-a-plus-05-2026`; users can set another Chat-compatible model ID. The connection test uses `GET /v1/models/{model}` to check Chat compatibility without generating text.
+
 **Ollama**: `/api/chat`, needs a tool-capable model, streamed NDJSON. Unsupported-tools and unreachable-server errors are turned into actionable messages for both streaming and non-streaming calls. lfm3:1.7b has passed testing.
 
 **Retries** (`providers/http.js`): `DEFAULT_RETRIES` is **1** (up to 2 attempts), 3.0 s backoff, for HTTP 500/502/503/504, connection errors, and HTTP 429 responses that include a `Retry-After` header; not for other 4xx errors, bare 429s without `Retry-After`, or requests that already hit their timeout. When a `Retry-After` header (delay-seconds or HTTP-date) is present up to `MAX_RETRY_AFTER_MS` (60 s), it overrides exponential backoff; longer waits fail immediately instead of blocking. Retries apply to requests before a streamed response starts. Cancelling during the wait stops immediately. The UI shows "retrying". Tests derive their expectations from `DEFAULT_RETRIES`.
@@ -149,7 +151,7 @@ macOS (dev run): `~/Library/Application Support/vidbutler/` (or `VidButler/` in 
 ```bash
 pnpm install
 pnpm run lint   # ESLint across repo (.js, .mjs, .cjs)
-pnpm test       # node --test test/   (222 tests, no network, no API key; a few need ffmpeg/ffprobe on PATH)
+pnpm test       # node --test test/   (no API key; a few need ffmpeg/ffprobe on PATH)
 ```
 
 Test files: `validate`, `providers` (adapters with mocked `fetch`, retries), `agent` (scripted fake model), `chat-service`, `llm-core` (conversation, confirmations, redaction, streaming, prompt/registry consistency, security checks), `infrastructure` (settings store, logger, bundled-tool detection), `api-contract` (`electron.d.ts` matches `preload.cjs`; every invoked IPC channel has a handler), `key-store`, `markdown`, `ui-wiring` (static checks: element IDs, script order, no `innerHTML`, CSP, no inline handlers, navigation guards), `update` and `update-manifest` (update coordinator, release manifest merge), `homebrew-cask`, `shared-utilities`, `media-info` (ffprobe summary, media file lookup; uses the real `ffmpeg`/`ffprobe`), `core-io` (output decoding, hardsub source discovery, ffmpeg arguments), `external-url` (`open-external` allow-list).
@@ -162,7 +164,6 @@ CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull request
 - A packaged Windows/Linux automatic update from an older release through download, install, and relaunch. The macOS launch prompt, copied Homebrew command, tap refresh/upgrade, and cask quarantine removal also need a live run.
 - **Everything changed in the 2026-11 review pass has been verified only by unit tests.** Click through before releasing: mode switch, a chat turn with streaming, an Allow/Deny dialog (including the new "address was not in your message" text), Stop mid-download, closing/reloading the window during a request, saving AI settings, a packaged build finding the bundled `yt-dlp`/`ffmpeg`, clicking `Choose` / `Run` / `Check for Updates` and verifying CSP in a live window after the inline-handler refactor.
 - Live runs of: hardsub / re-encode / delete via the assistant, the thinking-level setting, xAI, Ollama, the generic OpenAI-compatible provider, Windows and Linux (safeStorage and PATH behaviour differ).
-- The xAI and Ollama adapters have only been tested against mocked responses.
 
 ## 8. Known limitations and rough edges
 

@@ -3,6 +3,8 @@ import { GeminiProvider, DEFAULT_GEMINI_MODEL, THINKING_LEVELS, DEFAULT_THINKING
 import { OllamaProvider, DEFAULT_OLLAMA_MODEL, DEFAULT_OLLAMA_BASE_URL } from './ollama.js';
 import { OpenAICompatibleProvider, DEFAULT_OPENAI_BASE_URL } from './openai-compatible.js';
 import { XaiProvider, DEFAULT_XAI_BASE_URL, DEFAULT_XAI_MODEL, XAI_REASONING_EFFORTS } from './xai.js';
+import { CohereProvider, DEFAULT_COHERE_BASE_URL, DEFAULT_COHERE_MODEL } from './cohere.js';
+import { MESSAGES } from '../messages.js';
 
 /**
  * Provider types the app knows about, with the defaults the settings UI should pre-fill.
@@ -36,6 +38,15 @@ export const PROVIDER_TYPES = {
         options: {
             reasoningEffort: { choices: XAI_REASONING_EFFORTS, default: 'none', label: 'xAI reasoning effort' }
         }
+    },
+    cohere: {
+        label: 'Cohere',
+        defaultModel: DEFAULT_COHERE_MODEL,
+        defaultBaseUrl: DEFAULT_COHERE_BASE_URL,
+        needsApiKey: true,
+        editableBaseUrl: false,
+        lockedBaseUrlError: MESSAGES.cohereFixedUrl,
+        options: {}
     },
     ollama: {
         label: 'Ollama (local)',
@@ -72,6 +83,8 @@ export function createProvider(config = {}, options = {}) {
                 ...common,
                 model: common.model || DEFAULT_XAI_MODEL
             });
+        case 'cohere':
+            return new CohereProvider(common);
         case 'ollama':
             return new OllamaProvider(common);
         case 'openai-compatible':
@@ -81,4 +94,4 @@ export function createProvider(config = {}, options = {}) {
     }
 }
 
-export { GeminiProvider, OllamaProvider, OpenAICompatibleProvider, XaiProvider };
+export { CohereProvider, GeminiProvider, OllamaProvider, OpenAICompatibleProvider, XaiProvider };

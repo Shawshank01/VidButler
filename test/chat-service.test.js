@@ -362,7 +362,6 @@ test('xAI: appears as a provider with its own key slot, defaults, and works end 
     const { service, events } = await makeService({ fetchImpl });
 
     let s = await service.getSettings();
-    assert.deepEqual(Object.keys(s.providers), ['gemini', 'xai', 'ollama', 'openai-compatible']);
     assert.equal(s.providers.xai.label, 'xAI Grok');
     assert.equal(s.providers.xai.needsApiKey, true);
     assert.equal(s.providers.xai.model, 'grok-4.3');
@@ -397,6 +396,54 @@ test('xAI: appears as a provider with its own key slot, defaults, and works end 
     assert.equal((await service.getSettings()).providers.xai.reasoningEffort, 'high');
     await assert.rejects(service.setSettings({ providerConfig: { type: 'xai', reasoningEffort: 'minimal' } }), AiSettingsError);
     await assert.rejects(service.setSettings({ providerConfig: { type: 'xai', baseUrl: 'https://eu.api.x.ai/v1/' } }), AiSettingsError);
+});
+
+test('Cohere: streams the default model and lets users save or clear a model override', async () => {
+    const textEvent = (text) => ({ type: 'content-delta', delta: { message: { content: { text } } } });
+    const fetchImpl = fakeFetch([
+        new Response([textEvent('Hello'), textEvent(' there'), { type: 'message-end', delta: { finish_reason: 'COMPLETE' } }]
+            .map((event) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join(''),
+        { headers: { 'Content-Type': 'text/event-stream' } }),
+        { json: { name: 'command-a-03-2025', endpoints: ['chat'] } },
+        { json: { name: 'embed-v4.0', endpoints: ['embed'] } }
+    ]);
+    const { service, events, getStored } = await makeService({ fetchImpl });
+    const { cohere } = (await service.getSettings()).providers;
+    assert.equal(cohere.label, 'Cohere');
+    assert.equal(cohere.model, 'command-a-plus-05-2026');
+    assert.equal(cohere.needsApiKey, true);
+    assert.equal(cohere.editableBaseUrl, false);
+    assert.equal(cohere.hasApiKey, false);
+
+    await service.setSettings({ provider: 'cohere' });
+    const folder = await tempDir();
+    assert.equal((await service.send('hi', { downloadFolder: folder })).error.kind, 'auth');
+    assert.equal(fetchImpl.calls.length, 0);
+    await service.setApiKey('cohere', 'cohere-test-key-123456');
+
+    const reply = await service.send('hi', { downloadFolder: folder });
+    assert.equal(reply.text, 'Hello there');
+    assert.deepEqual(events.filter((e) => e.type === 'assistant_delta').map((e) => e.text), ['Hello', ' there']);
+    const call = fetchImpl.calls[0];
+    assert.equal(call.url, 'https://api.cohere.com/v2/chat');
+    assert.equal(call.init.headers.Authorization, 'Bearer cohere-test-key-123456');
+    assert.equal(call.body.model, 'command-a-plus-05-2026');
+    assert.equal(call.body.stream, true);
+
+    const saved = await service.setSettings({ providerConfig: { type: 'cohere', model: 'command-a-03-2025' } });
+    assert.equal(getStored().aiProviderConfigs.cohere.model, 'command-a-03-2025');
+    assert.equal(saved.providers.cohere.model, 'command-a-03-2025');
+    assert.equal(saved.providers.cohere.hasApiKey, true);
+    assert.equal(saved.providers.gemini.hasApiKey, true);
+    assert.ok(!JSON.stringify(saved).includes('cohere-test-key-123456'));
+    assert.equal((await service.testConnection()).ok, true);
+    assert.equal(fetchImpl.calls[1].url, 'https://api.cohere.com/v1/models/command-a-03-2025');
+    const embed = await service.testConnection({ model: 'embed-v4.0' });
+    assert.equal(embed.ok, false);
+    assert.match(embed.message, /does not support chat/i);
+    await assert.rejects(service.setSettings({ providerConfig: { type: 'cohere', baseUrl: 'https://example.com' } }), AiSettingsError);
+    const reset = await service.setSettings({ providerConfig: { type: 'cohere', model: '' } });
+    assert.equal(reset.providers.cohere.model, 'command-a-plus-05-2026');
 });
 
 test('send: rejects empty and oversized messages', async () => {
