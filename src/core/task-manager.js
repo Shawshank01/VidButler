@@ -33,8 +33,11 @@ class TaskManager {
             throw new Error('Action cancelled by user.');
         }
 
-        const child = spawn(getBundledExecutablePath(command) || command, args, options);
+        // yt-dlp can run FFmpeg as a child while downloading a section.
+        const spawnOptions = { detached: process.platform !== 'win32' && command === 'yt-dlp', ...options };
+        const child = spawn(getBundledExecutablePath(command) || command, args, spawnOptions);
         task.activeProcess = child;
+        task.activeProcessGroup = spawnOptions.detached;
 
         child.on('error', (err) => {
             logger.error(`Process error [${command}]:`, err);
@@ -64,6 +67,8 @@ class TaskManager {
             try {
                 if (process.platform === 'win32') {
                     spawn('taskkill', ['/pid', pid.toString(), '/T', '/F']);
+                } else if (task.activeProcessGroup && pid) {
+                    process.kill(-pid, 'SIGKILL');
                 } else {
                     task.activeProcess.kill('SIGKILL');
                 }

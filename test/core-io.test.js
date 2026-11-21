@@ -7,7 +7,7 @@ import { join } from 'path';
 import { attachLineStreamFilters } from '../src/core/log-filter.js';
 import { findHardsubSourceFiles, findMatchingThumbnail } from '../src/core/media-files.js';
 import { buildFfmpegHardsubArgs, buildFfmpegReEncodeArgs } from '../src/core/ffmpeg.js';
-import { listSubtitles } from '../src/core/tools.js';
+import { cancelCurrentTask, listSubtitles, runYtDlp } from '../src/core/tools.js';
 
 async function makeFolder(files) {
     const dir = await fs.mkdtemp(join(tmpdir(), 'ytdl-core-io-test-'));
@@ -111,6 +111,41 @@ test('listing subtitles asks yt-dlp for the single video, not every entry of a p
     assert.equal(args.at(-1), 'https://www.youtube.com/watch?v=abc&list=PL123');
 });
 
+test('cancelling yt-dlp also stops a downloader child process', {
+    skip: process.platform === 'win32' ? 'uses a POSIX process group' : false
+}, async (t) => {
+    const binDir = await fs.mkdtemp(join(tmpdir(), 'ytdl-cancel-bin-'));
+    const oldPath = process.env.PATH;
+    t.after(async () => {
+        process.env.PATH = oldPath;
+        await fs.rm(binDir, { recursive: true, force: true });
+    });
+    await fs.writeFile(join(binDir, 'yt-dlp'), `#!/bin/sh
+sleep 30 &
+printf '[download] %s\\n' "$!"
+wait
+`, { mode: 0o755 });
+    process.env.PATH = `${binDir}:${oldPath}`;
+
+    let childPid;
+    let stoppedInTime = true;
+    const cleanup = setTimeout(() => {
+        stoppedInTime = false;
+        if (childPid) process.kill(childPid, 'SIGKILL');
+    }, 3000);
+    try {
+        const result = await runYtDlp([], (line) => {
+            childPid = Number(line.split(' ')[1]);
+            cancelCurrentTask();
+        });
+        assert.ok(childPid);
+        assert.equal(result.cancelled, true);
+        assert.ok(stoppedInTime, 'the child downloader kept running after cancellation');
+    } finally {
+        clearTimeout(cleanup);
+    }
+});
+
 // ---------- ffmpeg arguments ----------
 
 test('re-encode and hardsub commands overwrite their temporary output instead of waiting for a prompt', () => {
@@ -131,5 +166,26 @@ test('re-encode and hardsub commands overwrite their temporary output instead of
         assert.equal(hardsub[0], '-y');
         assert.equal(hardsub.at(-1), '/out.mp4');
         assert.deepEqual(hardsub.slice(1, 3), ['-i', '/in.mp4']);
+    }
+});
+
+test('hardsub uses the shared resolution tiers and keeps the original bitrates when dimensions are unknown', () => {
+    for (const [codec, videoHeight, thumbnailPath, bitrate] of [
+        ['h264', undefined, null, '5000k'],
+        ['hevc', undefined, null, '3000k'],
+        ['h264', 1080, null, '8000k'],
+        ['hevc', 1080, '/thumb.jpg', '4800k'],
+        ['h264', 2160, '/thumb.jpg', '24000k'],
+        ['hevc', 2160, null, '14400k']
+    ]) {
+        const args = buildFfmpegHardsubArgs({
+            videoPath: '/in.mp4', outputPath: '/out.mp4', subtitlePath: '/in.en.vtt',
+            thumbnailPath, codec, audioCodec: 'aac_at', videoHeight
+        });
+        const stream = thumbnailPath ? ':0' : '';
+        assert.equal(args[args.indexOf(`-b:v${stream}`) + 1], bitrate);
+        assert.equal(args[args.indexOf(`-c:a${stream}`) + 1], 'aac_at');
+        assert.equal(args[args.indexOf('-aac_at_mode') + 1], 'cvbr');
+        assert.equal(args[args.indexOf(`-b:a${stream}`) + 1], '128k');
     }
 });

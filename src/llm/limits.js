@@ -12,6 +12,7 @@ export const MAX_API_KEY_CHARS = 500;
 // Tools
 export const MAX_DELETE_FILES = 20;
 export const MAX_LISTED_FILES = 50;
+export const MAX_CLIP_TIMESTAMP_MS = Math.floor(Number.MAX_SAFE_INTEGER / 1000); // safe in FFmpeg microseconds
 
 // Waiting for the user
 export const CONFIRMATION_TIMEOUT_MS = 5 * 60 * 1000;

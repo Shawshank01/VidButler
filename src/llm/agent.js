@@ -11,7 +11,7 @@ const noop = () => { };
 const cookieBrowserLabels = { brave: 'Brave', chrome: 'Chrome', firefox: 'Firefox', safari: 'Safari' };
 const cookieTools = new Set([
     TOOL_NAMES.getOnlineVideoInfo, TOOL_NAMES.listFormats, TOOL_NAMES.listSubtitles,
-    TOOL_NAMES.downloadVideo, TOOL_NAMES.downloadAudio, TOOL_NAMES.downloadThumbnail,
+    TOOL_NAMES.downloadVideo, TOOL_NAMES.downloadAudio, TOOL_NAMES.downloadSection, TOOL_NAMES.downloadThumbnail,
     TOOL_NAMES.downloadSubtitles, TOOL_NAMES.downloadWithHardsub
 ]);
 
@@ -743,7 +743,7 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
     onEvent({ type: 'tool_start', id: call.id, name: tool.name, args, description, risk });
     let result;
     try {
-        result = await tool.run(args, ctx);
+        result = await tool.run(args, { ...ctx, signal });
     } catch (err) {
         result = {
             ok: false,

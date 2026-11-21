@@ -103,15 +103,17 @@ Click **AI** in the top-right corner to open the chat panel. You can ask for dow
 
 - *"Download this video: https://..."*
 - *"Download this video in 720p: https://..."*
+- *"Download this video from 0:45 to 2:10: https://..."*
+- *"Download the audio from 1:15 to 2:30 as audio: https://..."*
 - *"Get the audio of this video as an M4A"*
 - *"What subtitle languages are available for this video?"* followed by *"Hardcode the English ones at the top"*
 - *"Download it, then re-encode it to a compatible MP4"*
 - *"Show me what's in my download folder"* / *"Delete the leftover subtitle files"*
 
-The assistant has access to dedicated tools for fetching video info, inspecting local media, listing formats and subtitles, downloading media/thumbnails, burning subtitles, re-encoding to MP4, and listing or deleting downloaded files.
+The assistant has access to dedicated tools for fetching video info, inspecting local media, listing formats and subtitles, downloading full videos or clips, downloading audio and thumbnails, burning subtitles, re-encoding to MP4, and listing or deleting downloaded files.
 
 > [!NOTE]
-> The assistant can only perform actions supported by these tools (for instance, video trimming is not supported yet; it will tell you so and can suggest an `ffmpeg` command). AI mode shares the exact same download folder, browser cookies, and proxy settings as Classic mode.
+> Time-range downloads apply to online sources and use FFmpeg to re-encode at the requested cut points. MP4 clips and hardsubs use shared resolution-based video bitrate targets. On macOS, MP4 clips prefer H.264 via VideoToolbox, and MP4 and M4A clips prefer Apple AudioToolbox AAC at 128 kbps. The app retries with FFmpeg’s video or native AAC encoder if the corresponding Apple encoder fails. AI mode shares the download folder, browser cookies, and proxy settings with Classic mode. Time-range downloads are unavailable while a SOCKS proxy is enabled because FFmpeg cannot use it.
 
 ### How AI Mode Works
 

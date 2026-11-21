@@ -4,6 +4,9 @@
 // file path is validated here first. Tools build their argument arrays from these validated
 // values; the model never supplies raw command-line flags (see the guarded passthrough).
 
+import { MAX_CLIP_TIMESTAMP_MS } from './limits.js';
+import { MESSAGES } from './messages.js';
+
 export class ValidationError extends Error {
     constructor(message) {
         super(message);
@@ -99,6 +102,20 @@ export function validateIntRange(value, min, max, name) {
         throw new ValidationError(`"${name}" must be an integer between ${min} and ${max}.`);
     }
     return value;
+}
+
+/** Parse a non-negative timestamp as seconds, with up to millisecond precision. */
+export function validateTimestamp(value, name) {
+    const match = typeof value === 'string' && /^(?:(?:(\d+):)?(\d+):)?(\d+)(?:\.(\d{1,3}))?$/.exec(value.trim());
+    if (match) {
+        const [, hours, minutes, seconds, fraction = ''] = match;
+        const totalMs = (Number(hours || 0) * 3600 + Number(minutes || 0) * 60 + Number(seconds)) * 1000
+            + Number(fraction.padEnd(3, '0'));
+        if (totalMs <= MAX_CLIP_TIMESTAMP_MS && (!minutes || Number(seconds) < 60) && (!hours || Number(minutes) < 60)) {
+            return totalMs / 1000;
+        }
+    }
+    throw new ValidationError(MESSAGES.invalidClipTimestamp(name));
 }
 
 /** Optional boolean. Returns `fallback` when the value is undefined/null. */

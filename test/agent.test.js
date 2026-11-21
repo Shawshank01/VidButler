@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'fs';
+import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { runAgent, shapeResult } from '../src/llm/agent.js';
@@ -9,6 +10,7 @@ import { ProviderError } from '../src/llm/errors.js';
 import { buildSystemPrompt } from '../src/llm/prompt.js';
 import { resolveFormatCode, videoFormatArgs } from '../src/llm/tools/download.js';
 import { MESSAGES } from '../src/llm/messages.js';
+import { taskManager } from '../src/core/task-manager.js';
 
 /** A scripted provider: returns the queued replies in order and records what it was sent. */
 function scriptedProvider(replies) {
@@ -74,6 +76,115 @@ test('every tool has a valid declaration and risk', () => {
     assert.equal(getRisk(getTool('download_video'), { playlist: true }), 'high');
     assert.equal(getRisk(getTool('download_video'), {}), 'low');
     assert.equal(getRisk(getTool('delete_files'), {}), 'high');
+});
+
+test('the agent downloads video and audio sections and reports the finished clip files', async (t) => {
+    const folder = await makeFolder();
+    t.after(() => fs.rm(folder, { recursive: true, force: true }));
+    const url = 'https://example.test/watch?v=clip&list=playlist';
+    const bounds = { url, start_time: '1:15.250', end_time: '2:30.500' };
+    const filenames = ['Clip.mp4', 'Clip.mp3'];
+    let index = 0;
+    const downloader = t.mock.method(taskManager, 'spawnProcess', (_task, _command, args) => {
+        const reportFile = args[args.indexOf('--print-to-file') + 2];
+        return spawn(process.execPath, ['-e', `
+            const { writeFileSync } = require('node:fs');
+            const [report, clip] = process.argv.slice(1);
+            writeFileSync(clip, 'media');
+            writeFileSync(report, clip + '\\n');
+            console.log('[download] Finished');
+        `, reportFile, join(folder, filenames[index++])]);
+    });
+    const provider = scriptedProvider([
+        { toolCalls: [
+            call('download_section', { ...bounds, media_type: 'video', max_height: 720 }, 'clip-video'),
+            call('download_section', { ...bounds, media_type: 'audio', format: 'mp3' }, 'clip-audio')
+        ] },
+        { text: 'Saved the video and MP3 clips.' }
+    ]);
+    const progress = [];
+    const history = [];
+    const system = buildSystemPrompt({ downloadFolder: folder });
+    assert.match(system, /call download_section with media_type "video" or "audio"/);
+    await runAgent({
+        provider, system, history, userText: `Download ${url} from 1:15.250 to 2:30.500 in 720p and as MP3`,
+        ctx: {
+            downloadFolder: folder, browser: 'brave', proxy: 'http://127.0.0.1:8080',
+            onProgress: (line) => progress.push(line)
+        }
+    });
+
+    assert.equal(downloader.mock.callCount(), 2);
+    const commands = downloader.mock.calls.map(({ arguments: [, command, args] }) => {
+        assert.equal(command, 'yt-dlp');
+        assert.ok(args.includes('--no-playlist'));
+        assert.ok(args.includes('--force-keyframes-at-cuts'));
+        assert.ok(args.includes('--no-overwrites'));
+        assert.equal(args.at(-1), url);
+        const option = (flag) => args[args.indexOf(flag) + 1];
+        assert.equal(option('--playlist-items'), '1');
+        assert.equal(option('--match-filters'), 'duration>=?150.5s');
+        assert.equal(option('--download-sections'), '*75.25-150.5');
+        assert.equal(option('--cookies-from-browser'), 'brave');
+        assert.equal(option('--proxy'), 'http://127.0.0.1:8080');
+        assert.equal(option('-P'), folder);
+        return option;
+    });
+    assert.match(commands[0]('-f'), /height<=720/);
+    assert.match(commands[0]('-o'), /\[clip 75\.25-150\.5 video mp4 720p-max\]/);
+    assert.match(commands[1]('-o'), /\[clip 75\.25-150\.5 audio mp3\]/);
+    assert.equal(commands[1]('--audio-format'), 'mp3');
+    assert.deepEqual(progress, ['[download] Finished', '[download] Finished']);
+    assert.deepEqual(provider.seen[1].filter((msg) => msg.role === 'tool').map((msg) => msg.result.files[0]), filenames);
+});
+
+test('download_section rejects invalid requests before invoking yt-dlp', async (t) => {
+    const section = getTool('download_section');
+    const downloader = t.mock.method(taskManager, 'spawnProcess');
+    const args = { url: 'https://example.test/clip', media_type: 'video', start_time: '10', end_time: '20' };
+    for (const [invalid, error] of [
+        [{ url: 'file:///tmp/source.mp4' }, /url/],
+        [{ media_type: 'playlist' }, /media_type/],
+        [{ start_time: '30' }, /End time must be later/],
+        [{ end_time: '0:10' }, /End time must be later/],
+        [{ end_time: undefined }, /end_time/],
+        [{ end_time: '20 --exec' }, /end_time/],
+        [{ container: '../mp4' }, /container/],
+        [{ media_type: 'audio', format: '--exec' }, /format/]
+    ]) {
+        await assert.rejects(section.run({ ...args, ...invalid }, { downloadFolder: tmpdir() }), error);
+    }
+    await assert.rejects(section.run(args, {}), /choose a download folder/);
+    await assert.rejects(section.run(args, { downloadFolder: tmpdir(), proxy: 'socks5://127.0.0.1:1080' }), /SOCKS/);
+    assert.equal(downloader.mock.callCount(), 0);
+});
+
+test('download_section reports a failed clip when yt-dlp skips the download', async (t) => {
+    t.mock.method(taskManager, 'spawnProcess', () => spawn(process.execPath, ['-e', '']));
+    const result = await getTool('download_section').run({
+        url: 'https://example.test/clip', media_type: 'video', start_time: '10', end_time: '20'
+    }, { downloadFolder: tmpdir() });
+    assert.equal(result.ok, false);
+    assert.equal(result.error, MESSAGES.noClipSaved);
+    assert.deepEqual(result.files, []);
+});
+
+test('a clip from an address the user did not provide is denied without approval', async (t) => {
+    const downloader = t.mock.method(taskManager, 'spawnProcess');
+    const url = 'https://example.test/other';
+    const provider = scriptedProvider([
+        { toolCalls: [call('download_section', { url, media_type: 'audio', start_time: '10', end_time: '20' })] },
+        { text: 'You declined the download.' }
+    ]);
+    const prompts = [];
+    await runAgent({
+        provider, system: 's', history: [], userText: 'Download 0:10 to 0:20 from https://example.test/original',
+        ctx: { downloadFolder: tmpdir() }, confirm: (prompt) => { prompts.push(prompt); return false; }
+    });
+    assert.equal(prompts.length, 1);
+    assert.equal(prompts[0].reason, MESSAGES.urlNotFromUser);
+    assert.match(prompts[0].description, /audio clip from 10 to 20/);
+    assert.equal(downloader.mock.callCount(), 0);
 });
 
 test('plain answer with no tool calls ends the loop', async () => {

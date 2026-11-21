@@ -42,9 +42,9 @@ export function resolveFormatCode(formatCode) {
     return formatCode;
 }
 
-const MERGE_FORMATS = ['mp4', 'mkv', 'webm'];
+export const MERGE_FORMATS = ['mp4', 'mkv', 'webm'];
 
-export function videoFormatArgs({ maxHeight, formatCode, container, compatible }) {
+export function videoFormatArgs({ maxHeight, formatCode, container, compatible, recode = false }) {
     const specific = [];
     if (compatible) {
         const height = maxHeight ? `[height<=${maxHeight}]` : '';
@@ -62,7 +62,7 @@ export function videoFormatArgs({ maxHeight, formatCode, container, compatible }
         // Let yt-dlp use MKV when the chosen streams cannot be merged into MP4.
         specific.push('--merge-output-format', 'mp4/mkv', '--format-sort', 'res,vcodec:h264,ext:mp4:m4a');
     } else {
-        specific.push('--merge-output-format', container, '--remux-video', container);
+        specific.push('--merge-output-format', container, recode ? '--recode-video' : '--remux-video', container);
         if (container === 'mp4') specific.push('--format-sort', 'res,vcodec:h264,ext:mp4:m4a');
     }
     return specific;

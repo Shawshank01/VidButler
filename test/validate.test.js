@@ -8,6 +8,7 @@ import {
     validateFileHint,
     validateEnum,
     validateIntRange,
+    validateTimestamp,
     validateBool
 } from '../src/llm/validate.js';
 
@@ -72,4 +73,15 @@ test('validateEnum / validateIntRange / validateBool', () => {
     assert.equal(validateBool(undefined, 'p'), false);
     assert.equal(validateBool(true, 'p'), true);
     assert.throws(() => validateBool('yes', 'p'), ValidationError);
+});
+
+test('validateTimestamp normalizes seconds and clock times', () => {
+    assert.equal(validateTimestamp('0', 'start_time'), 0);
+    assert.equal(validateTimestamp(' 01:02.050 ', 'start_time'), 62.05);
+    assert.equal(validateTimestamp('90:15', 'end_time'), 5415);
+    assert.equal(validateTimestamp('1:02:03.456', 'end_time'), 3723.456);
+    assert.equal(validateTimestamp('3723.456', 'end_time'), 3723.456);
+    for (const bad of [undefined, 10, '', '-1', '1:60', '1:60:00', '1:00:60', '1:2:3:4', '0.0001', '1e3', '9999999999999999', 'inf', '1-2', '0 --exec']) {
+        assert.throws(() => validateTimestamp(bad, 'end_time'), /"end_time" must be a non-negative timestamp/);
+    }
 });

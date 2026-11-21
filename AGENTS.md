@@ -15,7 +15,7 @@ It originally had only a form-based UI ("Classic mode"). The goal of the current
 | Phase | Result | Status |
 | --- | --- | --- |
 | 1. Refactor | `src/main.js` split into Electron-free modules in `src/core/`. `main.js` is thin IPC handlers. Classic behaviour unchanged. | Done, user-verified |
-| 2. AI backend | `src/llm/`: 13 tools, input validation, agent loop, five provider adapters, system prompt. | Done |
+| 2. AI backend | `src/llm/`: 14 tools, input validation, agent loop, five provider adapters, system prompt. | Done |
 | 3A. Main-process integration | Encrypted API-key storage, chat service (settings, conversation, confirmations, cancel), IPC and preload API (`window.electronAPI.ai`). | Done, user-verified (key save, connection test) |
 | 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / SOCKS5 context controls. | Done, user-verified |
 | Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines, CSP and navigation guards, repo-wide ESLint. | Done |
@@ -68,7 +68,7 @@ src/llm/                 Electron-free:
   provenance.js            Is a URL one the user typed?
   tool-registry.js         Assembles tools/ ; getTool, getRisk, getToolDeclarations
   tools/                   names.js (TOOL_NAMES), common.js (defineTool, helpers),
-                           info.js, download.js, media.js, files.js
+                           info.js, download.js, section.js, media.js, files.js
   providers/               gemini, xai, cohere, ollama, openai-compatible, index (PROVIDER_TYPES capabilities),
                            http.js (requestJson/requestStream, retries), stream.js (SSE / NDJSON readers)
   prompt.js, messages.js, limits.js, redact.js, validate.js, errors.js, key-store.js
@@ -79,7 +79,7 @@ test/                    node:test suite
 
 ### Tools the model can call (`src/llm/tools/`)
 
-`get_online_video_info`, `list_formats`, `list_subtitles` (info.js); `download_video` (max_height / format_code / container / playlist), `download_audio` (best, m4a, mp3, opus, flac, wav), `download_thumbnail`, `download_subtitles` (download.js); `get_local_media_info`, `download_with_hardsub`, `reencode_mp4`, `extract_audio_from_file` (media.js); `list_downloads`, `delete_files` (files.js).
+`get_online_video_info`, `list_formats`, `list_subtitles` (info.js); `download_video` (max_height / format_code / container / playlist), `download_audio` (best, m4a, mp3, opus, flac, wav), `download_thumbnail`, `download_subtitles` (download.js); `download_section` (online video or audio clip between two timestamps, section.js); `get_local_media_info`, `download_with_hardsub`, `reencode_mp4`, `extract_audio_from_file` (media.js); `list_downloads`, `delete_files` (files.js).
 
 Tools are declared with `defineTool()` using names from `TOOL_NAMES`; the system prompt uses the same constants, and a test fails if the prompt mentions a tool or parameter that does not exist. Each tool has a `risk` (`low`/`high`, optionally a function of the arguments), a `describe()` text for the confirmation dialog, and a `run(args, ctx)` that validates everything and builds yt-dlp/ffmpeg **argument arrays**. High risk: hardsub, re-encode, delete_files, any `playlist: true` download, and any call whose `url` the user did not type (see invariant 11).
 
@@ -168,7 +168,7 @@ CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull request
 
 ## 8. Known limitations and rough edges
 
-- The assistant can do only what the 13 tools allow. **No trimming, GIFs, joining, resizing, speed change, SponsorBlock, chapter/metadata editing, or downloading a time range.** It says so and suggests a command instead.
+- The assistant can download a time range from an online source. Local file trimming, GIFs, joining, resizing, speed change, SponsorBlock, and chapter/metadata editing are still outside its capabilities. Time-range downloads require FFmpeg and are unavailable with a SOCKS proxy.
 - One conversation at a time; history is lost on New chat or quit; capped at 40 messages.
 - UI strings and the system prompt are English only (the model answers in the user's language). `messages.js` centralises the text but is not a translation layer.
 - **`renderer.js` (about 1,620 lines) and `ai-ui.js` (about 900 lines) are large classic scripts** sharing global state and DOM IDs. They were deliberately not split because nothing but a manual click-through can catch wiring mistakes. If you split them, do it with a smoke test of each dialog.
@@ -181,7 +181,7 @@ CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull request
 
 ### A. Close the capability gap (the original goal)
 
-1. Typed tools, each validated and building its own arguments: `trim_video` (start/end, stream copy or re-encode), `convert_media`, `make_gif`, `compress_video` (target size or CRF), `merge/concat`, `change_speed`, `resize`, `download_section` (`--download-sections`), SponsorBlock, chapters/metadata, playlist ranges. Add them as new files under `src/llm/tools/` with a name in `TOOL_NAMES`.
+1. Typed tools, each validated and building its own arguments: `trim_video` for local files (start/end, stream copy or re-encode), `convert_media`, `make_gif`, `compress_video` (target size or CRF), `merge/concat`, `change_speed`, `resize`, SponsorBlock, chapters/metadata, playlist ranges. Add them as new files under `src/llm/tools/` with a name in `TOOL_NAMES`.
 2. Then a **guarded passthrough** (`run_ytdlp`, `run_ffmpeg`) for the long tail: flag **allowlist** (not denylist); block `--exec`, `--exec-before-download`, `--config-locations`, `--plugin-dirs`, `--cookies-from-browser` changes, output templates escaping the folder; for ffmpeg, restrict input/output paths to the download folder and block protocol/file-reading filters (`concat:`, `movie=`, `subtitles=` on outside files, `drawtext` with `textfile`, lavfi network sources); always show the exact command and require confirmation.
 3. Add tests for every new tool, including path-escape and flag-injection cases.
 

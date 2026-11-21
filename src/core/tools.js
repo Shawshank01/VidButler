@@ -683,13 +683,21 @@ export async function downloadWithHardsub(options, onProgress = noop) {
             return cancelledResult();
         }
 
+        // Use the shorter edge so portrait and landscape footage at the same resolution share a bitrate tier.
+        const probe = await probeMedia(videoPath);
+        const video = probe.ok ? summarizeMediaInfo(probe.data, videoName).video : null;
+        const videoHeight = video?.width && video.height ? Math.min(video.width, video.height) : video?.height ?? undefined;
+        if (task.isCancelled) return cancelledResult();
+
         // Step 3: Run ffmpeg with hardsub
         onProgress(`Hardcoding subtitles using ${codec.toUpperCase()}...`);
 
         const result = await runFfmpegWithCodecFallback({
             task,
             onProgress,
-            buildArgs: (audioCodec) => buildFfmpegHardsubArgs({ videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec, subtitlePosition }),
+            buildArgs: (audioCodec) => buildFfmpegHardsubArgs({
+                videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec, videoHeight, subtitlePosition
+            }),
             outputPath,
             logPrefix: 'Hardcoding'
         });

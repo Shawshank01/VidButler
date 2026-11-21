@@ -8,6 +8,7 @@ export const TOOL_NAMES = Object.freeze({
     listFormats: 'list_formats',
     downloadVideo: 'download_video',
     downloadAudio: 'download_audio',
+    downloadSection: 'download_section',
     downloadThumbnail: 'download_thumbnail',
     listSubtitles: 'list_subtitles',
     downloadSubtitles: 'download_subtitles',

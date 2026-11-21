@@ -15,6 +15,7 @@ const noop = () => { };
  * @property {string} [browser]       Browser to read cookies from (e.g. "chrome"), or empty.
  * @property {string} [proxy]         Proxy URL (e.g. "socks5://127.0.0.1:1080/"), or empty.
  * @property {(text: string) => void} [onProgress]
+ * @property {AbortSignal} [signal]    Cancel the request between processes.
  */
 
 /**

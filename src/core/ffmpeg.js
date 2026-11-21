@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { findExecutable } from '../dependencies.js';
 import { taskManager } from './task-manager.js';
 import { logger } from './logger.js';
+import { aacEncoderArgs, videoBitrate } from './encoding.js';
 
 // Platform-adaptive default subtitle font (single font family name without commas for ASS style)
 const DEFAULT_SUBTITLE_FONT = process.platform === 'darwin'
@@ -15,9 +16,6 @@ const DEFAULT_SUBTITLE_FONT = process.platform === 'darwin'
 const TRANSCODE_CONFIG = {
     crf: '22',
     preset: 'veryslow',
-    audioBitrate: '128k',
-    h264Bitrate: '5000k',
-    hevcBitrate: '3000k',
     pixelFormatHevc: 'p010le',
     tagH264: 'avc1',
     tagHevc: 'hvc1',
@@ -36,33 +34,25 @@ export function buildFfmpegReEncodeArgs({ filePath, outputPath, thumbnailPath, a
             '-c:v:0', 'libx264',
             '-crf:0', TRANSCODE_CONFIG.crf,
             '-preset', TRANSCODE_CONFIG.preset,
-            '-c:a:0', audioCodec,
-            '-tag:v:0', TRANSCODE_CONFIG.tagH264
+            '-tag:v:0', TRANSCODE_CONFIG.tagH264,
+            ...aacEncoderArgs(audioCodec, ':0')
         );
-        if (audioCodec === 'aac_at') {
-            args.push('-aac_at_mode', 'cvbr');
-        }
-        args.push('-b:a:0', TRANSCODE_CONFIG.audioBitrate);
         args.push('-c:v:1', 'copy', '-disposition:v:1', 'attached_pic');
     } else {
         args.push(
             '-c:v', 'libx264',
             '-crf', TRANSCODE_CONFIG.crf,
             '-preset', TRANSCODE_CONFIG.preset,
-            '-c:a', audioCodec,
-            '-tag:v', TRANSCODE_CONFIG.tagH264
+            '-tag:v', TRANSCODE_CONFIG.tagH264,
+            ...aacEncoderArgs(audioCodec)
         );
-        if (audioCodec === 'aac_at') {
-            args.push('-aac_at_mode', 'cvbr');
-        }
-        args.push('-b:a', TRANSCODE_CONFIG.audioBitrate);
     }
     args.push(outputPath);
     return args;
 }
 
 // Helper to construct FFmpeg arguments for hardcoding subtitles
-export function buildFfmpegHardsubArgs({ videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec, subtitlePosition = 'bottom' }) {
+export function buildFfmpegHardsubArgs({ videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec, videoHeight = 720, subtitlePosition = 'bottom' }) {
     const args = ['-y'];
     const escapedSubPath = subtitlePath.replace(/\\/g, '/').replace(/'/g, "'\\''").replace(/:/g, '\\:');
 
@@ -84,23 +74,19 @@ export function buildFfmpegHardsubArgs({ videoPath, outputPath, subtitlePath, th
         args.push(
             thumbnailPath ? '-c:v:0' : '-c:v', vcodec,
             '-pix_fmt', TRANSCODE_CONFIG.pixelFormatHevc,
-            thumbnailPath ? '-b:v:0' : '-b:v', TRANSCODE_CONFIG.hevcBitrate,
+            thumbnailPath ? '-b:v:0' : '-b:v', videoBitrate('hevc', videoHeight),
             thumbnailPath ? '-tag:v:0' : '-tag:v', TRANSCODE_CONFIG.tagHevc
         );
     } else {
         const vcodec = process.platform === 'darwin' ? 'h264_videotoolbox' : 'libx264';
         args.push(
             thumbnailPath ? '-c:v:0' : '-c:v', vcodec,
-            thumbnailPath ? '-b:v:0' : '-b:v', TRANSCODE_CONFIG.h264Bitrate,
+            thumbnailPath ? '-b:v:0' : '-b:v', videoBitrate('h264', videoHeight),
             thumbnailPath ? '-tag:v:0' : '-tag:v', TRANSCODE_CONFIG.tagH264
         );
     }
 
-    args.push(thumbnailPath ? '-c:a:0' : '-c:a', audioCodec);
-    if (audioCodec === 'aac_at') {
-        args.push('-aac_at_mode', 'cvbr');
-    }
-    args.push(thumbnailPath ? '-b:a:0' : '-b:a', TRANSCODE_CONFIG.audioBitrate);
+    args.push(...aacEncoderArgs(audioCodec, thumbnailPath ? ':0' : ''));
 
     if (thumbnailPath) {
         args.push('-c:v:1', 'copy', '-disposition:v:1', 'attached_pic');
