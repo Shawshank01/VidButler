@@ -6,7 +6,11 @@ import { delimiter, join } from 'node:path';
 import { parseWebVtt } from '../src/core/webvtt.js';
 import { listSubtitles } from '../src/core/tools.js';
 import { runAgent } from '../src/llm/agent.js';
-import { MAX_TRANSCRIPT_FILE_BYTES, MAX_TRANSCRIPT_PAGE_CHARS, MAX_TRANSCRIPT_PAGES_PER_SUMMARY } from '../src/llm/limits.js';
+import { ProviderError } from '../src/llm/errors.js';
+import {
+    MAX_SMALL_TRANSCRIPT_INPUT_CHARS, MAX_TRANSCRIPT_FILE_BYTES, MAX_TRANSCRIPT_INPUT_CHARS,
+    MAX_TRANSCRIPT_PAGE_CHARS, MAX_TRANSCRIPT_PAGE_READS
+} from '../src/llm/limits.js';
 import { MESSAGES } from '../src/llm/messages.js';
 import { buildSystemPrompt } from '../src/llm/prompt.js';
 import { getTool, TOOL_NAMES } from '../src/llm/tool-registry.js';
@@ -30,6 +34,8 @@ const args = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + '\\n');
 if (args.includes('-j')) {
     console.log(${JSON.stringify(JSON.stringify(info))});
+} else if (args.includes('--print')) {
+    console.log('Captioned video\\tExample uploader\\t30:33\\tFalse');
 } else {
     const contents = ${JSON.stringify(contents ?? null)};
     const lang = args[args.indexOf('--sub-langs') + 1].slice(1, -1);
@@ -63,7 +69,7 @@ test('WebVTT captions preserve cue times and readable text, including in rolling
     assert.deepEqual([...parseWebVtt('an error page')], []);
 });
 
-test('the agent fetches timestamped pages once per turn and summarizes without a download folder', posixStub, async (t) => {
+test('the agent can fetch individual timestamped pages without downloading captions again', posixStub, async (t) => {
     const contents = caption(`${'A'.repeat(MAX_TRANSCRIPT_PAGE_CHARS + 500)} Final setup instruction.`);
     const calls = await stubYtDlp(t, {
         language: 'en', subtitles: { es: [{ name: 'Spanish' }], en: [{ name: 'English' }] },
@@ -72,7 +78,6 @@ test('the agent fetches timestamped pages once per turn and summarizes without a
     const history = [];
     const system = buildSystemPrompt();
     assert.match(system, /summarize an online video.*use get_video_transcript/);
-    assert.match(system, /Say which part you covered if more pages remain/);
     const provider = {
         async chat({ messages, tools }) {
             assert.ok(tools.some(({ name }) => name === transcript.name));
@@ -82,12 +87,12 @@ test('the agent fetches timestamped pages once per turn and summarizes without a
                 return { toolCalls: [], text: 'The setup is described at 00:00.' };
             }
             const previous = results[0];
-            const args = previous ? { url, lang: previous.language, page: previous.next_page } : { url };
+            const args = { url, mode: 'page', lang: previous?.language, page: previous?.next_page };
             return { toolCalls: [{ id: `caption-${results.length}`, name: transcript.name, args }] };
         }
     };
     const res = await runAgent({
-        provider, system, history, userText: `Summarize ${url}`,
+        provider, system, history, userText: `What is the final setup instruction in ${url}?`,
         ctx: { browser: 'firefox', proxy: 'socks5://127.0.0.1:1080' }
     });
     assert.equal(res.text, 'The setup is described at 00:00.');
@@ -114,6 +119,152 @@ test('the agent fetches timestamped pages once per turn and summarizes without a
     assert.ok(fetch.includes('--write-subs'));
     assert.equal(fetch[fetch.indexOf('--sub-langs') + 1], '^en$');
     await assert.rejects(fs.stat(fetch[fetch.indexOf('-P') + 1]), { code: 'ENOENT' });
+});
+
+test('a video summary receives all six caption pages intact before the model answers', posixStub, async (t) => {
+    const cues = Array.from({ length: MAX_TRANSCRIPT_INPUT_CHARS / MAX_TRANSCRIPT_PAGE_CHARS }, (_, index) => {
+        const timestamp = `0${index}:00.000 --> 0${index}:04.000`;
+        return `${timestamp}\n${'"'.repeat(MAX_TRANSCRIPT_PAGE_CHARS - 100)} Caption page ${index + 1}.`;
+    });
+    const calls = await stubYtDlp(t, { subtitles: { en: [{ name: 'English' }] } }, `WEBVTT\n\n${cues.join('\n\n')}`);
+    const history = [];
+    const provider = {
+        async chat({ messages }) {
+            const results = messages.filter(({ role }) => role === 'tool');
+            if (!results.length) {
+                return { toolCalls: [{ id: 'captions', name: transcript.name, args: { url, page: 1 } }] };
+            }
+
+            const captions = results[0].result;
+            assert.equal(captions.total_pages, cues.length);
+            assert.equal(captions.last_page, captions.total_pages);
+            assert.equal(captions.next_page, null);
+            assert.equal(captions.from, '00:00.000');
+            assert.equal(captions.through, '05:04.000');
+            for (const cue of cues) assert.ok(captions.transcript.includes(cue.split('\n')[1]));
+
+            if (results.length === 1) {
+                return { toolCalls: [{ id: 'metadata', name: TOOL_NAMES.getOnlineVideoInfo, args: { url } }] };
+            }
+            assert.equal(results[1].result.title, 'Captioned video');
+            return { toolCalls: [], text: 'The conclusion appears at 05:00.' };
+        }
+    };
+    const res = await runAgent({ provider, system: buildSystemPrompt(), history, userText: `Summarize ${url}`, ctx: {} });
+    assert.equal(res.text, 'The conclusion appears at 05:00.');
+    assert.equal(res.steps, 3);
+    assert.equal((await calls()).length, 3);
+});
+
+test('long summaries read every chunk and consolidate notes within the provider budget', posixStub, async (t) => {
+    const chunkCount = 24;
+    const cues = Array.from({ length: chunkCount }, (_, index) => {
+        const minute = String(index).padStart(2, '0');
+        return `${minute}:00.000 --> ${minute}:04.000\nSection ${index + 1}. ${'A'.repeat(MAX_SMALL_TRANSCRIPT_INPUT_CHARS - 125)}`;
+    });
+    const calls = await stubYtDlp(t, { subtitles: { en: [{ name: 'English' }] } }, `WEBVTT\n\n${cues.join('\n\n')}`);
+    const history = [];
+    const progress = [];
+    const chunksRead = [];
+    let mergeCalls = 0;
+    const userText = `Summarize ${url}, focusing on the examples.`;
+    const provider = {
+        id: 'ollama',
+        async chat({ messages, tools, onTextDelta }) {
+            if (!tools.length) {
+                assert.equal(onTextDelta, undefined);
+                assert.equal(messages.length, 1);
+                const source = JSON.parse(messages[0].text);
+                assert.equal(source.request, userText);
+                assert.ok(source.text.length <= MAX_SMALL_TRANSCRIPT_INPUT_CHARS);
+                const sections = source.text.match(/Section \d+\./g);
+                if (source.sourceType === 'captions') {
+                    assert.deepEqual(sections, [`Section ${chunksRead.length + 1}.`]);
+                    chunksRead.push(source.from);
+                    return { text: sections[0] + ' ' + 'N'.repeat(620), toolCalls: [] };
+                }
+                assert.equal(source.sourceType, 'notes');
+                mergeCalls += 1;
+                return { text: sections.join(' '), toolCalls: [] };
+            }
+            const result = messages.find(({ role }) => role === 'tool')?.result;
+            if (!result) {
+                return { toolCalls: [{ id: 'captions', name: transcript.name, args: { url } }] };
+            }
+            assert.equal(result.next_page, null);
+            assert.equal(result.from, '00:00.000');
+            assert.equal(result.through, '23:04.000');
+            assert.equal(result.transcript, undefined);
+            assert.deepEqual(
+                result.summary_notes.match(/Section \d+\./g),
+                cues.map((_, index) => `Section ${index + 1}.`)
+            );
+            return { text: 'All sections summarized.', toolCalls: [] };
+        }
+    };
+    const res = await runAgent({
+        provider, system: buildSystemPrompt(), history, userText,
+        ctx: { onProgress: (message) => progress.push(message) }
+    });
+    assert.equal(res.text, 'All sections summarized.');
+    assert.equal(res.steps, 2);
+    assert.equal(chunksRead.length, chunkCount);
+    assert.ok(mergeCalls > 0);
+    assert.ok(progress.includes(MESSAGES.transcriptChunkProgress(chunkCount, chunkCount)));
+    assert.equal((await calls()).length, 2);
+});
+
+test('stopping a long summary cancels intermediate caption processing', posixStub, async (t) => {
+    const contents = caption('A'.repeat(MAX_SMALL_TRANSCRIPT_INPUT_CHARS * 2));
+    await stubYtDlp(t, { subtitles: { en: [{ name: 'English' }] } }, contents);
+    const controller = new AbortController();
+    const events = [];
+    let summaryCalls = 0;
+    const provider = {
+        id: 'ollama',
+        async chat({ tools, signal }) {
+            if (!tools.length) {
+                assert.equal(signal, controller.signal);
+                summaryCalls += 1;
+                controller.abort();
+                return { text: 'Unfinished notes.', toolCalls: [] };
+            }
+            return { toolCalls: [{ id: 'captions', name: transcript.name, args: { url } }] };
+        }
+    };
+    const res = await runAgent({
+        provider, system: buildSystemPrompt(), history: [], userText: `Summarize ${url}`,
+        ctx: {}, signal: controller.signal, onEvent: (event) => events.push(event)
+    });
+    assert.equal(res.stoppedBecause, 'aborted');
+    assert.equal(summaryCalls, 1);
+    assert.equal(events.find(({ type }) => type === 'tool_result').cancelled, true);
+});
+
+test('a provider failure during caption processing never reports complete coverage', posixStub, async (t) => {
+    await stubYtDlp(t, { subtitles: { en: [{ name: 'English' }] } }, caption('A'.repeat(MAX_SMALL_TRANSCRIPT_INPUT_CHARS * 2)));
+    const failure = new ProviderError('Quota reached.', { kind: 'rate_limit' });
+    const events = [];
+    const history = [];
+    let summaryCalls = 0;
+    const provider = {
+        id: 'ollama',
+        async chat({ tools }) {
+            if (!tools.length) {
+                summaryCalls += 1;
+                if (summaryCalls === 2) throw failure;
+                return { text: 'First chunk only.', toolCalls: [] };
+            }
+            return { toolCalls: [{ id: 'captions', name: transcript.name, args: { url } }] };
+        }
+    };
+    await assert.rejects(runAgent({
+        provider, system: buildSystemPrompt(), history, userText: `Summarize ${url}`,
+        ctx: {}, onEvent: (event) => events.push(event)
+    }), (error) => error === failure);
+    assert.equal(summaryCalls, 2);
+    assert.equal(events.find(({ type }) => type === 'tool_result').ok, false);
+    assert.ok(history.every(({ role }) => role !== 'tool'));
 });
 
 test('transcript can select original-language automatic captions alongside other manual tracks', posixStub, async (t) => {
@@ -175,26 +326,31 @@ test('caption files are bounded and the temp directory is removed on failure', p
     await assert.rejects(fs.stat(fetch[fetch.indexOf('-P') + 1]), { code: 'ENOENT' });
 });
 
-test('long transcripts can continue from the returned page in the next turn', posixStub, async (t) => {
-    const text = 'A'.repeat(MAX_TRANSCRIPT_PAGE_CHARS * MAX_TRANSCRIPT_PAGES_PER_SUMMARY);
+test('individual page lookups can continue in the next turn after using the page budget', posixStub, async (t) => {
+    const text = 'A'.repeat(MAX_TRANSCRIPT_PAGE_CHARS * MAX_TRANSCRIPT_PAGE_READS);
     const calls = await stubYtDlp(t, { subtitles: { en: [{ name: 'English' }] } }, caption(text));
     const ctx = {};
     let nextPage = 1;
-    for (let index = 0; index < MAX_TRANSCRIPT_PAGES_PER_SUMMARY; index += 1) {
-        const result = await transcript.run({ url, page: nextPage }, ctx);
+    for (let index = 0; index < MAX_TRANSCRIPT_PAGE_READS; index += 1) {
+        const result = await transcript.run({ url, mode: 'page', page: nextPage }, ctx);
         assert.equal(result.ok, true);
         nextPage = result.next_page;
     }
-    assert.equal(nextPage, MAX_TRANSCRIPT_PAGES_PER_SUMMARY + 1);
-    assert.deepEqual(await transcript.run({ url, page: nextPage }, ctx), { ok: false, error: MESSAGES.transcriptPageLimit });
+    assert.equal(nextPage, MAX_TRANSCRIPT_PAGE_READS + 1);
+    assert.deepEqual(await transcript.run({ url, mode: 'page', page: nextPage }, ctx), {
+        ok: false, error: MESSAGES.transcriptPageLimit
+    });
     assert.equal((await calls()).length, 2);
-    assert.equal((await transcript.run({ url, page: nextPage }, {})).next_page, null);
+    const continuation = await transcript.run({ url, page: nextPage, mode: 'page' }, {});
+    assert.equal(continuation.page, nextPage);
+    assert.equal(continuation.next_page, null);
     assert.equal((await calls()).length, 4);
 });
 
 test('transcript rejects invalid arguments and applies existing URL confirmation rules', async () => {
     await assert.rejects(transcript.run({ url: 'file:///tmp/video' }, {}), /http/);
     await assert.rejects(transcript.run({ url, lang: '../../captions' }, {}), /language code/);
+    await assert.rejects(transcript.run({ url, mode: 'unknown' }, {}), /mode/);
     await assert.rejects(transcript.run({ url, page: 0 }, {}), /page/);
     const history = [];
     const confirmations = [];

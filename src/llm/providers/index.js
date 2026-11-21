@@ -5,6 +5,7 @@ import { OpenAICompatibleProvider, DEFAULT_OPENAI_BASE_URL } from './openai-comp
 import { XaiProvider, DEFAULT_XAI_BASE_URL, DEFAULT_XAI_MODEL, XAI_REASONING_EFFORTS } from './xai.js';
 import { CohereProvider, DEFAULT_COHERE_BASE_URL, DEFAULT_COHERE_MODEL } from './cohere.js';
 import { MESSAGES } from '../messages.js';
+import { MAX_SMALL_TRANSCRIPT_INPUT_CHARS } from '../limits.js';
 
 /**
  * Provider types the app knows about, with the defaults the settings UI should pre-fill.
@@ -15,6 +16,7 @@ import { MESSAGES } from '../messages.js';
  *                       API key keep a fixed URL so the key cannot be redirected elsewhere.
  * - `lockedBaseUrlError` if set, attempts to change a fixed URL are rejected with this message
  *                       (otherwise they are silently ignored).
+ * - `transcriptInputChars`  Smaller transcript budget for providers with unknown context limits.
  * - `options`           extra per-provider tuning settings, each `{ choices, default, label }`.
  *                       The option name is also the key passed to the provider's constructor.
  */
@@ -54,6 +56,7 @@ export const PROVIDER_TYPES = {
         defaultBaseUrl: DEFAULT_OLLAMA_BASE_URL,
         needsApiKey: false,
         editableBaseUrl: true,
+        transcriptInputChars: MAX_SMALL_TRANSCRIPT_INPUT_CHARS,
         options: {}
     },
     'openai-compatible': {
@@ -62,6 +65,7 @@ export const PROVIDER_TYPES = {
         defaultBaseUrl: DEFAULT_OPENAI_BASE_URL,
         needsApiKey: false,
         editableBaseUrl: true,
+        transcriptInputChars: MAX_SMALL_TRANSCRIPT_INPUT_CHARS,
         options: {}
     }
 };

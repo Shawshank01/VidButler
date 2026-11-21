@@ -15,7 +15,12 @@ export const MAX_LISTED_FILES = 50;
 export const MAX_CLIP_TIMESTAMP_MS = Math.floor(Number.MAX_SAFE_INTEGER / 1000); // safe in FFmpeg microseconds
 export const MAX_TRANSCRIPT_FILE_BYTES = 4 * 1024 * 1024;
 export const MAX_TRANSCRIPT_PAGE_CHARS = 10_000;
-export const MAX_TRANSCRIPT_PAGES_PER_SUMMARY = MAX_AGENT_STEPS - 2;
+export const MAX_TRANSCRIPT_PAGE_READS = 6;
+export const MAX_TRANSCRIPT_INPUT_CHARS = 60_000;
+export const MAX_SMALL_TRANSCRIPT_INPUT_CHARS = 3_000;
+export const MAX_TRANSCRIPT_NOTE_TARGET_CHARS = 2_000;
+// Permit JSON escaping of caption text and leave room for timestamps and pagination metadata.
+export const MAX_TRANSCRIPT_RESULT_CHARS = 2 * MAX_TRANSCRIPT_INPUT_CHARS + 1024;
 
 // Waiting for the user
 export const CONFIRMATION_TIMEOUT_MS = 5 * 60 * 1000;

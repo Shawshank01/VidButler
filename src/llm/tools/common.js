@@ -16,8 +16,10 @@ const noop = () => { };
  * @property {string} [proxy]         Proxy URL (e.g. "socks5://127.0.0.1:1080/"), or empty.
  * @property {(text: string) => void} [onProgress]
  * @property {AbortSignal} [signal]    Cancel the request between processes.
- * @property {{url: string, lang?: string, track: object, pages: object[]}} [transcript]  One caption track cached for this turn.
- * @property {number} [transcriptPagesRead]  Transcript pages returned during this turn.
+ * @property {{url: string, lang?: string, track: object, pages: object[], summary?: object}} [transcript]  Caption track cached for this turn.
+ * @property {number} [transcriptInputChars]  Provider's transcript text budget.
+ * @property {number} [transcriptPagesRead]  Individual pages returned during this turn.
+ * @property {(part: object) => Promise<string>} [summarizeTranscriptPart]  Generate intermediate notes for a long transcript.
  */
 
 /**

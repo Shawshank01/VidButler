@@ -3,13 +3,16 @@ import { join } from 'path';
 import { listSubtitles } from '../../core/tools.js';
 import { getScratchDirectory } from '../../core/local-data.js';
 import { parseWebVtt } from '../../core/webvtt.js';
-import { MAX_TRANSCRIPT_FILE_BYTES, MAX_TRANSCRIPT_PAGE_CHARS, MAX_TRANSCRIPT_PAGES_PER_SUMMARY } from '../limits.js';
+import { MAX_TRANSCRIPT_FILE_BYTES, MAX_TRANSCRIPT_PAGE_CHARS, MAX_TRANSCRIPT_PAGE_READS } from '../limits.js';
 import { MESSAGES } from '../messages.js';
-import { validateIntRange, validateLang, validateUrl } from '../validate.js';
+import { prepareTranscript } from '../transcript-summary.js';
+import { validateEnum, validateIntRange, validateLang, validateUrl } from '../validate.js';
 import { commonArgs, defineTool, findSubtitleTrack, lastLines, outcome, runYtDlpIn, urlProperty } from './common.js';
 import { TOOL_NAMES } from './names.js';
 
-function transcriptPages(cues) {
+const MODES = ['summary', 'page'];
+
+function transcriptPages(cues, maxChars) {
     const pages = [];
     let lines = [];
     let length = 0;
@@ -17,7 +20,7 @@ function transcriptPages(cues) {
     let through;
     let endSeconds;
     const flush = () => {
-        pages.push({ from, through, transcript: lines.join('\n') });
+        pages.push({ from, through, text: lines.join('\n') });
         lines = [];
         length = 0;
     };
@@ -25,11 +28,11 @@ function transcriptPages(cues) {
         const prefix = `[${cue.start}–${cue.end}] `;
         let offset = 0;
         while (offset < cue.text.length) {
-            let end = Math.min(offset + MAX_TRANSCRIPT_PAGE_CHARS - prefix.length, cue.text.length);
+            let end = Math.min(offset + maxChars - prefix.length, cue.text.length);
             // Keep a Unicode surrogate pair together when a single cue spans two pages.
             if (/[\uDC00-\uDFFF]/u.test(cue.text.charAt(end))) end -= 1;
             const line = prefix + cue.text.slice(offset, end);
-            if (lines.length && length + 1 + line.length > MAX_TRANSCRIPT_PAGE_CHARS) flush();
+            if (lines.length && length + 1 + line.length > maxChars) flush();
             if (!lines.length) {
                 from = cue.start;
                 endSeconds = -Infinity;
@@ -86,7 +89,8 @@ async function fetchTranscript(url, lang, ctx) {
         if (!stat.isFile()) return { ok: false, error: MESSAGES.transcriptMissing };
         if (stat.size > MAX_TRANSCRIPT_FILE_BYTES) return { ok: false, error: MESSAGES.transcriptTooLarge };
         const contents = await fs.readFile(file, { encoding: 'utf8', signal: ctx.signal });
-        const pages = transcriptPages(parseWebVtt(contents, { rolling: auto }));
+        const pageChars = Math.min(MAX_TRANSCRIPT_PAGE_CHARS, ctx.transcriptInputChars ?? MAX_TRANSCRIPT_PAGE_CHARS);
+        const pages = transcriptPages(parseWebVtt(contents, { rolling: auto }), pageChars);
         if (!pages.length) return { ok: false, error: MESSAGES.transcriptEmpty };
         return { ok: true, url, lang, track, pages };
     } catch (error) {
@@ -104,6 +108,7 @@ export const videoTranscriptTool = defineTool({
     properties: {
         url: urlProperty,
         lang: { type: 'string', description: MESSAGES.transcriptLanguageDescription },
+        mode: { type: 'string', enum: MODES, description: MESSAGES.transcriptModeDescription },
         page: { type: 'integer', description: MESSAGES.transcriptPageDescription }
     },
     required: ['url'],
@@ -111,27 +116,41 @@ export const videoTranscriptTool = defineTool({
     async run(args, ctx) {
         const url = validateUrl(args.url);
         const lang = args.lang == null ? undefined : validateLang(args.lang);
+        const mode = validateEnum(args.mode, MODES, 'mode', 'summary');
         const page = validateIntRange(args.page, 1, Number.MAX_SAFE_INTEGER, 'page') ?? 1;
         if (ctx.signal?.aborted) return cancelled();
         const pagesRead = ctx.transcriptPagesRead ?? 0;
-        if (pagesRead >= MAX_TRANSCRIPT_PAGES_PER_SUMMARY) return { ok: false, error: MESSAGES.transcriptPageLimit };
+        if (mode === 'page' && pagesRead >= MAX_TRANSCRIPT_PAGE_READS) {
+            return { ok: false, error: MESSAGES.transcriptPageLimit };
+        }
 
         if (ctx.transcript?.url !== url || (ctx.transcript.lang !== lang && ctx.transcript.track.code !== lang)) {
             const result = await fetchTranscript(url, lang, ctx);
             if (!result.ok) return result;
             ctx.transcript = result;
         }
-        const { track, pages } = ctx.transcript;
+        const { track, pages, summary } = ctx.transcript;
         if (page > pages.length) return { ok: false, error: MESSAGES.transcriptPageUnavailable(pages.length) };
-        ctx.transcriptPagesRead = pagesRead + 1;
+        const lastPage = mode === 'summary' ? pages.length : page;
+        let content;
+        if (mode === 'summary') {
+            content = summary?.page === page ? summary.content : await prepareTranscript(pages.slice(page - 1), ctx);
+            ctx.transcript.summary = { page, content };
+        } else {
+            content = { transcript: pages[page - 1].text };
+            ctx.transcriptPagesRead = pagesRead + 1;
+        }
         return {
             ok: true,
             language: track.code,
             is_auto_generated: track.type === 'auto-original',
             page,
+            last_page: lastPage,
             total_pages: pages.length,
-            next_page: page < pages.length ? page + 1 : null,
-            ...pages[page - 1]
+            next_page: lastPage < pages.length ? lastPage + 1 : null,
+            from: pages[page - 1].from,
+            through: pages[lastPage - 1].through,
+            ...content
         };
     }
 });

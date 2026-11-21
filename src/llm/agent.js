@@ -3,9 +3,11 @@ import { ProviderError } from './errors.js';
 import { ValidationError } from './validate.js';
 import { getTool, getRisk, getToolDeclarations, TOOL_NAMES } from './tool-registry.js';
 import { cancelCurrentTask } from '../core/tools.js';
-import { MAX_AGENT_STEPS, MAX_TOOL_RESULT_CHARS, MAX_DELETE_FILES } from './limits.js';
+import { MAX_AGENT_STEPS, MAX_TOOL_RESULT_CHARS, MAX_DELETE_FILES, MAX_TRANSCRIPT_RESULT_CHARS } from './limits.js';
 import { MESSAGES } from './messages.js';
 import { isForeignUrl, extractUrls } from './provenance.js';
+import { PROVIDER_TYPES } from './providers/index.js';
+import { writeTranscriptNotes } from './transcript-summary.js';
 
 const noop = () => { };
 const cookieBrowserLabels = { brave: 'Brave', chrome: 'Chrome', firefox: 'Firefox', safari: 'Safari' };
@@ -92,11 +94,19 @@ export async function runAgent({
     confirm,
     confirmMode = 'risky',
     maxSteps = MAX_AGENT_STEPS,
-    maxResultChars = MAX_TOOL_RESULT_CHARS,
+    maxResultChars,
     signal
 }) {
     const tools = getToolDeclarations();
-    const toolContext = { ...ctx, signal };
+    const onRetry = (info) => onEvent({ type: 'retrying', provider: provider.displayName || provider.id, ...info });
+    const toolContext = {
+        ...ctx,
+        signal,
+        transcriptInputChars: PROVIDER_TYPES[provider.id]?.transcriptInputChars,
+        summarizeTranscriptPart: (part) => writeTranscriptNotes(provider, {
+            ...part, request: userText, signal, onRetry
+        })
+    };
     history.push({ role: 'user', text: userText });
 
     let steps = 0;
@@ -127,7 +137,7 @@ export async function runAgent({
                     streamedText += text;
                     onEvent({ type: 'assistant_delta', text });
                 },
-                onRetry: (info) => onEvent({ type: 'retrying', provider: provider.displayName || provider.id, ...info })
+                onRetry
             });
         } catch (err) {
             if (err instanceof ProviderError && err.kind === 'aborted') return finishAborted();
@@ -183,12 +193,15 @@ export async function runAgent({
             cookieFailure ??= result.macCookieAccess;
             otherResult ||= !result.macCookieAccess;
 
+            const resultLimit = call.name === TOOL_NAMES.getVideoTranscript && result.ok
+                ? MAX_TRANSCRIPT_RESULT_CHARS
+                : MAX_TOOL_RESULT_CHARS;
             history.push({
                 role: 'tool',
                 toolCallId: call.id,
                 providerCallId: call.providerCallId,
                 name: call.name,
-                result: shapeResult(result, maxResultChars)
+                result: shapeResult(result, maxResultChars ?? resultLimit)
             });
         }
         if (signal?.aborted) return finishAborted();
@@ -743,13 +756,18 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
 
     onEvent({ type: 'tool_start', id: call.id, name: tool.name, args, description, risk });
     let result;
+    let providerError;
     try {
         result = await tool.run(args, ctx);
     } catch (err) {
-        result = {
-            ok: false,
-            error: err instanceof ValidationError ? err.message : `Tool failed: ${err.message}`
-        };
+        if (signal?.aborted) {
+            result = { ok: false, cancelled: true, error: MESSAGES.cancelledByUser };
+        } else if (err instanceof ProviderError) {
+            providerError = err;
+            result = { ok: false, error: MESSAGES.transcriptSummaryFailed };
+        } else {
+            result = { ok: false, error: err instanceof ValidationError ? err.message : `Tool failed: ${err.message}` };
+        }
     }
     const macCookieAccess = macCookieAccessFailure(tool.name, result, ctx?.browser);
     if (macCookieAccess) {
@@ -763,6 +781,7 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
         cancelled: result.cancelled === true,
         result
     });
+    if (providerError) throw providerError;
     return result;
 }
 

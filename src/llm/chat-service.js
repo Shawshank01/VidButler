@@ -134,7 +134,7 @@ export class ChatService {
                 signal: controller.signal
             });
 
-            this.log(`request finished: ${result.stoppedBecause} after ${result.steps} model call(s), ${result.text.length} characters`);
+            this.log(`request finished: ${result.stoppedBecause} after ${result.steps} agent step(s), ${result.text.length} characters`);
             return { ok: true, text: result.text, stoppedBecause: result.stoppedBecause, steps: result.steps };
         } catch (err) {
             const kind = err instanceof ProviderError ? err.kind : err instanceof AiSettingsError ? 'settings' : 'unexpected';
