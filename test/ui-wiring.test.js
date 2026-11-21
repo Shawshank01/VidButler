@@ -138,10 +138,12 @@ test('app info modal is wired to the brand icon and exposes info', () => {
     assert.match(html, /https:\/\/github\.com\/Shawshank01\/Vidbutler/);
     assert.match(html, /id="checkDependenciesBtn"/);
     assert.match(html, /id="checkUpdateBtn"/);
+    assert.match(html, /id="deleteLocalDataBtn"[^>]*>Delete Local Data/);
     assert.match(html, /Michifumi/);
     assert.match(rendererScript, /appInfoBtn\.addEventListener\('click'/);
     assert.match(rendererScript, /window\.electronAPI\?\.getAppInfo/);
     assert.match(rendererScript, /window\.electronAPI\.checkDependencies/);
+    assert.match(rendererScript, /window\.electronAPI\.deleteLocalData\(/);
     assert.match(rendererScript, /appInfoGithubLink/);
 });
 

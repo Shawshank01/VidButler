@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     getCurrentVersion: () => ipcRenderer.invoke('get-current-version'),
     getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+    deleteLocalData: () => ipcRenderer.invoke('delete-local-data'),
     checkDependencies: () => ipcRenderer.invoke('check-dependencies'),
 
     reEncodeToMp4: (downloadFolder, videoId) =>

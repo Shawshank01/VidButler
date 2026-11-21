@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
-import { tmpdir } from 'os';
 import { join } from 'path';
 import { listSubtitles } from '../../core/tools.js';
+import { getScratchDirectory } from '../../core/local-data.js';
 import { parseWebVtt } from '../../core/webvtt.js';
 import { MAX_TRANSCRIPT_FILE_BYTES, MAX_TRANSCRIPT_PAGE_CHARS, MAX_TRANSCRIPT_PAGES_PER_SUMMARY } from '../limits.js';
 import { MESSAGES } from '../messages.js';
@@ -69,7 +69,7 @@ async function fetchTranscript(url, lang, ctx) {
     }
     const code = validateLang(track.code);
     const auto = track.type === 'auto-original';
-    const folder = await fs.mkdtemp(join(tmpdir(), 'vidbutler-transcript-'));
+    const folder = await fs.mkdtemp(join(getScratchDirectory(), 'vidbutler-transcript-'));
     try {
         if (ctx.signal?.aborted) return cancelled();
         const res = await runYtDlpIn(ctx, [

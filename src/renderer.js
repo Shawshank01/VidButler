@@ -1267,6 +1267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const appInfoCloseBtn = document.getElementById('appInfoCloseBtn');
     const appInfoDoneBtn = document.getElementById('appInfoDoneBtn');
     const checkDependenciesBtn = document.getElementById('checkDependenciesBtn');
+    const deleteLocalDataBtn = document.getElementById('deleteLocalDataBtn');
     const depCheckResult = document.getElementById('depCheckResult');
     const appInfoGithubLink = document.getElementById('appInfoGithubLink');
 
@@ -1279,6 +1280,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+
+    deleteLocalDataBtn?.addEventListener('click', async () => {
+        deleteLocalDataBtn.disabled = true;
+        try {
+            const result = await window.electronAPI.deleteLocalData();
+            if (result.ok || result.cancelled) return;
+            depCheckResult.textContent = result.error;
+        } catch {
+            depCheckResult.textContent = 'Could not delete local data.';
+        } finally {
+            deleteLocalDataBtn.disabled = false;
+        }
+        depCheckResult.style.display = 'block';
+    });
 
     async function loadAppInfo() {
         if (!window.electronAPI?.getAppInfo) return;

@@ -1,6 +1,7 @@
 import { exec, execSync } from 'child_process';
 import { delimiter, join } from 'path';
 import fs from 'fs';
+import { toolEnvironment } from './core/local-data.js';
 
 /**
  * Get known standard binary directories across all environments.
@@ -194,7 +195,7 @@ const MAX_BUFFER_BYTES = 20 * 1024 * 1024;
  */
 function runCommandWithOutput(command) {
     return new Promise((resolve) => {
-        exec(command, { maxBuffer: MAX_BUFFER_BYTES }, (error, stdout, stderr) => {
+        exec(command, { maxBuffer: MAX_BUFFER_BYTES, env: toolEnvironment() }, (error, stdout, stderr) => {
             if (error) {
                 resolve({
                     ok: false,

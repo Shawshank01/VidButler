@@ -1,10 +1,10 @@
 // Helpers shared by the tool definitions.
 import { promises as fs } from 'fs';
-import { tmpdir } from 'os';
 import { basename, join } from 'path';
 import { runYtDlp, listSubtitles } from '../../core/tools.js';
 import { ValidationError } from '../validate.js';
 import { requireFolder } from '../context.js';
+import { getScratchDirectory } from '../../core/local-data.js';
 
 const noop = () => { };
 
@@ -93,7 +93,7 @@ export function outcome(res, extra = {}) {
 export async function runDownload(specificArgs, url, ctx, { playlist = false, sidecarOnly = false } = {}) {
     const folder = requireFolder(ctx);
     const manifestFile = join(
-        tmpdir(),
+        getScratchDirectory(),
         `ytdl-ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.txt`
     );
 

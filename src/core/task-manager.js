@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import { getBundledExecutablePath } from '../dependencies.js';
 import { logger } from './logger.js';
+import { spawnYtDlp } from './local-data.js';
 
 // Task management for long-running processes (yt-dlp or ffmpeg)
 class TaskManager {
@@ -35,7 +36,8 @@ class TaskManager {
 
         // yt-dlp can run FFmpeg as a child while downloading a section.
         const spawnOptions = { detached: process.platform !== 'win32' && command === 'yt-dlp', ...options };
-        const child = spawn(getBundledExecutablePath(command) || command, args, spawnOptions);
+        const executable = getBundledExecutablePath(command) || command;
+        const child = command === 'yt-dlp' ? spawnYtDlp(executable, args, spawnOptions) : spawn(executable, args, spawnOptions);
         task.activeProcess = child;
         task.activeProcessGroup = spawnOptions.detached;
 

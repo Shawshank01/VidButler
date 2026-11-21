@@ -3,8 +3,7 @@
 // Every function here is a plain async function that takes an `onProgress(string)` callback
 // instead of an Electron IPC event. This lets the classic UI (via IPC handlers in main.js)
 // and any future caller (e.g. an LLM agent) share exactly the same implementation.
-import { spawn } from 'child_process';
-import { tmpdir } from 'os';
+import { getScratchDirectory, spawnYtDlp } from './local-data.js';
 import { join, parse } from 'path';
 import { promises as fs } from 'fs';
 import { checkFfmpegSubtitlesSupport, findExecutable } from '../dependencies.js';
@@ -144,7 +143,7 @@ async function queryYtDlp(args) {
     }
     return new Promise((resolve) => {
         try {
-            const child = spawn(executable, args);
+            const child = spawnYtDlp(executable, args);
             // Decode as a stream so multi-byte characters split across chunks stay intact.
             child.stdout.setEncoding('utf8');
             child.stderr.setEncoding('utf8');
@@ -264,7 +263,7 @@ export function listSubtitles(url, browser, proxy, { forTranscript = false, sign
             if (browser) args.push('--cookies-from-browser', browser);
             args.push(url);
 
-            const child = spawn(executable, args, { signal });
+            const child = spawnYtDlp(executable, args, { signal });
             child.stdout.setEncoding('utf8');
             child.stderr.setEncoding('utf8');
             let stdout = '';
@@ -592,7 +591,7 @@ export async function downloadWithHardsub(options, onProgress = noop) {
 
     try {
         // Step 1: Download video with subtitle (highest quality available)
-        const manifestFile = join(tmpdir(), `ytdl-sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.txt`);
+        const manifestFile = join(getScratchDirectory(), `ytdl-sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.txt`);
         const subsFlag = subtitleType === 'manual' ? '--write-subs' : '--write-auto-subs';
         const args = [
             '--no-playlist',

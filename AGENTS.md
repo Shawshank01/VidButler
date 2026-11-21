@@ -137,14 +137,16 @@ Call model, run requested tools **one at a time** (the app allows one yt-dlp/ffm
 
 ## 6. Where data lives
 
-macOS (dev run): `~/Library/Application Support/vidbutler/` (or `VidButler/` in production)
+On macOS, development and release share Electron's user-data profile under `~/Library/Application Support/vidbutler/`. One app instance holds the shared profile at a time.
 
 | File | Content |
 | --- | --- |
 | `user-settings.json` | Classic settings plus `aiMode`, `aiProvider`, `aiConfirmMode`, `aiProviderConfigs`. No secrets. Written atomically; a missing file means first run (defaults to AI mode), an unreadable one is treated as empty and logged. |
 | `ai-keys.json` | API keys, encrypted (`safeStorage`), file mode 0600. |
-| OS temp folder | Short-lived yt-dlp "manifest" files, deleted after each download. |
+| `tool-data/` | App-specific yt-dlp and Deno caches, and per-process scratch directories for manifests and transcripts. Normal operations clean up their scratch files. Startup removes scratch directories from dead app processes. |
 | electron-updater cache | On Windows/Linux, a verified pending app update after the user chooses Download and Restart. |
+
+Homebrew zap targets known app-owned paths at both historical profile casings. The About dialog can clear local settings, saved API keys, browser data and tool files before quitting. Downloads and unfinished media files stay in the selected download folder. Shared caches made by older versions and OS-managed keychain entries are outside the profile.
 
 ## 7. Testing and verification
 

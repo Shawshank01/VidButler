@@ -1439,6 +1439,7 @@ body[data-mode='ai'] .ai-panel {
 
 .app-info-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     align-items: center;
     gap: 10px;

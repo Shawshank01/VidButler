@@ -21,6 +21,11 @@ import { ChatService, AiSettingsError } from './llm/chat-service.js';
 import { sanitizeClassicSettings } from './settings-schema.js';
 import { SettingsStore } from './settings-store.js';
 import { KeyStore } from './llm/key-store.js';
+import { taskManager } from './core/task-manager.js';
+import {
+    SETTINGS_FILE, AI_KEYS_FILE, prepareToolData, lockToolData, unlockToolData,
+    isManagedDownloadFolder, deleteLocalDataFiles
+} from './core/local-data.js';
 
 const { autoUpdater } = updaterPackage;
 
@@ -32,12 +37,15 @@ const __dirname = dirname(__filename);
 const FIRST_RUN_SETTINGS = { aiMode: 'ai' };
 
 let settingsStore = null;
+let deletingLocalData = false;
+let activeProfileOperations = 0;
+const CLEANUP_BUSY = 'Wait for the current activity to finish and try again.';
 
 // Created lazily because app.getPath('userData') is only reliable once Electron is set up.
 function getSettingsStore() {
     if (!settingsStore) {
         settingsStore = new SettingsStore({
-            filePath: join(app.getPath('userData'), 'user-settings.json'),
+            filePath: join(app.getPath('userData'), SETTINGS_FILE),
             firstRunDefaults: FIRST_RUN_SETTINGS,
             log: (message) => console.error(`[settings] ${message}`)
         });
@@ -46,7 +54,10 @@ function getSettingsStore() {
 }
 
 const readSettings = () => getSettingsStore().read();
-const mergeSettings = (updates) => getSettingsStore().merge(updates);
+const mergeSettings = (updates) => {
+    if (deletingLocalData) throw new Error(CLEANUP_BUSY);
+    return getSettingsStore().merge(updates);
+};
 
 let appUpdateService = null;
 
@@ -144,6 +155,9 @@ async function promptInitialDownloadFolder(win) {
 
     if (response === 0) {
         try {
+            if (await isManagedDownloadFolder(app.getPath('userData'), defaultFolder)) {
+                throw new Error('The default download location overlaps VidButler\'s managed data.');
+            }
             await mkdir(defaultFolder, { recursive: true });
             await mergeSettings({ downloadFolder: defaultFolder, firstRunFolderPrompted: true });
             if (!win.isDestroyed()) {
@@ -158,13 +172,9 @@ async function promptInitialDownloadFolder(win) {
                     message: 'Could not access or create the Downloads folder.',
                     detail: `${err.message}\n\nPlease select an existing folder instead.`
                 });
-                const result = await dialog.showOpenDialog(win, {
-                    properties: ['openDirectory'],
-                    title: 'Select Download Folder'
-                });
+                const chosen = await chooseDownloadFolder(win, 'Select Download Folder');
                 if (!win.isDestroyed()) {
-                    if (!result.canceled && result.filePaths.length > 0) {
-                        const chosen = result.filePaths[0];
+                    if (chosen) {
                         await mergeSettings({ downloadFolder: chosen, firstRunFolderPrompted: true });
                         win.webContents.send('download-folder-updated', chosen);
                     } else {
@@ -174,13 +184,9 @@ async function promptInitialDownloadFolder(win) {
             }
         }
     } else if (response === 1) {
-        const result = await dialog.showOpenDialog(win, {
-            properties: ['openDirectory'],
-            title: 'Select Download Folder'
-        });
+        const chosen = await chooseDownloadFolder(win, 'Select Download Folder');
         if (!win.isDestroyed()) {
-            if (!result.canceled && result.filePaths.length > 0) {
-                const chosen = result.filePaths[0];
+            if (chosen) {
                 await mergeSettings({ downloadFolder: chosen, firstRunFolderPrompted: true });
                 if (!win.isDestroyed()) {
                     win.webContents.send('download-folder-updated', chosen);
@@ -322,7 +328,8 @@ async function initSafeStorageAvailability() {
     }
 }
 
-app.whenReady().then(async () => {
+async function startApp() {
+    await prepareToolData(app.getPath('userData'));
     const iconPath = join(__dirname, '../build/icon.png');
     if (process.platform === 'darwin' && app.dock && existsSync(iconPath)) {
         try {
@@ -333,15 +340,43 @@ app.whenReady().then(async () => {
     }
     await initSafeStorageAvailability();
     createWindow();
-}).catch(console.error);
+}
+
+if (app.requestSingleInstanceLock()) {
+    app.on('second-instance', () => {
+        const win = BrowserWindow.getAllWindows()[0];
+        if (!win) return;
+        if (win.isMinimized()) win.restore();
+        win.focus();
+    });
+    app.whenReady().then(startApp).catch((error) => {
+        console.error('[main] Startup failed:', error);
+        dialog.showErrorBox('VidButler Could Not Start', error.message);
+        app.quit();
+    });
+} else {
+    app.quit();
+}
+
+async function chooseDownloadFolder(win, title) {
+    const options = { properties: ['openDirectory'], ...(title ? { title } : {}) };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    const folder = result.canceled ? '' : (result.filePaths[0] || '');
+    if (folder && await isManagedDownloadFolder(app.getPath('userData'), folder)) {
+        const message = {
+            type: 'warning',
+            message: 'Choose another download folder',
+            detail: 'This folder is used for VidButler data that can be removed during cleanup.'
+        };
+        if (win && !win.isDestroyed()) await dialog.showMessageBox(win, message);
+        else await dialog.showMessageBox(message);
+        return '';
+    }
+    return folder;
+}
 
 // IPC handler for folder picker
-ipcMain.handle('choose-folder', async () => {
-    const result = await dialog.showOpenDialog({
-        properties: ['openDirectory']
-    });
-    return result.canceled || result.filePaths.length === 0 ? '' : result.filePaths[0];
-});
+ipcMain.handle('choose-folder', async (event) => chooseDownloadFolder(BrowserWindow.fromWebContents(event.sender)));
 
 // IPC handler to fetch format metadata for a specific format code
 ipcMain.handle('get-format-info', async (_event, args) => getFormatInfo(args));
@@ -373,11 +408,12 @@ ipcMain.handle('open-external', async (_event, url) => {
 // consent before calling download-app-update, and installation is allowed only after that download.
 ipcMain.handle('check-app-update', async () => getAppUpdateService().checkForUpdates());
 ipcMain.handle('download-app-update', async () => {
+    if (deletingLocalData) return { success: false, error: CLEANUP_BUSY };
     const result = await getAppUpdateService().downloadUpdate();
     clearUpdateProgress();
     return result;
 });
-ipcMain.handle('install-app-update', async () => getAppUpdateService().installUpdate());
+ipcMain.handle('install-app-update', async () => !deletingLocalData && getAppUpdateService().installUpdate());
 ipcMain.handle('copy-mac-update-command', async () => {
     clipboard.writeText(MAC_UPDATE_COMMAND);
     return true;
@@ -405,7 +441,65 @@ ipcMain.handle('get-app-info', async () => {
         platform: process.platform
     };
 });
-ipcMain.handle('check-dependencies', async () => checkSystemDependencies());
+ipcMain.handle('check-dependencies', async () => {
+    if (deletingLocalData) return { success: false, message: CLEANUP_BUSY };
+    activeProfileOperations += 1;
+    try {
+        return await checkSystemDependencies();
+    } finally {
+        activeProfileOperations -= 1;
+    }
+});
+
+ipcMain.handle('delete-local-data', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return { ok: false, cancelled: true };
+
+    const { response } = await dialog.showMessageBox(win, {
+        type: 'warning',
+        title: 'Delete Local Data',
+        message: 'Delete VidButler\'s local data and quit?',
+        detail: 'This clears the settings, saved API keys, and caches shared by development and release. Your downloaded files are kept.',
+        buttons: ['Cancel', 'Delete and Quit'],
+        cancelId: 0,
+        defaultId: 0
+    });
+    if (response !== 1 || win.isDestroyed()) return { ok: false, cancelled: true };
+    if (deletingLocalData || activeProfileOperations || taskManager.hasActiveTask() || chatService?.isBusy()
+        || appUpdateService?.downloadPromise || !lockToolData()) {
+        return { ok: false, error: CLEANUP_BUSY };
+    }
+
+    deletingLocalData = true;
+    const userData = app.getPath('userData');
+    let deleted = false;
+    let deletingFiles = false;
+    try {
+        await getSettingsStore().queue;
+        const { downloadFolder } = await readSettings();
+        if (await isManagedDownloadFolder(userData, downloadFolder)) {
+            return { ok: false, error: 'Move your downloads out of the managed data folder before deleting local data.' };
+        }
+        const session = event.sender.session;
+        await session.clearData();
+        await session.clearCodeCaches({});
+        deletingFiles = true;
+        await deleteLocalDataFiles(userData);
+        deleted = true;
+        setImmediate(() => app.quit());
+        return { ok: true };
+    } catch (error) {
+        console.error('[main] Local data cleanup failed:', error);
+        if (deletingFiles) await prepareToolData(userData).catch((err) => console.error('[main] Could not reopen tool data:', err));
+        return { ok: false, error: 'Could not finish deleting local data.' };
+    } finally {
+        // The profile remains locked on success until the scheduled quit.
+        if (!deleted) {
+            deletingLocalData = false;
+            unlockToolData();
+        }
+    }
+});
 
 // IPC handler for listing available subtitles
 ipcMain.handle('list-subtitles', async (_event, url, browser, proxy) => listSubtitles(url, browser, proxy));
@@ -428,7 +522,7 @@ let chatService = null;
 function getChatService() {
     if (!chatService) {
         const keyStore = new KeyStore({
-            filePath: join(app.getPath('userData'), 'ai-keys.json'),
+            filePath: join(app.getPath('userData'), AI_KEYS_FILE),
             crypto: {
                 // On Linux without a keyring Electron falls back to a hard-coded password ("basic_text"),
                 // which is not real protection, so treat that as unavailable.
@@ -478,12 +572,16 @@ function getChatService() {
 // result can never override it.
 function aiHandler(fn) {
     return async (event, ...args) => {
+        if (deletingLocalData) return { ok: false, error: CLEANUP_BUSY };
+        activeProfileOperations += 1;
         try {
             return { ...(await fn(event, ...args)), ok: true };
         } catch (err) {
             if (err instanceof AiSettingsError) return { ok: false, error: err.message };
             console.error('AI handler error:', err.message);
             return { ok: false, error: 'Unexpected error.' };
+        } finally {
+            activeProfileOperations -= 1;
         }
     };
 }
@@ -505,6 +603,7 @@ ipcMain.handle('ai-test-connection', async (_event, overrides) => getChatService
 // Returns { ok: true, text, stoppedBecause, steps } or { ok: false, error: { kind, message } }.
 // Live events (assistant text, tool start/result, progress, confirmation requests) arrive on 'ai-event'.
 ipcMain.handle('ai-send', async (event, message, context) => {
+    if (deletingLocalData) return { ok: false, error: { kind: 'busy', message: CLEANUP_BUSY } };
     const sender = event.sender;
     const service = getChatService();
     const emit = (payload) => {

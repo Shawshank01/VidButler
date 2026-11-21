@@ -129,6 +129,7 @@ interface ElectronAPI {
         total: number;
     }) => void) => () => void;
     getCurrentVersion: () => Promise<string>;
+    deleteLocalData: () => Promise<{ ok: true } | { ok: false; cancelled?: boolean; error?: string }>;
     getAppInfo: () => Promise<{
         name: string;
         version: string;

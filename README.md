@@ -49,6 +49,8 @@ brew update --force
 brew upgrade --cask Shawshank01/tap/vidbutler
 ```
 
+To remove the Homebrew release and its local data, quit VidButler and run `brew uninstall --cask --zap Shawshank01/tap/vidbutler`. For a manual install, use **About VidButler → Delete Local Data** before removing the app. Development and release share the same settings and tool data, so either cleanup also clears the development data. The download folder is isolated from VidButler's internal data directories. macOS Keychain entries and caches from standalone tools or older VidButler releases are separate.
+
 ### Method 2: Direct Download
 
 1. Download the latest release from the [Releases](https://github.com/Shawshank01/Vidbutler/releases) page.
@@ -114,7 +116,7 @@ Click **AI** in the top-right corner to open the chat panel. You can ask for dow
 The assistant can summarize online videos from their captions and cite timestamps. It also has tools for fetching video info, inspecting local media, listing formats and subtitles, downloading full videos or clips, downloading audio and thumbnails, burning subtitles, re-encoding to MP4, and listing or deleting downloaded files.
 
 > [!NOTE]
-> Time-range downloads apply to online sources and use FFmpeg to re-encode at the requested cut points. MP4 clips and hardsubs use shared resolution-based video bitrate targets. On macOS, MP4 clips prefer H.264 via VideoToolbox, and MP4 and M4A clips prefer Apple AudioToolbox AAC at 128 kbps. The app retries with FFmpeg’s video or native AAC encoder if the corresponding Apple encoder fails. AI mode shares the download folder, browser cookies, and proxy settings with Classic mode. Time-range downloads are unavailable while a SOCKS proxy is enabled because FFmpeg cannot use it.
+> Time-range downloads apply to online sources and use FFmpeg to re-encode at the requested cut points. MP4 clips and hardsubs use shared resolution-based video bitrate targets. On macOS, MP4 clips prefer H.264 via VideoToolbox, and MP4 and M4A clips prefer Apple AudioToolbox AAC at 128 kbps. The app retries with FFmpeg's video or native AAC encoder if the corresponding Apple encoder fails. AI mode shares the download folder, browser cookies, and proxy settings with Classic mode. Time-range downloads are unavailable while a SOCKS proxy is enabled because FFmpeg cannot use it.
 
 ### How AI Mode Works
 
