@@ -25,26 +25,28 @@
     const KEYLESS_PROVIDERS = new Set(['ollama']);
     const EXAMPLE_GROUPS = [
         {
-            category: 'Download & Audio',
+            category: 'Download',
             items: [
                 'Download this video in 1080p: <link>',
-                'Get the audio of <link> as an MP3',
-                'Download the entire playlist: <link>'
+                'Get the audio of <link>',
+                'Extract the audio from <filename>',
+                'Download as a clip from <time> to <time>'
             ]
         },
         {
-            category: 'Subtitles & Processing',
+            category: 'Subtitles',
             items: [
-                'Re-encode <filename> as high-quality MP4',
                 'Download <link> with English subtitles burned in',
-                'Download English subtitles for <link>'
+                'Download the available subtitles for <link>',
+                'Are subtitles for <link> manual or auto-generated?',
+                'Add subtitles at the top'
             ]
         },
         {
-            category: 'Info & Inspection',
+            category: 'Information',
             items: [
+                'What’s the title, uploader, and duration of <link>?',
                 'List all available video formats for <link>',
-                'Are subtitles for <link> manual or auto-generated?',
                 'Download the thumbnail of <link>'
             ]
         },
@@ -53,6 +55,7 @@
             items: [
                 'Show me the files in my download folder',
                 'Give me information about <filename>',
+                'Re-encode <filename> as high-quality MP4',
                 'Delete <filename> in my download folder'
             ]
         }
@@ -244,7 +247,7 @@
         hint.className = 'ai-empty-hint';
         const title = document.createElement('div');
         title.className = 'ai-empty-title';
-        title.textContent = 'Tell me what you want to do with a video. Click an example to try it:';
+        title.textContent = 'Tell me what you want to do. Click an example to try it:';
         hint.appendChild(title);
 
         const groupsContainer = document.createElement('div');

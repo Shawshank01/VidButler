@@ -31,6 +31,24 @@ test('Gemini key help does not describe the API key as free', () => {
     assert.ok(aiUi.includes(`text: '${label}'`));
 });
 
+test('AI empty chat groups examples by section and shows re-encode above Delete', () => {
+    assert.ok(aiUi.includes("title.textContent = 'Tell me what you want to do. Click an example to try it:';"));
+    const downloads = aiUi.match(/category: 'Download',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
+    const subtitles = aiUi.match(/category: 'Subtitles',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
+    const information = aiUi.match(/category: 'Information',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
+    const fileManagement = aiUi.match(/category: 'File Management',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
+    assert.ok(downloads.includes("'Get the audio of <link>'"));
+    assert.ok(downloads.includes("'Extract the audio from <filename>'"));
+    assert.ok(downloads.includes("'Download as a clip from <time> to <time>'"));
+    assert.ok(subtitles.includes("'Download the available subtitles for <link>'"));
+    assert.ok(subtitles.includes("'Add subtitles at the top'"));
+    const subtitleType = "'Are subtitles for <link> manual or auto-generated?'";
+    assert.ok(subtitles.includes(subtitleType));
+    assert.ok(!information.includes(subtitleType));
+    assert.ok(information.includes("'What’s the title, uploader, and duration of <link>?'"));
+    assert.match(fileManagement, /'Re-encode <filename> as high-quality MP4',\s*'Delete <filename> in my download folder'/);
+});
+
 test('scripts are loaded in the right order', () => {
     const renderer = html.indexOf('src="renderer.js"');
     const markdown = html.indexOf('src="markdown.js"');
