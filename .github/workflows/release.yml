@@ -124,9 +124,15 @@ jobs:
           test -s "build-tools/${{ matrix.target }}/deno.exe"
         fi
 
-    - name: Build unsigned macOS app
+    - name: Build ad hoc–signed macOS app
       if: runner.os == 'macOS'
       run: pnpm exec electron-builder build ${{ matrix.builder_args }} --publish never
+
+    - name: Verify macOS app signatures in release packages
+      if: runner.os == 'macOS'
+      run: |
+        bash scripts/verify-mac-package.sh dist/VidButler-mac-${{ matrix.arch }}-*.zip
+        bash scripts/verify-mac-package.sh dist/VidButler-mac-${{ matrix.arch }}-*.dmg
 
     - name: Build Electron app
       if: runner.os != 'macOS'

@@ -68,9 +68,16 @@
     "publish": {
       "provider": "github"
     },
+    "afterPack": "./scripts/prepare-mac-signing.mjs",
     "mac": {
       "icon": "build/icon.png",
       "category": "public.app-category.utilities",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "preAutoEntitlements": false,
+      "timestamp": "none",
+      "notarize": false,
+      "signIgnore": ["/Contents/Resources/tools/"],
       "target": [
         "dmg",
         "zip"

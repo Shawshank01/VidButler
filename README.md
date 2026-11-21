@@ -58,7 +58,7 @@ brew upgrade --cask Shawshank01/tap/vidbutler
    - **Linux:** `.AppImage`
 
 > [!IMPORTANT]
-> The macOS DMG is unsigned and not notarised because the project does not have an Apple Developer Program membership. macOS may block a direct DMG installation. Homebrew is the recommended macOS installation method, direct-download users may need **Open Anyway** in **System Settings > Privacy & Security**, or as a fallback run `xattr -cr /Applications/VidButler.app`.
+> The macOS app is ad hoc–signed and is not notarised. macOS may block a direct DMG installation. Homebrew is the recommended macOS installation method. Direct-download users may need **Open Anyway** in **System Settings > Privacy & Security**, or as a fallback run `xattr -cr /Applications/VidButler.app`.
 
 ### Method 3: From Source
 
@@ -93,7 +93,7 @@ pnpm run build
 
 Installers and executables are output to the `dist/` directory.
 
-macOS release builds are unsigned and do not require Apple Developer Program credentials. Windows signing is used when the optional `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD` secrets are configured.
+macOS release builds use ad hoc signing, which requires no Apple Developer Program credentials. macOS may ask for browser access again after an update. Windows signing is used when the optional `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD` secrets are configured.
 
 ## AI Mode Usage
 

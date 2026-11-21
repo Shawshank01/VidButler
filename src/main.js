@@ -222,7 +222,7 @@ async function checkForUpdatesOnLaunch(win) {
             title: 'VidButler Update Available',
             message: `VidButler ${update.version} is available`,
             detail:
-                `You are using version ${update.currentVersion}. This unsigned macOS build updates through Homebrew.\n\n` +
+                `You are using version ${update.currentVersion}. You can update through Homebrew.\n\n` +
                 `Recommended command:\n${MAC_UPDATE_COMMAND}\n\n` +
                 'If you installed VidButler from a DMG instead, open the GitHub release.' +
                 (notes ? `\n\n${notes}` : '')

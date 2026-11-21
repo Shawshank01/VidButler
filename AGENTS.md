@@ -19,7 +19,7 @@ It originally had only a form-based UI ("Classic mode"). The goal of the current
 | 3A. Main-process integration | Encrypted API-key storage, chat service (settings, conversation, confirmations, cancel), IPC and preload API (`window.electronAPI.ai`). | Done, user-verified (key save, connection test) |
 | 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / SOCKS5 context controls. | Done, user-verified |
 | Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines, CSP and navigation guards, repo-wide ESLint. | Done |
-| Built-in updates | Packaged apps check GitHub Releases at launch. Windows and Linux AppImages ask before downloading, then install and restart. Unsigned macOS builds offer a copyable Homebrew tap command plus a GitHub fallback; the cask removes quarantine. | Done, unit-tested; packaged flow needs live verification |
+| Built-in updates | Packaged apps check GitHub Releases at launch. Windows and Linux AppImages ask before downloading, then install and restart. Ad hoc–signed macOS builds offer a copyable Homebrew tap command plus a GitHub fallback. The cask removes quarantine. | Done, unit-tested. The packaged update flow needs live verification. |
 
 ## 3. Architecture
 
@@ -162,6 +162,7 @@ CI (`.github/workflows/lint.yml`) runs lint and tests on pushes and pull request
 
 - The Electron window: no end-to-end test exists. UI behaviour is checked only by static tests plus manual runs.
 - A packaged Windows/Linux automatic update from an older release through download, install, and relaunch. The macOS launch prompt, copied Homebrew command, tap refresh/upgrade, and cask quarantine removal also need a live run.
+- The owner verified Brave cookie access on macOS 27 with an ad hoc–signed copy of VidButler 5.1.0. The release builds now apply ad hoc signing and check the packaged signature. Browser permission persistence across updates still needs a live run.
 - **Everything changed in the 2026-11 review pass has been verified only by unit tests.** Click through before releasing: mode switch, a chat turn with streaming, an Allow/Deny dialog (including the new "address was not in your message" text), Stop mid-download, closing/reloading the window during a request, saving AI settings, a packaged build finding the bundled `yt-dlp`/`ffmpeg`, clicking `Choose` / `Run` / `Check for Updates` and verifying CSP in a live window after the inline-handler refactor.
 - Live runs of: hardsub / re-encode / delete via the assistant, the thinking-level setting, xAI, Ollama, the generic OpenAI-compatible provider, Windows and Linux (safeStorage and PATH behaviour differ).
 
