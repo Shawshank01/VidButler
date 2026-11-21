@@ -16,6 +16,8 @@ const noop = () => { };
  * @property {string} [proxy]         Proxy URL (e.g. "socks5://127.0.0.1:1080/"), or empty.
  * @property {(text: string) => void} [onProgress]
  * @property {AbortSignal} [signal]    Cancel the request between processes.
+ * @property {{url: string, lang?: string, track: object, pages: object[]}} [transcript]  One caption track cached for this turn.
+ * @property {number} [transcriptPagesRead]  Transcript pages returned during this turn.
  */
 
 /**
@@ -150,24 +152,29 @@ export async function resolveSubtitle(url, lang, ctx) {
     if (listing.error) {
         throw new ValidationError(`Could not list subtitles: ${listing.message}`);
     }
-    const available = listing.subtitles.map((s) => `${s.code} (${s.type})`).join(', ') || 'none';
-    let match = listing.subtitles.find((s) => s.code === lang);
+    const match = findSubtitleTrack(listing.subtitles, lang);
     if (!match) {
-        match = listing.subtitles.find((s) => s.code.toLowerCase() === lang.toLowerCase());
-    }
-    if (!match) {
-        match = listing.subtitles.find((s) => s.name && s.name.toLowerCase() === lang.toLowerCase());
-    }
-    if (!match) {
-        const prefixMatches = listing.subtitles.filter((s) => s.code.toLowerCase().startsWith(`${lang.toLowerCase()}-`));
-        if (prefixMatches.length === 1) {
-            match = prefixMatches[0];
-        }
-    }
-    if (!match) {
+        const available = listing.subtitles.map((s) => `${s.code} (${s.type})`).join(', ') || 'none';
         throw new ValidationError(
             `Subtitle language "${lang}" is not available for this video. Available: ${available}.`
         );
+    }
+    return match;
+}
+
+export function findSubtitleTrack(subtitles, lang) {
+    let match = subtitles.find((s) => s.code === lang);
+    if (!match) {
+        match = subtitles.find((s) => s.code.toLowerCase() === lang.toLowerCase());
+    }
+    if (!match) {
+        match = subtitles.find((s) => s.name && s.name.toLowerCase() === lang.toLowerCase());
+    }
+    if (!match) {
+        const prefixMatches = subtitles.filter((s) => s.code.toLowerCase().startsWith(`${lang.toLowerCase()}-`));
+        if (prefixMatches.length === 1) {
+            match = prefixMatches[0];
+        }
     }
     return match;
 }

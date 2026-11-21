@@ -11,6 +11,7 @@ export const TOOL_NAMES = Object.freeze({
     downloadSection: 'download_section',
     downloadThumbnail: 'download_thumbnail',
     listSubtitles: 'list_subtitles',
+    getVideoTranscript: 'get_video_transcript',
     downloadSubtitles: 'download_subtitles',
     downloadWithHardsub: 'download_with_hardsub',
     reencodeMp4: 'reencode_mp4',

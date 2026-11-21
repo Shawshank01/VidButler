@@ -15,7 +15,7 @@ It originally had only a form-based UI ("Classic mode"). The goal of the current
 | Phase | Result | Status |
 | --- | --- | --- |
 | 1. Refactor | `src/main.js` split into Electron-free modules in `src/core/`. `main.js` is thin IPC handlers. Classic behaviour unchanged. | Done, user-verified |
-| 2. AI backend | `src/llm/`: 14 tools, input validation, agent loop, five provider adapters, system prompt. | Done |
+| 2. AI backend | `src/llm/`: 15 tools, input validation, agent loop, five provider adapters, system prompt. | Done |
 | 3A. Main-process integration | Encrypted API-key storage, chat service (settings, conversation, confirmations, cancel), IPC and preload API (`window.electronAPI.ai`). | Done, user-verified (key save, connection test) |
 | 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / SOCKS5 context controls. | Done, user-verified |
 | Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines, CSP and navigation guards, repo-wide ESLint. | Done |
@@ -68,7 +68,7 @@ src/llm/                 Electron-free:
   provenance.js            Is a URL one the user typed?
   tool-registry.js         Assembles tools/ ; getTool, getRisk, getToolDeclarations
   tools/                   names.js (TOOL_NAMES), common.js (defineTool, helpers),
-                           info.js, download.js, section.js, media.js, files.js
+                           info.js, transcript.js, download.js, section.js, media.js, files.js
   providers/               gemini, xai, cohere, ollama, openai-compatible, index (PROVIDER_TYPES capabilities),
                            http.js (requestJson/requestStream, retries), stream.js (SSE / NDJSON readers)
   prompt.js, messages.js, limits.js, redact.js, validate.js, errors.js, key-store.js
@@ -79,7 +79,7 @@ test/                    node:test suite
 
 ### Tools the model can call (`src/llm/tools/`)
 
-`get_online_video_info`, `list_formats`, `list_subtitles` (info.js); `download_video` (max_height / format_code / container / playlist), `download_audio` (best, m4a, mp3, opus, flac, wav), `download_thumbnail`, `download_subtitles` (download.js); `download_section` (online video or audio clip between two timestamps, section.js); `get_local_media_info`, `download_with_hardsub`, `reencode_mp4`, `extract_audio_from_file` (media.js); `list_downloads`, `delete_files` (files.js).
+`get_online_video_info`, `list_formats`, `list_subtitles` (info.js); `get_video_transcript` (paged, timestamped captions for summaries and questions, transcript.js); `download_video` (max_height / format_code / container / playlist), `download_audio` (best, m4a, mp3, opus, flac, wav), `download_thumbnail`, `download_subtitles` (download.js); `download_section` (online video or audio clip between two timestamps, section.js); `get_local_media_info`, `download_with_hardsub`, `reencode_mp4`, `extract_audio_from_file` (media.js); `list_downloads`, `delete_files` (files.js).
 
 Tools are declared with `defineTool()` using names from `TOOL_NAMES`; the system prompt uses the same constants, and a test fails if the prompt mentions a tool or parameter that does not exist. Each tool has a `risk` (`low`/`high`, optionally a function of the arguments), a `describe()` text for the confirmation dialog, and a `run(args, ctx)` that validates everything and builds yt-dlp/ffmpeg **argument arrays**. High risk: hardsub, re-encode, delete_files, any `playlist: true` download, and any call whose `url` the user did not type (see invariant 11).
 

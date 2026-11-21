@@ -46,6 +46,7 @@ test('AI empty chat groups examples by section and shows re-encode above Delete'
     assert.ok(subtitles.includes(subtitleType));
     assert.ok(!information.includes(subtitleType));
     assert.ok(information.includes("'What’s the title, uploader, and duration of <link>?'"));
+    assert.ok(information.includes("'Summarize this video: <link>'"));
     assert.match(fileManagement, /'Re-encode <filename> as high-quality MP4',\s*'Delete <filename> in my download folder'/);
 });
 

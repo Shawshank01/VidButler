@@ -11,6 +11,7 @@
 import { infoTools } from './tools/info.js';
 import { downloadTools } from './tools/download.js';
 import { downloadSectionTool } from './tools/section.js';
+import { videoTranscriptTool } from './tools/transcript.js';
 import { mediaTools } from './tools/media.js';
 import { fileTools } from './tools/files.js';
 
@@ -18,7 +19,7 @@ export { TOOL_NAMES } from './tools/names.js';
 
 /** @typedef {import('./tools/common.js').ToolContext} ToolContext */
 
-export const TOOLS = [...infoTools, ...downloadTools, downloadSectionTool, ...mediaTools, ...fileTools];
+export const TOOLS = [...infoTools, videoTranscriptTool, ...downloadTools, downloadSectionTool, ...mediaTools, ...fileTools];
 
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 

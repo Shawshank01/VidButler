@@ -10,7 +10,7 @@ import { isForeignUrl, extractUrls } from './provenance.js';
 const noop = () => { };
 const cookieBrowserLabels = { brave: 'Brave', chrome: 'Chrome', firefox: 'Firefox', safari: 'Safari' };
 const cookieTools = new Set([
-    TOOL_NAMES.getOnlineVideoInfo, TOOL_NAMES.listFormats, TOOL_NAMES.listSubtitles,
+    TOOL_NAMES.getOnlineVideoInfo, TOOL_NAMES.listFormats, TOOL_NAMES.listSubtitles, TOOL_NAMES.getVideoTranscript,
     TOOL_NAMES.downloadVideo, TOOL_NAMES.downloadAudio, TOOL_NAMES.downloadSection, TOOL_NAMES.downloadThumbnail,
     TOOL_NAMES.downloadSubtitles, TOOL_NAMES.downloadWithHardsub
 ]);
@@ -96,6 +96,7 @@ export async function runAgent({
     signal
 }) {
     const tools = getToolDeclarations();
+    const toolContext = { ...ctx, signal };
     history.push({ role: 'user', text: userText });
 
     let steps = 0;
@@ -177,7 +178,7 @@ export async function runAgent({
             if (signal?.aborted) {
                 result = { ok: false, error: MESSAGES.cancelledByUser };
             } else {
-                result = await executeToolCall(call, { ctx, history, onEvent, confirm, confirmMode, signal });
+                result = await executeToolCall(call, { ctx: toolContext, history, onEvent, confirm, confirmMode, signal });
             }
             cookieFailure ??= result.macCookieAccess;
             otherResult ||= !result.macCookieAccess;
@@ -743,7 +744,7 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
     onEvent({ type: 'tool_start', id: call.id, name: tool.name, args, description, risk });
     let result;
     try {
-        result = await tool.run(args, { ...ctx, signal });
+        result = await tool.run(args, ctx);
     } catch (err) {
         result = {
             ok: false,

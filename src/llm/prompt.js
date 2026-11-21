@@ -1,4 +1,5 @@
 import { MESSAGES } from './messages.js';
+import { MAX_TRANSCRIPT_PAGES_PER_SUMMARY } from './limits.js';
 import { TOOL_NAMES as T } from './tools/names.js';
 
 /**
@@ -24,6 +25,7 @@ export function buildSystemPrompt({ downloadFolder, browser, proxyEnabled, platf
         '- When the user asks a question (such as asking "why", asking for an explanation, or asking for troubleshooting), answer directly in text. Do not call download tools unless the user explicitly requested a download.',
         '- All tools are stateless. When performing follow-up actions on a video previously discussed (such as downloading after listing formats or inspecting info), always pass that video\'s URL in the "url" parameter of the tool call.',
         '- If the user asks for something that needs a URL and no URL was provided or discussed, ask for it.',
+        MESSAGES.transcriptPrompt(T.getVideoTranscript, MAX_TRANSCRIPT_PAGES_PER_SUMMARY),
         MESSAGES.downloadSectionPrompt(T.downloadSection),
         `- For full video downloads (including requests for 1080p, 720p, 4K, or best quality), use ${T.downloadVideo} with container: "mp4" and optional max_height (e.g. 1080, 720). When the user asks for a specific resolution (such as "720p" or "1080p"), always specify the corresponding integer in the max_height argument (e.g. max_height: 720). Do not call ${T.listFormats} unless the user explicitly asks to inspect formats or requests a specific custom stream combination.`,
         '- A requested maximum resolution is not proof of the downloaded resolution. Do not claim it was achieved or explain why a resolution was unavailable without checking media information or available formats.',

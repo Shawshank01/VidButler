@@ -45,6 +45,7 @@
         {
             category: 'Information',
             items: [
+                'Summarize this video: <link>',
                 'What’s the title, uploader, and duration of <link>?',
                 'List all available video formats for <link>',
                 'Download the thumbnail of <link>'
@@ -504,6 +505,7 @@
     function summarizeResult(name, result) {
         if (!result) return '';
         if (result.error) return String(result.error);
+        if (name === 'get_video_transcript') return `Captions from ${result.from} to ${result.through}`;
         if (Array.isArray(result.files) && result.files.length > 0 && result.saved_to_folder) {
             return `Saved: ${result.files.join(', ')}`;
         }
