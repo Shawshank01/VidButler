@@ -8,6 +8,26 @@ import { MESSAGES } from './messages.js';
 import { isForeignUrl, extractUrls } from './provenance.js';
 
 const noop = () => { };
+const cookieBrowserLabels = { brave: 'Brave', chrome: 'Chrome', firefox: 'Firefox', safari: 'Safari' };
+const cookieTools = new Set([
+    TOOL_NAMES.getOnlineVideoInfo, TOOL_NAMES.listFormats, TOOL_NAMES.listSubtitles,
+    TOOL_NAMES.downloadVideo, TOOL_NAMES.downloadAudio, TOOL_NAMES.downloadThumbnail,
+    TOOL_NAMES.downloadSubtitles, TOOL_NAMES.downloadWithHardsub
+]);
+
+function macCookieAccessFailure(tool, result, browser) {
+    if (process.platform !== 'darwin' || result.ok !== false || result.cancelled || !cookieTools.has(tool)) return null;
+    if (!Object.hasOwn(cookieBrowserLabels, browser)) return null;
+    const errors = `${result.error || ''}\n${result.output || ''}`.split('\n')
+        .map((line) => line.trim().toLowerCase().replace(/^could not list subtitles: /, ''))
+        .filter((line) => line.startsWith('error:'));
+    const denied = errors.some((line) => /operation not permitted|permission denied/.test(line)
+        && (line.startsWith(`error: cannot read ${browser} cookies:`)
+            || line.startsWith(`error: could not read ${browser} cookies:`)
+            || /^error: (?:cannot|could not|unable to) (?:read|open|copy) (?:the )?cook(?:ie|ies) database\b/.test(line)));
+    const notFound = errors.some((line) => line.startsWith(`error: could not find ${browser} cookies database`));
+    return denied || notFound ? { browser: cookieBrowserLabels[browser], denied } : null;
+}
 
 /** Keep tool results small enough for the model's context (small local models especially). */
 export function shapeResult(result, maxChars) {
@@ -80,6 +100,8 @@ export async function runAgent({
 
     let steps = 0;
     let retriedEmpty = false;
+    let cookieGuidance = '';
+    const withCookieGuidance = (text) => [text, cookieGuidance].filter(Boolean).join('\n\n');
     const finishAborted = () => {
         cancelCurrentTask();
         const text = MESSAGES.stopped;
@@ -139,13 +161,16 @@ export async function runAgent({
         });
 
         if (toolCalls.length === 0) {
-            const text = replyText || MESSAGES.emptyAnswer;
+            const text = withCookieGuidance(replyText || (cookieGuidance ? '' : MESSAGES.emptyAnswer));
+            history.at(-1).text = text;
             onEvent({ type: 'assistant_text', text });
             return { text, steps, stoppedBecause: 'done' };
         }
 
         if (replyText) onEvent({ type: 'assistant_text', text: replyText });
 
+        let cookieFailure;
+        let otherResult = false;
         for (const call of toolCalls) {
             let result;
 
@@ -154,6 +179,8 @@ export async function runAgent({
             } else {
                 result = await executeToolCall(call, { ctx, history, onEvent, confirm, confirmMode, signal });
             }
+            cookieFailure ??= result.macCookieAccess;
+            otherResult ||= !result.macCookieAccess;
 
             history.push({
                 role: 'tool',
@@ -163,9 +190,18 @@ export async function runAgent({
                 result: shapeResult(result, maxResultChars)
             });
         }
+        if (signal?.aborted) return finishAborted();
+        if (cookieFailure) {
+            cookieGuidance = MESSAGES.macBrowserCookieAccess(cookieFailure.browser, cookieFailure.denied);
+            if (otherResult) continue;
+            const text = cookieGuidance;
+            history.push({ role: 'assistant', text });
+            onEvent({ type: 'assistant_text', text });
+            return { text, steps, stoppedBecause: 'done' };
+        }
     }
 
-    const text = MESSAGES.maxSteps(maxSteps);
+    const text = withCookieGuidance(MESSAGES.maxSteps(maxSteps));
     history.push({ role: 'assistant', text });
     onEvent({ type: 'assistant_text', text });
     return { text, steps, stoppedBecause: 'max_steps' };
@@ -713,6 +749,10 @@ async function executeToolCall(call, { ctx, history, onEvent, confirm, confirmMo
             ok: false,
             error: err instanceof ValidationError ? err.message : `Tool failed: ${err.message}`
         };
+    }
+    const macCookieAccess = macCookieAccessFailure(tool.name, result, ctx?.browser);
+    if (macCookieAccess) {
+        result = { ok: false, error: MESSAGES.browserCookiesUnreadable(macCookieAccess.browser), macCookieAccess };
     }
     onEvent({
         type: 'tool_result',

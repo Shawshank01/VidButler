@@ -144,6 +144,79 @@ test('tool call → result fed back → final answer (list_downloads against a r
     assert.deepEqual(events.map((e) => e.type), ['tool_start', 'tool_result', 'assistant_text']);
 });
 
+test('AI format lookup explains macOS Brave cookie access without asking the model to guess', {
+    skip: process.platform !== 'darwin'
+}, async (t) => {
+    const bin = await makeFolder({
+        'yt-dlp': `#!/bin/sh
+case "$*" in
+    */denied) error='ERROR: cannot read Brave cookies: Permission denied' ;;
+    */unrelated) error='ERROR: unable to open for writing: Permission denied: Downloads/Chocolate Cookies.mp4.part' ;;
+    *) error='ERROR: could not find brave cookies database in "/private/test/Brave-Browser"' ;;
+esac
+printf '%s\\n' "$error" >&2
+exit 1
+`
+    });
+    t.after(() => fs.rm(bin, { recursive: true, force: true }));
+    await fs.chmod(join(bin, 'yt-dlp'), 0o755);
+    const oldPath = process.env.PATH;
+    process.env.PATH = `${bin}:${oldPath}`;
+    t.after(() => { process.env.PATH = oldPath; });
+
+    const url = 'https://example.test/video';
+    const provider = scriptedProvider([
+        { toolCalls: [call('list_formats', { url })] },
+        { text: 'The cookie database was not found. Install Brave.' }
+    ]);
+    const events = [];
+    const history = [];
+    const result = await runAgent({
+        provider, system: 's', history, userText: `List formats for ${url}`,
+        ctx: { browser: 'brave' }, onEvent: (e) => events.push(e)
+    });
+    assert.match(result.text, /macOS may be blocking access to Brave’s cookie database/);
+    assert.match(result.text, /Privacy & Security.*Files & Folders/);
+    assert.match(result.text, /profile.*cookies/i);
+    assert.match(result.text, /permission does not stick.*Full Disk Access/);
+    assert.match(result.text, /quit.*reopen/is);
+    assert.doesNotMatch(result.text, /\/private\/test|Install Brave|No cookies/i);
+    assert.equal(provider.seen.length, 1);
+    assert.match(events.find((e) => e.type === 'tool_result').result.error, /Brave/);
+    assert.equal(events.at(-1).text, result.text);
+    assert.equal(history.at(-1).text, result.text);
+
+    for (const [suffix, browser, expected, calls] of [
+        ['denied', 'brave', /macOS is blocking access/, 1],
+        ['unrelated', 'brave', /original tool error/, 2],
+        ['video', '', /original tool error/, 2]
+    ]) {
+        const target = `https://example.test/${suffix}`;
+        const next = scriptedProvider([
+            { toolCalls: [call('list_formats', { url: target })] },
+            { text: 'The original tool error was preserved.' }
+        ]);
+        const answer = await runAgent({
+            provider: next, system: 's', history: [], userText: `List formats for ${target}`, ctx: { browser }
+        });
+        assert.match(answer.text, expected);
+        assert.equal(next.seen.length, calls);
+    }
+
+    const folder = await makeFolder({ 'clip.mp4': '' });
+    t.after(() => fs.rm(folder, { recursive: true, force: true }));
+    const mixed = scriptedProvider([
+        { toolCalls: [call('list_formats', { url }), call('list_downloads', {})] },
+        { text: 'Your download folder contains clip.mp4.' }
+    ]);
+    const combined = await runAgent({
+        provider: mixed, system: 's', history: [], userText: `List formats for ${url} and my downloads`,
+        ctx: { browser: 'brave', downloadFolder: folder }
+    });
+    assert.match(combined.text, /clip\.mp4/);
+    assert.match(combined.text, /macOS may be blocking access/);
+});
+
 test('invalid parameters are returned to the model as errors and never executed', async () => {
     const provider = scriptedProvider([
         { toolCalls: [call('list_formats', { url: '--exec rm -rf /' }), call('download_video', { url: 'file:///etc/passwd' }, 'c2')] },

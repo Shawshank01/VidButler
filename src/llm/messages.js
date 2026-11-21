@@ -19,6 +19,15 @@ export const MESSAGES = {
     cancelledByUser: 'Cancelled by the user.',
     declinedByUser: 'The user declined to run this action.',
     toolNotRun: 'Not run: the request failed.',
+    browserCookiesUnreadable: (browser) => `Could not read ${browser} cookies.`,
+    macBrowserCookieAccess: (browser, denied) => [
+        denied
+            ? `macOS is blocking access to ${browser}’s cookie database.`
+            : `macOS may be blocking access to ${browser}’s cookie database. yt-dlp’s “could not find” error can also mean the profile has no cookie database. First, open ${browser} and confirm that the profile you use has cookies saved.`,
+        `1. Open System Settings → Privacy & Security → Files & Folders. Allow access to ${browser}’s app data for VidButler if that option appears. If you started VidButler from VS Code’s terminal in dev mode, check Visual Studio Code instead. Downloads Folder access does not grant access to browser data.`,
+        '2. Fully quit and reopen VidButler, then retry. If running from VS Code, quit and reopen VS Code before restarting VidButler.',
+        `3. ${denied ? 'If the installed release is still denied access or the permission does not stick' : 'If the installed release’s browser-data permission does not stick'}, add VidButler.app in System Settings → Privacy & Security → Full Disk Access, then quit and reopen it and retry. This grants access to more than browser data, so enable it only if you trust the app.`
+    ].join('\n\n'),
     /** Returned to the model when a tool needs a folder and none is selected. */
     noDownloadFolderForTool:
         'No download folder is selected. Ask the user to choose a download folder in the app first.',
