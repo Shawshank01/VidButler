@@ -112,12 +112,12 @@ export const downloadTools = [
             playlist: playlistProperty
         },
         required: ['url'],
-        describe: (a) =>
-            `Download ${a.playlist ? 'playlist' : 'video'} ${a.url}` +
+        describe: (a, t) =>
+            t(a.playlist ? 'toolPlaylist' : 'toolVideo', { url: a.url }) +
             (a.height ? ` (${a.height}p)` : '') +
-            (a.max_height ? ` (max ${a.max_height}p)` : '') +
-            (a.format_code ? ` (format ${a.format_code})` : '') +
-            (a.compatible ? ' (H.264/AAC compatible)' : '') +
+            (a.max_height ? ` (${t('toolMaxHeight', { height: a.max_height })})` : '') +
+            (a.format_code ? ` (${t('toolFormatCode', { code: a.format_code })})` : '') +
+            (a.compatible ? ` (${t('toolCompatible')})` : '') +
             (a.container ? ` [${a.container}]` : ''),
         async run(args, ctx) {
             const url = validateUrl(args.url);
@@ -161,7 +161,9 @@ export const downloadTools = [
             playlist: playlistProperty
         },
         required: ['url'],
-        describe: (a) => `Download audio (${a.format || 'best'}) from ${a.url || 'video'}`,
+        describe: (a, t) => t('toolAudio', {
+                format: !a.format || a.format === 'best' ? t('toolBest') : a.format, url: a.url || t('toolVideoLabel')
+            }),
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const format = validateEnum(args.format, AUDIO_FORMATS, 'format', 'best');
@@ -180,7 +182,7 @@ export const downloadTools = [
         description: 'Download only the thumbnail image of a video.',
         properties: { url: urlProperty },
         required: ['url'],
-        describe: (a) => `Download thumbnail of ${a.url || 'video'}`,
+        describe: (a, t) => t('toolThumbnail', { url: a.url || t('toolVideoLabel') }),
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const result = await runDownload(['--write-thumbnail', '--skip-download'], url, ctx, { sidecarOnly: true });
@@ -196,7 +198,9 @@ export const downloadTools = [
             'Download a subtitle file (converted to .vtt) for a video without downloading the video. Call list_subtitles first to see which language codes exist.',
         properties: { url: urlProperty, lang: langProperty },
         required: ['url', 'lang'],
-        describe: (a) => `Download "${a.lang || 'selected'}" subtitles for ${a.url || 'video'}`,
+        describe: (a, t) => t('toolDownloadSubtitles', {
+                lang: a.lang || t('toolSelected'), url: a.url || t('toolVideoLabel')
+            }),
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const lang = validateLang(args.lang);

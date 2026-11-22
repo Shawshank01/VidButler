@@ -12,7 +12,7 @@ import { createEventHandler } from './agent-events.ts';
 import { AiSettings } from './ai-settings.js';
 import { ConfirmationBroker } from './confirmations.js';
 import { Conversation, trimHistory } from './conversation.ts';
-import { isDirectory, validateContext } from './context.js';
+import { AiContextError, isDirectory, validateContext } from './context.js';
 import { cancelCurrentTask } from '../core/tools.ts';
 import { ProviderError } from './errors.js';
 import { MAX_USER_MESSAGE_CHARS } from './limits.js';
@@ -47,12 +47,14 @@ function errorMessage(error) {
  * @property {(path: string) => Promise<boolean>} [isDirectory]
  * @property {(message: string) => void} [log]   Diagnostic logging (never receives API keys or message text).
  * @property {number} [confirmationTimeoutMs]
+ * @property {() => Promise<import('../types/ui-language.d.ts').UiTranslator>} [getUiTranslator]
  */
 export class ChatService {
     /** @param {ChatServiceDeps} deps */
-    constructor({ settings, keyStore, emit, fetchImpl, isDirectory: isDir, log, confirmationTimeoutMs }) {
+    constructor({ settings, keyStore, emit, fetchImpl, isDirectory: isDir, log, confirmationTimeoutMs, getUiTranslator }) {
         this.log = log || (() => { });
         this.emit = emit;
+        this.getUiTranslator = getUiTranslator;
         this.isDirectory = isDir || isDirectory;
 
         this.aiSettings = new AiSettings({ store: settings, keyStore, fetchImpl });
@@ -154,6 +156,7 @@ export class ChatService {
                 onEvent: createEventHandler({ log: (line) => this.log(line), emit }),
                 confirm: (request) => this.confirmations.request(request, emit),
                 confirmMode: saved.confirmMode,
+                translateUi: await this.getUiTranslator?.(),
                 signal: controller.signal
             });
 
@@ -164,6 +167,9 @@ export class ChatService {
             const messageText = redactSecrets(errorMessage(err) || 'Unexpected error.', secrets);
             this.log(`request failed: kind=${kind} message=${messageText}`);
             this.conversation.failTurn(MESSAGES.requestFailed(messageText));
+            if (err instanceof AiContextError) {
+                return { ok: false, error: { kind, message: messageText, contextField: err.field } };
+            }
             return failure(kind, messageText);
         } finally {
             this.confirmations.denyAll();

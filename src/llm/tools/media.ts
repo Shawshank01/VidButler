@@ -22,7 +22,7 @@ export const mediaTools = [
             }
         },
         required: ['file'],
-        describe: (a) => `Inspect media info for "${a.file || 'media'}"`,
+        describe: (a, t) => t('toolLocalInfo', { file: a.file || t('toolMediaLabel') }),
         async run(args, ctx) {
             const folder = requireFolder(ctx);
             let fileHint = typeof args.file === 'string' ? args.file.trim() : '';
@@ -61,8 +61,12 @@ export const mediaTools = [
             }
         },
         required: ['url', 'lang'],
-        describe: (a) =>
-            `Download ${a.url || 'video'} and hardcode "${a.lang || 'selected'}" subtitles (${a.codec || 'h264'}, ${a.position || 'bottom'})`,
+        describe: (a, t) =>
+            t('toolHardsub', {
+                url: a.url || t('toolVideoLabel'), lang: a.lang || t('toolSelected'), codec: a.codec || 'h264',
+                position: a.position === 'top' ? t('toolPositionTop') : !a.position || a.position === 'bottom'
+                    ? t('toolPositionBottom') : a.position
+            }),
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const lang = validateLang(args.lang);
@@ -99,7 +103,7 @@ export const mediaTools = [
             }
         },
         required: ['file'],
-        describe: (a) => `Re-encode "${a.file || 'video'}" to MP4 (H.264/AAC); an existing .mp4 of the same name is replaced`,
+        describe: (a, t) => t('toolReencode', { file: a.file || t('toolVideoLabel') }),
         async run(args, ctx) {
             const folder = requireFolder(ctx);
             const fileHint = typeof args.file === 'string' ? args.file.trim() : '';
@@ -131,7 +135,9 @@ export const mediaTools = [
             }
         },
         required: ['file'],
-        describe: (a) => `Extract audio (${a.format || 'best'}) from "${a.file || 'video'}"`,
+        describe: (a, t) => t('toolExtractAudio', {
+                format: !a.format || a.format === 'best' ? t('toolBest') : a.format, file: a.file || t('toolVideoLabel')
+            }),
         async run(args, ctx) {
             const folder = requireFolder(ctx);
             let fileHint = typeof args.file === 'string' ? args.file.trim() : '';

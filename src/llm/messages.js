@@ -21,8 +21,6 @@ export const MESSAGES = {
     transcriptLanguageDescription: 'Optional caption language code, such as "en". Omit to prefer creator-provided captions and use original-language automatic captions when needed.',
     transcriptModeDescription: 'Use "summary" (default) for the full caption track, either as captions or as timestamped notes. Use "page" to read a specific page.',
     transcriptPageDescription: 'First transcript page to read. Omit for a whole-video summary. In page mode, use the next page number returned by this tool to read further.',
-    /** @param {Record<string, unknown>} args */
-    describeTranscript: ({ url }) => `Read captions from ${url}`,
     noTranscriptCaptions: 'No creator-provided or original-language automatic captions are available for this video.',
     noTranscriptLanguage: (lang, options) => `No captions are available in "${lang}". Available tracks: ${options}.`,
     transcriptListingFailed: 'Could not look up captions.',
@@ -45,8 +43,6 @@ export const MESSAGES = {
     exactResolutionUnavailable: (height) => `No downloadable ${height}p format matched the request. Check available formats and ask before choosing a different resolution.`,
     clipVideoContainerDescription: 'Container for a video clip. Defaults to MP4.',
     clipAudioFormatDescription: 'Output format for an audio-only clip. Defaults to best.',
-    /** @param {Record<string, unknown>} args */
-    describeClip: ({ media_type, start_time, end_time, url }) => `Download ${media_type} clip from ${start_time} to ${end_time} of ${url}`,
     invalidClipTimestamp: (name) => `"${name}" must be a non-negative timestamp in seconds, M:SS or H:MM:SS, optionally with up to three decimal places.`,
     invalidClipOrder: 'End time must be later than start time.',
     clipWithSocksProxy: 'SOCKS mode blocks clip downloads. Select HTTP and enter a proxy address that supports CONNECT, or turn off Proxy, then retry.',
@@ -72,9 +68,6 @@ export const MESSAGES = {
     /** Part of the system prompt when no folder is selected. */
     noDownloadFolderInPrompt:
         'No download folder is selected yet. If the user wants to download or convert something, tell them to choose a download folder in the app first.',
-    /** Shown in the confirmation dialog when a tool is about to use an address the user did not type. */
-    urlNotFromUser:
-        'This address was not in your message. It may come from the web page the assistant read. Only allow it if you trust it.',
     maxSteps: (steps) => `I stopped after ${steps} steps without finishing. Tell me if you want me to continue.`,
     requestFailed: (reason) => `(The request failed: ${reason})`
 };

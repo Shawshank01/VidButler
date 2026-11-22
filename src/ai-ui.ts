@@ -14,6 +14,7 @@
     type MessageKind = 'user' | 'assistant';
     type ToolStep = { el: HTMLDivElement; title: HTMLDivElement; detail: HTMLDivElement; description: string };
 
+    const t = window.UiLanguage.text;
     const api = window.electronAPI && window.electronAPI.ai;
 
     function $<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -30,47 +31,47 @@
     }
 
     // Where to get an API key, per provider (shown as a link under the key field).
-    const KEY_HELP: Record<string, { url: string; text: string }> = {
-        gemini: { url: 'https://aistudio.google.com/apikey', text: 'Get a Gemini API key from Google AI Studio' },
-        xai: { url: 'https://console.x.ai', text: 'Get an xAI API key from the xAI console' },
-        cohere: { url: 'https://dashboard.cohere.com/api-keys', text: 'Get a Cohere API key from the Cohere dashboard' }
+    const KEY_HELP: Record<string, { url: string; label: string }> = {
+        gemini: { url: 'https://aistudio.google.com/apikey', label: 'geminiKeyHelp' },
+        xai: { url: 'https://console.x.ai', label: 'xaiKeyHelp' },
+        cohere: { url: 'https://dashboard.cohere.com/api-keys', label: 'cohereKeyHelp' }
     };
     const KEYLESS_PROVIDERS = new Set(['ollama']);
     const EXAMPLE_GROUPS = [
         {
-            category: 'Download',
+            category: 'exampleDownload',
             items: [
-                'Download this video in 1080p: <link>',
-                'Get the audio of <link>',
-                'Extract the audio from <filename>',
-                'Download as a clip from <time> to <time>'
+                'example1080',
+                'exampleAudio',
+                'exampleExtract',
+                'exampleClip'
             ]
         },
         {
-            category: 'Subtitles',
+            category: 'exampleSubtitles',
             items: [
-                'Download <link> with English subtitles burned in',
-                'Download the available subtitles for <link>',
-                'Are subtitles for <link> manual or auto-generated?',
-                'Add subtitles at the top'
+                'exampleBurn',
+                'exampleDownloadSubtitles',
+                'exampleSubtitleType',
+                'exampleSubtitlesTop'
             ]
         },
         {
-            category: 'Information',
+            category: 'exampleInformation',
             items: [
-                'Summarize this video: <link>',
-                'What’s the title, uploader, and duration of <link>?',
-                'List all available video formats for <link>',
-                'Download the thumbnail of <link>'
+                'exampleSummary',
+                'exampleVideoInfo',
+                'exampleFormats',
+                'exampleThumbnail'
             ]
         },
         {
-            category: 'File Management',
+            category: 'exampleFiles',
             items: [
-                'Show me the files in my download folder',
-                'Give me information about <filename>',
-                'Re-encode <filename> as high-quality MP4',
-                'Delete <filename> in my download folder'
+                'exampleListFiles',
+                'exampleFileInfo',
+                'exampleReencode',
+                'exampleDelete'
             ]
         }
     ];
@@ -147,20 +148,28 @@
         return settings ? settings.providers[settings.provider] : null;
     }
 
+    function providerLabel(id: string, label: string) {
+        if (id === 'openai-compatible') return t('compatibleProvider');
+        if (id === 'ollama') return t('ollamaProvider');
+        return label;
+    }
+
     function refreshModelHint() {
         const provider = currentProvider();
-        if (!provider?.model) {
+        if (!settings || !provider?.model) {
             els.modelHint.textContent = '';
             return;
         }
         const effort = provider.supportsReasoningEffort
             ? provider.reasoningEffort
-            : provider.supportsThinkingLevel
-                ? provider.thinkingLevel
-                : null;
+            : provider.supportsThinkingLevel ? provider.thinkingLevel : null;
+        const effortLabels: Record<string, string> = {
+            none: 'effortNoneLabel', low: 'effortLow', medium: 'effortMedium', high: 'effortHigh', xhigh: 'effortExtraHigh'
+        };
+        const values = { provider: providerLabel(settings.provider, provider.label), model: provider.model };
         els.modelHint.textContent = effort
-            ? `Using ${provider.label}: ${provider.model} (reasoning effort: ${effort})`
-            : `Using ${provider.label}: ${provider.model}`;
+            ? t('usingModelEffort', { ...values, effort: effortLabels[effort] ? t(effortLabels[effort]) : effort })
+            : t('usingModel', values);
     }
 
     function getContext(): import('./llm/types.js').AiContext {
@@ -260,7 +269,7 @@
         hint.className = 'ai-empty-hint';
         const title = document.createElement('div');
         title.className = 'ai-empty-title';
-        title.textContent = 'Tell me what you want to do. Click an example to try it:';
+        title.textContent = t('examplesIntro');
         hint.appendChild(title);
 
         const groupsContainer = document.createElement('div');
@@ -272,12 +281,13 @@
 
             const catTitle = document.createElement('div');
             catTitle.className = 'ai-example-cat';
-            catTitle.textContent = group.category;
+            catTitle.textContent = t(group.category);
             section.appendChild(catTitle);
 
             const list = document.createElement('ul');
             list.className = 'ai-example-list';
-            for (const example of group.items) {
+            for (const exampleKey of group.items) {
+                const example = t(exampleKey);
                 const item = document.createElement('li');
                 const btn = document.createElement('button');
                 btn.type = 'button';
@@ -316,11 +326,11 @@
     async function switchMode(next: Mode) {
         if (next === mode) return;
         if (classicTaskRunning()) {
-            showNotice('A classic action is still running. Wait for it to finish or cancel it first.');
+            showNotice(t('classicBusy'));
             return;
         }
         if (busy) {
-            showNotice('The assistant is still working. Press Stop first.');
+            showNotice(t('assistantBusy'));
             return;
         }
         showNotice('');
@@ -335,11 +345,12 @@
     function refreshBanner() {
         const provider = currentProvider();
         let text = '';
-        if (provider) {
+        if (provider && settings) {
+            const label = providerLabel(settings.provider, provider.label);
             if (provider.needsApiKey && !provider.hasApiKey) {
-                text = `${provider.label} needs an API key before the assistant can work.`;
+                text = t('missingKey', { provider: label });
             } else if (!provider.model) {
-                text = `${provider.label} needs a model name.`;
+                text = t('missingModel', { provider: label });
             }
         }
         els.banner.style.display = mode === 'ai' && text ? 'flex' : 'none';
@@ -363,17 +374,19 @@
         els.progress.classList.add('retrying');
         const startTime = Date.now();
         const deadline = startTime + Math.max(0, event.delayMs || 0);
-        const details = `${event.provider}: ${event.reason}, attempt ${event.attempt} of ${event.retries}`;
 
         function tick() {
+            const details = t('retryDetails', {
+                provider: event.provider, reason: event.reason, attempt: event.attempt, total: event.retries
+            });
             const now = Date.now();
             if (now < deadline) {
                 const secondsLeft = Math.max(1, Math.ceil((deadline - now) / 1000));
-                els.progress.textContent = `Retrying in ${secondsLeft} s (${details})\u2026`;
+                els.progress.textContent = t('retryIn', { seconds: secondsLeft, details });
             } else {
                 const elapsedSinceRetry = Math.floor((now - deadline) / 1000);
                 const elapsedText = elapsedSinceRetry > 0 ? ` (${elapsedSinceRetry}s)` : '';
-                els.progress.textContent = `Retrying now (${details})\u2026${elapsedText}`;
+                els.progress.textContent = t('retryNow', { details }) + elapsedText;
             }
         }
 
@@ -389,7 +402,7 @@
         els.newChatBtn.disabled = value;
         els.stopBtn.style.display = value ? '' : 'none';
         els.stopBtn.disabled = false;
-        els.stopBtn.textContent = 'Stop';
+        window.UiLanguage.label(els.stopBtn, 'stop');
         if (!value) {
             clearRetryProgress();
             els.progress.textContent = '';
@@ -400,13 +413,12 @@
     }
 
     function describeError(error: AiFailure) {
-        const isContextError = /download folder|cookie browser|proxy address/i.test(error.message);
-        const isFolderError = /download folder/i.test(error.message);
-        const needsSettings = !isContextError && ['auth', 'not_found', 'settings'].includes(error.kind);
+        const contextKeys = { folder: 'missingAiFolder', browser: 'invalidAiBrowser', proxy: 'invalidAiProxy' };
+        const needsSettings = !error.contextField && ['auth', 'not_found', 'settings'].includes(error.kind);
         return {
-            text: error.message,
+            text: error.contextField ? t(contextKeys[error.contextField]) : error.message,
             needsSettings,
-            needsFolder: isFolderError,
+            needsFolder: error.contextField === 'folder',
             rateLimited: error.kind === 'rate_limit'
         };
     }
@@ -419,13 +431,13 @@
         el.textContent = info.text;
         if (info.rateLimited) {
             const hint = document.createElement('div');
-            hint.textContent = 'Tip: you can switch to Classic mode, which does not use the AI.';
+            hint.textContent = t('classicTip');
             el.appendChild(hint);
         }
         if (info.needsFolder) {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.textContent = 'Choose Download Folder';
+            btn.textContent = t('chooseDownloadFolder');
             btn.addEventListener('click', () => {
                 if (typeof window.chooseFolder === 'function') {
                     window.chooseFolder();
@@ -439,7 +451,7 @@
         if (info.needsSettings) {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.textContent = 'Open AI Settings';
+            btn.textContent = t('openAiSettings');
             btn.addEventListener('click', openSettings);
             el.appendChild(btn);
         }
@@ -457,7 +469,7 @@
         lastAssistantText = '';
         streamingText = '';
         setBusy(true);
-        els.progress.textContent = 'Thinking…';
+        els.progress.textContent = t('thinking');
         scrollMessagesToBottom();
         try {
             const res = await api.send(text, getContext());
@@ -476,7 +488,7 @@
                 } else if (assistantBubblesThisTurn === 0) {
                     // The answer normally arrives as an 'assistant_text' event. If it did not, show the
                     // returned text so the user is never left without a reply.
-                    const fallbackText = answerText || '(The assistant did not return any text.)';
+                    const fallbackText = answerText || t('noAssistantText');
                     lastAssistantText = fallbackText;
                     assistantBubblesThisTurn += 1;
                     addMessage('assistant', fallbackText);
@@ -488,7 +500,7 @@
                 streamingBubble = null;
                 streamingText = '';
             }
-            addError({ kind: 'unexpected', message: 'Something went wrong talking to the assistant.' });
+            addError({ kind: 'unexpected', message: t('assistantError') });
             console.error(err);
         } finally {
             setBusy(false);
@@ -498,7 +510,7 @@
     async function stop() {
         clearRetryProgress();
         els.stopBtn.disabled = true;
-        els.stopBtn.textContent = 'Stopping…';
+        window.UiLanguage.label(els.stopBtn, 'stopping');
         hideConfirm();
         await api.cancel();
     }
@@ -517,19 +529,20 @@
     function summarizeResult(name: string, result: Record<string, unknown>) {
         if (!result) return '';
         if (result.error) return String(result.error);
-        if (name === 'get_video_transcript') return `Captions from ${result.from} to ${result.through}`;
+        if (name === 'get_video_transcript') return t('captionRange', { from: result.from, through: result.through });
         if (Array.isArray(result.files) && result.files.length > 0 && result.saved_to_folder) {
-            return `Saved: ${result.files.join(', ')}`;
+            return t('savedFiles', { files: result.files.join(', ') });
         }
         if (Array.isArray(result.deleted)) {
-            const skipped = Array.isArray(result.skipped) && result.skipped.length ? ` (skipped ${result.skipped.length})` : '';
-            return `Deleted: ${result.deleted.join(', ') || 'nothing'}${skipped}`;
+            const skipped = Array.isArray(result.skipped) && result.skipped.length
+                ? ` (${t('skippedFiles', { count: result.skipped.length })})` : '';
+            return t('deletedFiles', { files: result.deleted.join(', ') || t('nothing') }) + skipped;
         }
-        if (Array.isArray(result.subtitles)) return `${result.subtitles.length} subtitle language(s) found`;
-        if (typeof result.total_files === 'number') return `${result.total_files} file(s) in the folder`;
+        if (Array.isArray(result.subtitles)) return t('subtitleCount', { count: result.subtitles.length });
+        if (typeof result.total_files === 'number') return t('fileCount', { count: result.total_files });
         if (result.title) return String(result.title);
         if (result.message) return String(result.message);
-        if (name === 'list_formats') return 'Format list retrieved';
+        if (name === 'list_formats') return t('formatsReady');
         return '';
     }
 
@@ -590,7 +603,7 @@
                     const expander = document.createElement('details');
                     expander.className = 'ai-step-expander';
                     const summaryEl = document.createElement('summary');
-                    summaryEl.textContent = 'View full format list';
+                    summaryEl.textContent = t('fullFormatList');
                     const pre = document.createElement('pre');
                     pre.className = 'ai-step-raw';
                     pre.textContent = event.result.output.trim();
@@ -598,7 +611,7 @@
                     step.detail.append(expander);
                 }
 
-                els.progress.textContent = 'Thinking…';
+                els.progress.textContent = t('thinking');
                 scrollMessagesToBottom();
                 break;
             }
@@ -606,7 +619,7 @@
                 clearRetryProgress();
                 const el = document.createElement('div');
                 el.className = 'ai-step denied';
-                el.textContent = `⊘ Declined: ${event.description}`;
+                el.textContent = '⊘ ' + t('actionDeclined', { description: event.description });
                 append(el);
                 hideConfirm();
                 break;
@@ -628,7 +641,7 @@
         els.confirmRisk.textContent =
             request.reason ||
             (request.risk === 'high'
-                ? 'This can take a long time, use a lot of CPU, or replace or delete files.'
+                ? t('highRisk')
                 : '');
         els.confirmModal.style.display = 'flex';
         // Default focus is the safe choice so a stray Enter key does not approve anything.
@@ -657,7 +670,7 @@
         for (const [id, info] of Object.entries(settings.providers)) {
             const option = document.createElement('option');
             option.value = id;
-            option.textContent = info.label;
+            option.textContent = providerLabel(id, info.label);
             els.providerSelect.appendChild(option);
         }
         els.providerSelect.value = settings.provider;
@@ -668,7 +681,7 @@
         const info = settings?.providers[id];
         if (!info) return;
         els.modelInput.value = info.model || '';
-        els.modelInput.placeholder = info.defaultModel || 'Model name';
+        els.modelInput.placeholder = info.defaultModel || t('modelName');
         els.baseUrlField.style.display = info.editableBaseUrl ? '' : 'none';
         els.baseUrlInput.value = info.baseUrl || '';
         els.baseUrlInput.placeholder = info.defaultBaseUrl || 'http://...';
@@ -676,16 +689,16 @@
         els.thinkingSelect.textContent = '';
         const efforts = info.supportsReasoningEffort
             ? [
-                ['none', 'None (fastest)'],
-                ['low', 'Low'],
-                ['medium', 'Medium'],
-                ['high', 'High'],
-                ['xhigh', 'Extra high']
+                ['none', t('effortNone')],
+                ['low', t('effortLow')],
+                ['medium', t('effortMedium')],
+                ['high', t('effortHigh')],
+                ['xhigh', t('effortExtraHigh')]
             ]
             : [
-                ['low', 'Fast (recommended)'],
-                ['medium', 'Balanced: slower, more careful'],
-                ['high', 'Thorough: much slower']
+                ['low', t('effortFast')],
+                ['medium', t('effortBalanced')],
+                ['high', t('effortThorough')]
             ];
         for (const [value, label] of efforts) {
             const option = document.createElement('option');
@@ -695,8 +708,8 @@
         }
         els.thinkingSelect.value = info.supportsReasoningEffort ? info.reasoningEffort : info.thinkingLevel;
         $('aiThinkingHint').textContent = info.supportsReasoningEffort
-            ? 'The available effort depends on the selected xAI model.'
-            : 'How long Gemini thinks before answering. Fast is enough for downloads and conversions.';
+            ? t('xaiEffortHint')
+            : t('geminiEffortHint');
 
         const usesKey = !KEYLESS_PROVIDERS.has(id);
         els.keyField.style.display = usesKey ? '' : 'none';
@@ -704,24 +717,19 @@
         const help = KEY_HELP[id];
         els.keyHelp.style.display = help ? '' : 'none';
         if (help) {
-            els.keyHelpLink.textContent = help.text;
+            window.UiLanguage.label(els.keyHelpLink, help.label);
             els.keyHelpLink.dataset.url = help.url;
         }
         renderKeyStatus();
 
         const notes: Record<string, string> = {
-            gemini:
-                'Your messages, video links and the results of actions are sent to Google. Depending on your plan, Google may use free-tier data to improve its products, so check Google\u2019s terms. Choose Ollama if you want everything to stay on your computer.',
-            xai:
-                'Your messages, video links and the results of actions are sent to xAI. Check xAI\u2019s data and privacy terms. Choose Ollama if you want everything to stay on your computer.',
-            cohere:
-                'Your messages, video links and the results of actions are sent to Cohere. Choose Ollama if you want everything to stay on your computer.',
-            ollama:
-                'Everything stays on your computer. Ollama must be running, and the model must support tool calling (for example LFM3-1.7B, Qwen3). Small models are less reliable.',
-            'openai-compatible':
-                'Your messages are sent to the server URL above. Use this for OpenAI, OpenRouter, Groq, LM Studio and similar services.'
+            gemini: 'privacyGemini',
+            xai: 'privacyXai',
+            cohere: 'privacyCohere',
+            ollama: 'privacyOllama',
+            'openai-compatible': 'privacyCompatible'
         };
-        els.privacyNote.textContent = notes[id] || '';
+        els.privacyNote.textContent = notes[id] ? t(notes[id]) : '';
         els.testResult.textContent = '';
         els.testResult.className = 'ai-test-result';
     }
@@ -732,9 +740,9 @@
         const info = settings.providers[id];
         if (!info) return;
         const parts = [];
-        parts.push(info.hasApiKey ? 'A key is saved.' : info.needsApiKey ? 'No key saved yet.' : 'No key saved (optional for this provider).');
+        parts.push(info.hasApiKey ? t('keySaved') : info.needsApiKey ? t('noKeySaved') : t('noOptionalKey'));
         if (!settings.keyStorageSecure) {
-            parts.push('This system has no secure key storage, so the key is only remembered until you close the app.');
+            parts.push(t('noSecureStorage'));
         }
         els.keyStatus.textContent = parts.join(' ');
         els.keyStatus.classList.toggle('warn', !settings.keyStorageSecure);
@@ -744,7 +752,7 @@
     async function openSettings() {
         const res = await api.getSettings();
         if (!res.ok) {
-            showNotice(res.error || 'Could not load AI settings.');
+            showNotice([t('loadAiFailed'), res.error].filter(Boolean).join(' '));
             return;
         }
         settings = res.settings;
@@ -777,14 +785,16 @@
     async function testConnection() {
         els.testBtn.disabled = true;
         els.testResult.className = 'ai-test-result';
-        els.testResult.textContent = 'Testing…';
+        els.testResult.textContent = t('testing');
         try {
             const result = await api.testConnection(formOverrides());
             els.testResult.className = `ai-test-result ${result.ok ? 'ok' : 'fail'}`;
-            els.testResult.textContent = `${result.ok ? '✓' : '✗'} ${result.message}`;
+            els.testResult.textContent = result.ok
+                ? `✓ ${t('connectionOk')} ${result.message}`.trim()
+                : `✗ ${t('connectionFailed', { detail: result.message })}`;
         } catch {
             els.testResult.className = 'ai-test-result fail';
-            els.testResult.textContent = '✗ The test could not be run.';
+            els.testResult.textContent = '✗ ' + t('testFailed');
         } finally {
             els.testBtn.disabled = false;
         }
@@ -795,20 +805,20 @@
         const value = els.keyInput.value.trim();
         if (!value) {
             els.testResult.className = 'ai-test-result fail';
-            els.testResult.textContent = 'Paste a key first.';
+            els.testResult.textContent = t('pasteKey');
             return false;
         }
         const res = await api.setApiKey(id, value);
         if (!res.ok) {
             els.testResult.className = 'ai-test-result fail';
-            els.testResult.textContent = res.error || 'Could not save the key.';
+            els.testResult.textContent = [t('saveKeyFailed'), res.error].filter(Boolean).join(' ');
             return false;
         }
         settings = res.settings;
         els.keyInput.value = '';
         renderKeyStatus();
         els.testResult.className = 'ai-test-result ok';
-        els.testResult.textContent = res.persisted ? '✓ Key saved securely.' : '✓ Key kept for this session only.';
+        els.testResult.textContent = res.persisted ? '✓ ' + t('keySavedSecurely') : '✓ ' + t('sessionKey');
         return true;
     }
 
@@ -818,7 +828,7 @@
             settings = res.settings;
             renderKeyStatus();
             els.testResult.className = 'ai-test-result';
-            els.testResult.textContent = 'Key removed.';
+            els.testResult.textContent = t('keyRemoved');
         }
     }
 
@@ -829,7 +839,7 @@
         const model = els.modelInput.value.trim();
         if (!model) {
             els.testResult.className = 'ai-test-result fail';
-            els.testResult.textContent = 'Enter a model name.';
+            els.testResult.textContent = t('enterModel');
             els.modelInput.focus();
             return;
         }
@@ -849,7 +859,7 @@
         });
         if (!res.ok) {
             els.testResult.className = 'ai-test-result fail';
-            els.testResult.textContent = res.error || 'Could not save settings.';
+            els.testResult.textContent = [t('saveSettingsFailed'), res.error].filter(Boolean).join(' ');
             return;
         }
         settings = res.settings;
@@ -922,6 +932,11 @@
     });
 
     api.onEvent(handleEvent);
+    document.addEventListener('ui-language-changed', () => {
+        refreshBanner();
+        showNotice('');
+        if (els.messages.querySelector('.ai-empty-hint')) renderEmptyHint();
+    });
 
     renderEmptyHint();
     api.getSettings().then((res) => {

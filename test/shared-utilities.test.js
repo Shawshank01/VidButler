@@ -60,6 +60,7 @@ test('renderer restores the proxy type, keeps existing settings on SOCKS5, and s
             console: { log() {} },
             window: {
                 LogClassification: classification,
+                UiLanguage: { restore() {} },
                 electronAPI: {
                     getSettings: async () => ({ proxyEnabled: true, proxyType: savedType, proxyAddress: 'localhost:8118' }),
                     setSettings: async (update) => { updates.push({ ...update }); }

@@ -70,7 +70,10 @@ export const downloadSectionTool = defineTool({
         format: { type: 'string', enum: AUDIO_FORMATS, description: MESSAGES.clipAudioFormatDescription }
     },
     required: ['url', 'media_type', 'start_time', 'end_time'],
-    describe: MESSAGES.describeClip,
+    describe: (a, t) => t('toolClip', {
+        media: a.media_type === 'audio' ? t('toolAudioLabel') : a.media_type === 'video' ? t('toolVideoLabel') : a.media_type,
+        start: a.start_time, end: a.end_time, url: a.url
+    }),
     async run(args, ctx) {
         const url = validateUrl(args.url);
         const mediaType = validateEnum(args.media_type, ['video', 'audio'], 'media_type');

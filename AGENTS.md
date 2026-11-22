@@ -52,6 +52,8 @@ src/types/ipc.ts         Shared IPC request arguments, response values, and even
 src/renderer.ts          Classic UI (classic script, see sections 7 and 8 for coverage)
 src/ai-ui.ts             AI UI (classic script, IIFE, uses window.electronAPI.ai)
 src/markdown.js          Safe Markdown renderer (classic script, exposes window.MarkdownLite)
+src/ui-language.ts       Language picker and classic-script DOM translation
+src/i18n/catalog.cjs      UI translations shared by the renderer, native dialogs and AI tool descriptions
 src/settings-store.js    user-settings.json: queued merges, atomic writes, explicit first-run defaults
 src/settings-schema.js   Allow-list for the generic 'set-settings' IPC channel
 src/external-url.js      Which addresses 'open-external' may open (http(s) and the macOS privacy pane)
@@ -119,7 +121,7 @@ Transcript summary mode passes short transcripts through as timestamped text. Fo
 3. **The confirmation mode controls approvals.** The settings are `always`, `risky` (default), and `never`. When a call requires confirmation, a missing callback or a prompt left unanswered for five minutes causes denial.
 4. **Tool output is untrusted data** (video titles, subtitles, error text): the system prompt says so. Replies are rendered with DOM calls only. **Never use `innerHTML` for model text** (a test enforces this in `ai-ui.ts`).
 5. **The renderer receives key status only.** The settings form passes newly typed keys to the main process for saving or connection tests. `safeStorage` encrypts keys per provider in `ai-keys.json`. When secure storage is unavailable, including the Linux `basic_text` backend, new keys stay in memory. AI error paths redact stored keys and any key supplied for a connection test. Gemini, xAI, and Cohere use fixed endpoints. The OpenAI-compatible adapter uses the configured server URL and sends an optional key to that server.
-6. **`set-settings` (the generic IPC handler) is an allow-list** (`settings-schema.js`: `downloadFolder`, `browser`, `subtitlePosition`, `proxyEnabled`, `proxyType`, `proxyAddress`, each type-checked). Existing settings without `proxyType` use SOCKS5. AI settings go only through the validated `ai-*` handlers.
+6. **`set-settings` (the generic IPC handler) is an allow-list** (`settings-schema.js`: `downloadFolder`, `browser`, `subtitlePosition`, `proxyEnabled`, `proxyType`, `proxyAddress`, `uiLanguage`, each type-checked). Existing settings without `proxyType` use SOCKS5. AI settings go only through the validated `ai-*` handlers.
 7. **AI downloads default to `--no-playlist`.**
 8. **Downloaded source files and sidecars left after a successful re-encode or hardsub require explicit cleanup.** Classic mode asks before deleting paths reported in `tmpFiles`. In AI mode, `delete_files` is high risk and only deletes regular files that are direct children of the download folder. Tools clean up their own scratch files and attempt to remove unfinished FFmpeg outputs. Cancelled yt-dlp downloads can leave partial files.
 9. **Classic mode must keep working with no AI configured.** Both modes share `core/tools.ts` and the same `TaskManager` lock for long-running media jobs.
@@ -152,7 +154,7 @@ On macOS, development and release share Electron's user-data profile under `~/Li
 
 | File | Content |
 | --- | --- |
-| `user-settings.json` | Classic settings plus `aiMode`, `aiProvider`, `aiConfirmMode`, `aiProviderConfigs`. No secrets. Written atomically; a missing file means first run (defaults to AI mode), an unreadable one is treated as empty and logged. |
+| `user-settings.json` | Classic settings, `uiLanguage`, and `aiMode`, `aiProvider`, `aiConfirmMode`, `aiProviderConfigs`. No secrets. Written atomically; a missing file means first run (defaults to AI mode), an unreadable one is treated as empty and logged. |
 | `ai-keys.json` | API keys, encrypted (`safeStorage`), file mode 0600. |
 | `tool-data/` | App-specific yt-dlp and Deno caches, and per-process scratch directories for manifests and transcripts. Normal operations clean up their scratch files. Startup removes scratch directories from dead app processes. |
 | electron-updater cache | On Windows/Linux, a verified pending app update after the user chooses Download and Restart. |
@@ -189,7 +191,7 @@ The release matrix and standalone macOS and Windows build jobs run `node scripts
 
 - The assistant can download a time range from an online source. Local file trimming, GIFs, joining, resizing, speed change, SponsorBlock, and chapter/metadata editing are still outside its capabilities. Time-range downloads require FFmpeg and work directly or through an HTTP proxy that supports CONNECT. `download_section` rejects SOCKS proxies. yt-dlp passes the configured HTTP proxy to FFmpeg, and the app clears inherited `NO_PROXY` exceptions for those yt-dlp processes.
 - One conversation at a time; history is lost on New chat or quit; capped at 40 messages.
-- UI strings and the system prompt are English only (the model answers in the user's language). `messages.js` centralises the text but is not a translation layer.
+- The UI supports English, German, French, Spanish, Italian, Polish, Dutch and Portuguese. Model replies follow the user’s prompt language. Provider diagnostics and raw tool output retain their source language.
 - **`renderer.ts` and `ai-ui.ts` are large classic scripts** sharing global state and DOM IDs. Exercise the affected dialogs in a live Electron window when refactoring either script.
 - Re-encoding an `.mp4` replaces the original file (flagged high risk and described in the confirmation text).
 - Small local models have not been evaluated; expect weaker tool selection.
@@ -206,7 +208,7 @@ The release matrix and standalone macOS and Windows build jobs run `node scripts
 
 ### B. UX
 
-Show the command a step ran (collapsible), add a "Reveal in Finder / Open folder" button and an AI-mode progress bar, support drag-and-drop URLs or files and clipboard URL detection, offer opt-in saved chat history with export and "delete all" and an opt-in log file, localise UI strings, and split `ai-ui.ts` and `renderer.ts` with smoke tests.
+Show the command a step ran (collapsible), add a "Reveal in Finder / Open folder" button and an AI-mode progress bar, support drag-and-drop URLs or files and clipboard URL detection, offer opt-in saved chat history with export and "delete all" and an opt-in log file, and split `ai-ui.ts` and `renderer.ts` with smoke tests.
 
 ### C. Providers
 

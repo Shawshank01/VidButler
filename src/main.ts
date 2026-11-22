@@ -22,6 +22,7 @@ import {
 } from './core/tools.ts';
 import { ChatService, AiSettingsError } from './llm/chat-service.js';
 import { MESSAGES } from './llm/messages.js';
+import uiCatalog from './i18n/catalog.cjs';
 import { sanitizeClassicSettings } from './settings-schema.js';
 import { SettingsStore } from './settings-store.js';
 import { KeyStore } from './llm/key-store.js';
@@ -101,10 +102,20 @@ function clearUpdateProgress() {
     }
 }
 
-handle('get-settings', async () => readSettings());
+function systemLanguage() {
+    return uiCatalog.resolveLanguage(app.getPreferredSystemLanguages());
+}
+
+function translateUi(settings: Record<string, unknown>) {
+    const preference = settings.uiLanguage;
+    const language = uiCatalog.resolveLanguage([uiCatalog.isPreference(preference) ? preference : undefined, systemLanguage()]);
+    return (key: string, values?: Record<string, unknown>) => uiCatalog.translate(language, key, values);
+}
+
+handle('get-settings', async () => ({ ...await readSettings(), systemLanguage: systemLanguage() }));
 
 handle('set-settings', async (_event, updates) => {
-    // Only the classic UI's own preferences are accepted here (allow-list). AI settings may only
+    // Only shared UI and Classic preferences are accepted here (allow-list). AI settings may only
     // change through the validated ai-* handlers below.
     return mergeSettings(sanitizeClassicSettings(updates));
 });
@@ -128,6 +139,7 @@ async function promptInitialDownloadFolder(win: BrowserWindow) {
 
     const settings = await readSettings();
     if (win.isDestroyed()) return;
+    const t = translateUi(settings);
 
     let defaultFolder;
     try {
@@ -155,12 +167,12 @@ async function promptInitialDownloadFolder(win: BrowserWindow) {
 
     const { response } = await dialog.showMessageBox(win, {
         type: 'question',
-        buttons: ['Create Default Folder', 'Select Existing Folder…', 'Cancel'],
+        buttons: [t('createDefaultFolder'), t('selectExistingFolder'), t('cancel')],
         defaultId: 0,
         cancelId: 2,
-        title: 'Welcome to VidButler',
-        message: 'Set Download Location',
-        detail: `Where would you like to save your downloads?\n\nYou can create the default folder:\n${defaultFolder}\n\nor select a different folder instead.`
+        title: t('welcome'),
+        message: t('setDownloadLocation'),
+        detail: t('initialFolder', { path: defaultFolder })
     });
 
     if (win.isDestroyed()) return;
@@ -180,11 +192,12 @@ async function promptInitialDownloadFolder(win: BrowserWindow) {
             if (!win.isDestroyed()) {
                 await dialog.showMessageBox(win, {
                     type: 'error',
-                    title: 'Folder Access Failed',
-                    message: 'Could not access or create the Downloads folder.',
-                    detail: `${err instanceof Error ? err.message : String(err)}\n\nPlease select an existing folder instead.`
+                    buttons: [t('ok')],
+                    title: t('folderAccessFailed'),
+                    message: t('folderCreateFailed'),
+                    detail: err instanceof Error ? err.message : String(err)
                 });
-                const chosen = await chooseDownloadFolder(win, 'Select Download Folder');
+                const chosen = await chooseDownloadFolder(win, t);
                 if (!win.isDestroyed()) {
                     if (chosen) {
                         await mergeSettings({ downloadFolder: chosen, firstRunFolderPrompted: true });
@@ -196,7 +209,7 @@ async function promptInitialDownloadFolder(win: BrowserWindow) {
             }
         }
     } else if (response === 1) {
-        const chosen = await chooseDownloadFolder(win, 'Select Download Folder');
+        const chosen = await chooseDownloadFolder(win, t);
         if (!win.isDestroyed()) {
             if (chosen) {
                 await mergeSettings({ downloadFolder: chosen, firstRunFolderPrompted: true });
@@ -230,21 +243,21 @@ async function checkForUpdatesOnLaunch(win: BrowserWindow) {
         return;
     }
     if (!update.hasUpdate || win.isDestroyed()) return;
+    const t = translateUi(await readSettings());
+    if (win.isDestroyed()) return;
 
     const notes = plainReleaseNotes(update.releaseNotes);
     if (update.updateMethod === 'homebrew') {
         const { response } = await dialog.showMessageBox(win, {
             type: 'info',
-            buttons: ['Copy Homebrew Command', 'Open GitHub Release', 'Later'],
+            buttons: [t('copyHomebrew'), t('openGitHubRelease'), t('later')],
             defaultId: 0,
             cancelId: 2,
-            title: 'VidButler Update Available',
-            message: `VidButler ${update.version} is available`,
+            title: t('updateAvailable'),
+            message: t('updateVersionAvailable', { version: update.version }),
             detail:
-                `You are using version ${update.currentVersion}. You can update through Homebrew.\n\n` +
-                `Recommended command:\n${MAC_UPDATE_COMMAND}\n\n` +
-                'If you installed VidButler from a DMG instead, open the GitHub release.' +
-                (notes ? `\n\n${notes}` : '')
+                [t('installedVersion', { version: update.currentVersion }),
+                    t('homebrewUpdate', { command: MAC_UPDATE_COMMAND }), notes].filter(Boolean).join('\n\n')
         });
 
         if (response === 0) {
@@ -257,15 +270,14 @@ async function checkForUpdatesOnLaunch(win: BrowserWindow) {
 
     const { response } = await dialog.showMessageBox(win, {
         type: 'info',
-        buttons: ['Download and Restart', 'Later'],
+        buttons: [t('downloadRestart'), t('later')],
         defaultId: 0,
         cancelId: 1,
-        title: 'VidButler Update Available',
-        message: `VidButler ${update.version} is available`,
+        title: t('updateAvailable'),
+        message: t('updateVersionAvailable', { version: update.version }),
         detail:
-            `You are using version ${update.currentVersion}. ` +
-            'Download the verified update now? VidButler will restart automatically when it is ready.' +
-            (notes ? `\n\n${notes}` : '')
+            [t('installedVersion', { version: update.currentVersion }),
+                t('installUpdate'), notes].filter(Boolean).join('\n\n')
     });
 
     if (response !== 0 || win.isDestroyed()) return;
@@ -276,8 +288,9 @@ async function checkForUpdatesOnLaunch(win: BrowserWindow) {
         if (!win.isDestroyed()) {
             await dialog.showMessageBox(win, {
                 type: 'error',
-                title: 'Update Failed',
-                message: 'VidButler could not download the update.',
+                buttons: [t('ok')],
+                title: t('updateFailed'),
+                message: t('updateDownloadFailed'),
                 detail: result.error
             });
         }
@@ -362,24 +375,27 @@ if (app.requestSingleInstanceLock()) {
         if (win.isMinimized()) win.restore();
         win.focus();
     });
-    app.whenReady().then(startApp).catch((error) => {
+    app.whenReady().then(startApp).catch(async (error) => {
         console.error('[main] Startup failed:', error);
-        dialog.showErrorBox('VidButler Could Not Start', error.message);
+        const settings = await readSettings().catch(() => ({}));
+        dialog.showErrorBox(translateUi(settings)('startupFailed'), error.message);
         app.quit();
     });
 } else {
     app.quit();
 }
 
-async function chooseDownloadFolder(win: BrowserWindow | null, title?: string) {
-    const options: OpenDialogOptions = { properties: ['openDirectory'], ...(title ? { title } : {}) };
+async function chooseDownloadFolder(win: BrowserWindow | null, t: ReturnType<typeof translateUi>) {
+    if (win?.isDestroyed()) return '';
+    const options: OpenDialogOptions = { properties: ['openDirectory'], title: t('chooseDownloadFolder'), buttonLabel: t('choose') };
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     const folder = result.canceled ? '' : (result.filePaths[0] || '');
     if (folder && await isManagedDownloadFolder(app.getPath('userData'), folder)) {
         const message: MessageBoxOptions = {
             type: 'warning',
-            message: 'Choose another download folder',
-            detail: 'This folder is used for VidButler data that can be removed during cleanup.'
+            buttons: [t('ok')],
+            message: t('chooseOtherFolder'),
+            detail: t('managedFolder')
         };
         if (win && !win.isDestroyed()) await dialog.showMessageBox(win, message);
         else await dialog.showMessageBox(message);
@@ -389,7 +405,11 @@ async function chooseDownloadFolder(win: BrowserWindow | null, title?: string) {
 }
 
 // IPC handler for folder picker
-handle('choose-folder', async (event) => chooseDownloadFolder(BrowserWindow.fromWebContents(event.sender)));
+handle('choose-folder', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const t = translateUi(await readSettings());
+    return chooseDownloadFolder(win, t);
+});
 
 // IPC handler to fetch format metadata for a specific format code
 handle('get-format-info', async (_event, args) => getFormatInfo(args));
@@ -467,20 +487,22 @@ handle('check-dependencies', async () => {
 handle('delete-local-data', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed()) return { ok: false, cancelled: true };
+    const t = translateUi(await readSettings());
+    if (win.isDestroyed()) return { ok: false, cancelled: true };
 
     const { response } = await dialog.showMessageBox(win, {
         type: 'warning',
-        title: 'Delete Local Data',
-        message: 'Delete VidButler\'s local data and quit?',
-        detail: 'This clears the settings, saved API keys, and caches shared by development and release. Your downloaded files are kept.',
-        buttons: ['Cancel', 'Delete and Quit'],
+        title: t('deleteLocalData'),
+        message: t('deleteLocalDataQuestion'),
+        detail: t('deleteLocalDataDetail'),
+        buttons: [t('cancel'), t('deleteAndQuit')],
         cancelId: 0,
         defaultId: 0
     });
     if (response !== 1 || win.isDestroyed()) return { ok: false, cancelled: true };
     if (deletingLocalData || activeProfileOperations || taskManager.hasActiveTask() || chatService?.isBusy()
         || appUpdateService?.downloadPromise || !lockToolData()) {
-        return { ok: false, error: CLEANUP_BUSY };
+        return { ok: false, error: t('cleanupBusy') };
     }
 
     deletingLocalData = true;
@@ -491,7 +513,7 @@ handle('delete-local-data', async (event) => {
         await getSettingsStore().queue;
         const { downloadFolder } = await readSettings();
         if (await isManagedDownloadFolder(userData, downloadFolder)) {
-            return { ok: false, error: 'Move your downloads out of the managed data folder before deleting local data.' };
+            return { ok: false, error: t('moveDownloads') };
         }
         const session = event.sender.session;
         await session.clearData();
@@ -504,7 +526,7 @@ handle('delete-local-data', async (event) => {
     } catch (error) {
         console.error('[main] Local data cleanup failed:', error);
         if (deletingFiles) await prepareToolData(userData).catch((err) => console.error('[main] Could not reopen tool data:', err));
-        return { ok: false, error: 'Could not finish deleting local data.' };
+        return { ok: false, error: t('deleteLocalDataFailed') };
     } finally {
         // The profile remains locked on success until the scheduled quit.
         if (!deleted) {
@@ -574,6 +596,7 @@ function getChatService() {
             settings: { read: readSettings, merge: mergeSettings },
             keyStore,
             log: (message) => console.log(`[ai] ${message}`),
+            getUiTranslator: async () => translateUi(await readSettings()),
             // Events are delivered per request to the window that sent it (see 'ai-send').
             emit: () => { }
         });

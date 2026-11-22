@@ -1,3 +1,5 @@
+import uiCatalog from '../i18n/catalog.cjs';
+import type { UiTranslator } from '../types/ui-language.d.ts';
 import { promises as fs } from 'fs';
 import { ProviderError } from './errors.js';
 import { ValidationError } from './validate.ts';
@@ -26,6 +28,7 @@ interface ToolExecutionOptions {
     onEvent?: (event: AgentEvent) => void;
     confirm?: Confirm;
     confirmMode?: ConfirmMode;
+    translateUi?: UiTranslator;
     signal?: AbortSignal;
 }
 
@@ -113,6 +116,7 @@ export async function runAgent({
     onEvent = noop,
     confirm,
     confirmMode = 'risky',
+    translateUi,
     maxSteps = MAX_AGENT_STEPS,
     maxResultChars,
     signal
@@ -209,7 +213,7 @@ export async function runAgent({
             if (signal?.aborted) {
                 result = { ok: false, error: MESSAGES.cancelledByUser };
             } else {
-                result = await executeToolCall(call, { ctx: toolContext, history, onEvent, confirm, confirmMode, signal });
+                result = await executeToolCall(call, { ctx: toolContext, history, onEvent, confirm, confirmMode, translateUi, signal });
             }
             cookieFailure ??= result.macCookieAccess;
             otherResult ||= !result.macCookieAccess;
@@ -246,17 +250,18 @@ export async function runAgent({
  * The risk of this call. A URL the user never typed (it came from a web page the model read) is
  * treated as high risk, so it needs confirmation in the default "risky" mode.
  */
-function assessRisk(tool: Tool, args: Record<string, unknown>, history: ChatMessage[]): Pick<ConfirmationRequest, 'risk' | 'reason'> {
+function assessRisk(tool: Tool, args: Record<string, unknown>, history: ChatMessage[], t: UiTranslator): Pick<ConfirmationRequest, 'risk' | 'reason'> {
     const risk = getRisk(tool, args);
     if (typeof args.url === 'string' && isForeignUrl(history, args.url)) {
-        return { risk: 'high', reason: MESSAGES.urlNotFromUser };
+        return { risk: 'high', reason: t('foreignUrl') };
     }
     return { risk, reason: undefined };
 }
 
 async function executeToolCall(
     call: ToolCall,
-    { ctx, history, onEvent = noop, confirm, confirmMode = 'risky', signal }: ToolExecutionOptions
+    { ctx, history, onEvent = noop, confirm, confirmMode = 'risky', signal,
+        translateUi = (key, values) => uiCatalog.translate('en', key, values) }: ToolExecutionOptions
 ): Promise<AgentToolResult> {
     const tool = getTool(call.name);
     if (!tool) {
@@ -286,8 +291,8 @@ async function executeToolCall(
         };
     }
 
-    const { risk, reason } = assessRisk(tool, args, history);
-    const description = safeDescribe(tool, args);
+    const { risk, reason } = assessRisk(tool, args, history, translateUi);
+    const description = safeDescribe(tool, args, translateUi);
 
     if (needsConfirmation(confirmMode, risk)) {
         const approved = await askConfirmation(confirm, {
@@ -342,9 +347,9 @@ async function askConfirmation(confirm: Confirm | undefined, request: Parameters
     }
 }
 
-function safeDescribe(tool: Tool, args: Record<string, unknown>) {
+function safeDescribe(tool: Tool, args: Record<string, unknown>, t: UiTranslator) {
     try {
-        return tool.describe(args);
+        return tool.describe(args, t);
     } catch {
         return tool.name;
     }

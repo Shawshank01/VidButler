@@ -10,7 +10,7 @@ export const infoTools = [
         description: 'Get basic information (title, uploader, duration) about a video URL without downloading it.',
         properties: { url: urlProperty },
         required: ['url'],
-        describe: (a) => `Look up video info for ${a.url || 'video'}`,
+        describe: (a, t) => t('toolVideoInfo', { url: a.url || t('toolVideoLabel') }),
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const res = await getOnlineVideoInfo(url, ctx);
@@ -24,7 +24,7 @@ export const infoTools = [
             'List available formats and exact stream IDs (yt-dlp -F). The full list is shown in a collapsible view. Summarize the actual resolutions and key format codes. Use this when the user asks to see formats, requests a custom stream combination, or an exact-resolution attempt could not find a matching format. For standard resolution downloads, use download_video with height.',
         properties: { url: urlProperty },
         required: ['url'],
-        describe: (a) => `List formats for ${a.url || 'video'}`,
+        describe: (a, t) => t('toolFormats', { url: a.url || t('toolVideoLabel') }),
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const res = await runYtDlpIn(ctx, [...commonArgs(ctx), '--no-playlist', '-F', url]);
@@ -37,7 +37,7 @@ export const infoTools = [
             'List the subtitle languages available for a video. Returns manual subtitles, or the original-language auto-generated captions if there are none.',
         properties: { url: urlProperty },
         required: ['url'],
-        describe: (a) => `List subtitles for ${a.url || 'video'}`,
+        describe: (a, t) => t('toolSubtitles', { url: a.url || t('toolVideoLabel') }),
         async run(args, ctx) {
             const url = validateUrl(args.url);
             const res = await listSubtitles(url, ctx.browser, ctx.proxy);

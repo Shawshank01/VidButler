@@ -365,6 +365,6 @@ test('transcript rejects invalid arguments and applies existing URL confirmation
         confirm: (request) => { confirmations.push(request); return false; }
     });
     assert.equal(confirmations.length, 1);
-    assert.equal(confirmations[0].reason, MESSAGES.urlNotFromUser);
+    assert.match(confirmations[0].reason, /This address was not in your message/);
     assert.equal(history.find((message) => message.role === 'tool').result.error, MESSAGES.declinedByUser);
 });

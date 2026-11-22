@@ -9,6 +9,7 @@ import { TOOLS, getToolDeclarations, getRisk, getTool } from '../src/llm/tool-re
 import { ProviderError } from '../src/llm/errors.js';
 import { buildSystemPrompt } from '../src/llm/prompt.js';
 import { resolveFormatCode, videoFormatArgs } from '../src/llm/tools/download.ts';
+import catalog from '../src/i18n/catalog.cjs';
 import { MESSAGES } from '../src/llm/messages.js';
 import { taskManager } from '../src/core/task-manager.ts';
 
@@ -231,7 +232,7 @@ test('download_section reports a failed clip when yt-dlp skips the download', as
     assert.deepEqual(result.files, []);
 });
 
-test('a clip from an address the user did not provide is denied without approval', async (t) => {
+test('a localized clip approval explains an address the user did not provide and respects denial', async (t) => {
     const downloader = t.mock.method(taskManager, 'spawnProcess');
     const url = 'https://example.test/other';
     const provider = scriptedProvider([
@@ -241,11 +242,13 @@ test('a clip from an address the user did not provide is denied without approval
     const prompts = [];
     await runAgent({
         provider, system: 's', history: [], userText: 'Download 0:10 to 0:20 from https://example.test/original',
-        ctx: { downloadFolder: tmpdir() }, confirm: (prompt) => { prompts.push(prompt); return false; }
+        ctx: { downloadFolder: tmpdir() },
+        translateUi: (key, values) => catalog.translate('de', key, values),
+        confirm: (prompt) => { prompts.push(prompt); return false; }
     });
     assert.equal(prompts.length, 1);
-    assert.equal(prompts[0].reason, MESSAGES.urlNotFromUser);
-    assert.match(prompts[0].description, /audio clip from 10 to 20/);
+    assert.equal(prompts[0].reason, 'Diese Adresse stand nicht in deiner Nachricht. Sie könnte von einer vom Assistenten gelesenen Webseite stammen. Erlaube sie nur, wenn du ihr vertraust.');
+    assert.equal(prompts[0].description, `Audio-Ausschnitt von 10 bis 20 aus ${url} herunterladen`);
     assert.equal(downloader.mock.callCount(), 0);
 });
 

@@ -22,7 +22,7 @@ export function verifyAppArchive(archive) {
     assert.equal(packaged.version, metadata.version);
     for (const entry of [
         metadata.main, 'out/index.html', 'out/styles.css', 'out/preload.cjs', 'out/renderer.js',
-        'out/ai-ui.js', 'out/llm/agent.js', 'tools-versions.json'
+        'out/ai-ui.js', 'out/ui-language.js', 'out/i18n/catalog.cjs', 'out/llm/agent.js', 'tools-versions.json'
     ]) {
         assert(entries.has('/' + entry), `Missing ${entry} in ${archive}`);
     }
@@ -142,9 +142,10 @@ async function waitForAppUi(address, signal) {
     while (!signal.aborted) {
         const state = await evaluateRenderer(address, `({
             mode: document.body?.dataset.mode,
-            classicLoaded: typeof window.runCommand === 'function'
+            classicLoaded: typeof window.runCommand === 'function',
+            languageReady: document.getElementById('uiLanguage')?.disabled === false
         })`, signal);
-        if (state.mode) return state;
+        if (state.mode && state.languageReady) return state;
         await delay(100, undefined, { signal });
     }
     signal.throwIfAborted();
@@ -206,6 +207,7 @@ async function smokePackage(target, outputDir, scratch) {
             firstRunFolderPrompted: true,
             downloadFolder,
             aiMode: 'ai',
+            uiLanguage: 'de',
             aiProvider: 'ollama',
             aiProviderConfigs: { ollama: { baseUrl: base, model: 'packaged-smoke' } }
         }));
@@ -228,6 +230,13 @@ async function smokePackage(target, outputDir, scratch) {
         const { mode, classicLoaded } = await runStage('Load the app UI', (signal) => waitForAppUi(address, signal));
         assert.equal(mode, 'ai');
         assert.equal(classicLoaded, true);
+
+        const language = await evaluate('Restore the packaged UI language', `({
+            language: document.documentElement.lang,
+            runLabel: document.getElementById('runCommandBtn').textContent,
+            sendLabel: document.getElementById('aiSendBtn').textContent
+        })`);
+        assert.deepEqual(language, { language: 'de', runLabel: 'Ausführen', sendLabel: 'Senden' });
 
         const info = await evaluate('Read app info through IPC', 'window.electronAPI.getAppInfo()');
         assert.equal(info.isPackaged, true);

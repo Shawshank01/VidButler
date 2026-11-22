@@ -1,3 +1,5 @@
+const classicText = window.UiLanguage.text;
+
 type RunCommandReply = import('./types/ipc.ts').InvokeResult<'run-command'>;
 type ClassicSubtitle = import('./types/ipc.ts').InvokeResult<'list-subtitles'>['subtitles'][number];
 type LegacyCommandReply = RunCommandReply | string | null | undefined;
@@ -176,19 +178,19 @@ window.checkUpdate = async function () {
 
     if (updateBtn) {
         updateBtn.disabled = true;
-        updateBtn.textContent = 'Checking…';
+        window.UiLanguage.label(updateBtn, 'checking');
     }
 
     const log = (msg: string) => {
         if (output) output.textContent += msg;
     };
 
-    if (output) output.textContent = 'Checking for app updates...\n';
+    if (output) output.textContent = classicText('checkingUpdates') + '\n';
 
     let currentVersion = '';
     try {
         currentVersion = await window.electronAPI.getCurrentVersion();
-        log(`Current version: ${currentVersion}\n`);
+        log(classicText('installedVersion', { version: currentVersion }) + '\n');
 
         const openReleasePage = async (url?: string) => {
             const targetUrl = url || 'https://github.com/Shawshank01/Vidbutler/releases/latest';
@@ -206,31 +208,29 @@ window.checkUpdate = async function () {
         const appUpdate = await window.electronAPI.checkAppUpdate();
 
         if (appUpdate.supported === false) {
-            log('\nThis build cannot check for or install updates automatically.\n');
+            log('\n' + classicText('manualUpdate') + '\n');
             const openReleases = await showUpdateModal({
                 title: 'VidButler',
                 currentVersion,
-                sectionTitle: 'Update Status',
-                status: 'Manual update required',
-                message:
-                    'Update checking is not supported in this environment.\n\n' +
-                    'You can check for and download updates manually from GitHub releases.',
-                confirmText: 'Open Releases Page',
-                cancelText: 'Close'
+                sectionTitle: classicText('updateStatus'),
+                status: classicText('manualUpdate'),
+                message: classicText('manualUpdateDetail'),
+                confirmText: classicText('openReleases'),
+                cancelText: classicText('close')
             });
             if (openReleases) await openReleasePage(appUpdate.releaseUrl);
             return;
         }
 
         if (appUpdate.error) {
-            log(`\nError checking for updates: ${appUpdate.message}`);
+            log('\n' + classicText('updateCheckError', { detail: appUpdate.message }));
             await showUpdateModal({
                 title: 'VidButler',
                 currentVersion,
-                sectionTitle: 'Update Status',
-                status: 'Check failed',
-                message: `Could not check for updates:\n\n${appUpdate.message}`,
-                confirmText: 'OK',
+                sectionTitle: classicText('updateStatus'),
+                status: classicText('updateCheckFailed'),
+                message: classicText('updateCheckError', { detail: appUpdate.message }),
+                confirmText: classicText('ok'),
                 cancelText: null
             });
         } else if (
@@ -241,10 +241,10 @@ window.checkUpdate = async function () {
             const stripHtml = (v?: string) => (v || '').replace(/<[^>]*>/g, '').trim();
             const cleanedNotes = stripHtml(appUpdate.releaseNotes);
 
-            log(`\n✅ Update available!\n`);
-            log(`New version: ${appUpdate.version}\n`);
+            log('\n✅ ' + classicText('updateAvailable') + '\n');
+            log(classicText('newVersion', { version: appUpdate.version }) + '\n');
             if (cleanedNotes) {
-                log(`Release notes: ${cleanedNotes}\n`);
+                log(`${classicText('releaseNotes')}\n${cleanedNotes}\n`);
             }
 
             if (appUpdate.updateMethod === 'homebrew') {
@@ -255,28 +255,26 @@ window.checkUpdate = async function () {
                     title: 'VidButler',
                     currentVersion,
                     latestVersion: appUpdate.version,
-                    sectionTitle: 'Update Available',
-                    status: '🎉 New version available',
+                    sectionTitle: classicText('updateAvailable'),
+                    status: '🎉 ' + classicText('updateAvailable'),
                     notes: cleanedNotes,
-                    message:
-                        `Installed with Homebrew? Copy and run this command in Terminal:\n\n${command}\n\n` +
-                        'Installed from a DMG? Open the GitHub release instead.',
-                    confirmText: 'Copy Homebrew Command',
-                    secondaryText: 'Open GitHub Release',
-                    cancelText: 'Later'
+                    message: classicText('homebrewUpdate', { command }),
+                    confirmText: classicText('copyHomebrew'),
+                    secondaryText: classicText('openGitHubRelease'),
+                    cancelText: classicText('later')
                 });
 
                 if (action === 'confirm') {
                     await window.electronAPI.copyMacUpdateCommand();
-                    log('Homebrew update command copied to the clipboard.\n');
+                    log(classicText('commandCopied') + '\n');
                     await showUpdateModal({
                         title: 'VidButler',
                         currentVersion,
                         latestVersion: appUpdate.version,
-                        sectionTitle: 'Update Available',
-                        status: 'Command copied',
-                        message: 'Paste the command into Terminal and press Return.',
-                        confirmText: 'OK',
+                        sectionTitle: classicText('updateAvailable'),
+                        status: classicText('commandCopied'),
+                        message: classicText('pasteCommand'),
+                        confirmText: classicText('ok'),
                         cancelText: null
                     });
                 } else if (action === 'secondary') {
@@ -289,76 +287,76 @@ window.checkUpdate = async function () {
                 title: 'VidButler',
                 currentVersion,
                 latestVersion: appUpdate.version,
-                sectionTitle: 'Update Available',
-                status: '🎉 New version available',
+                sectionTitle: classicText('updateAvailable'),
+                status: '🎉 ' + classicText('updateAvailable'),
                 notes: cleanedNotes,
                 message:
-                    'Download and install this verified update now? VidButler will restart automatically when it is ready.',
-                confirmText: 'Download and Restart',
-                cancelText: 'Later'
+                    classicText('installUpdate'),
+                confirmText: classicText('downloadRestart'),
+                cancelText: classicText('later')
             });
 
             if (installNow) {
-                if (updateBtn) updateBtn.textContent = 'Downloading…';
+                if (updateBtn) window.UiLanguage.label(updateBtn, 'downloading');
                 let lastReportedPercent = -10;
                 const removeProgressListener = window.electronAPI.onUpdateProgress((progress) => {
                     const percent = Math.floor(Number(progress?.percent) || 0);
                     if (percent >= lastReportedPercent + 10 || percent === 100) {
                         lastReportedPercent = percent;
-                        log(`Update download: ${percent}%\n`);
+                        log(classicText('updateProgress', { percent }) + '\n');
                     }
                 });
 
                 try {
                     const download = await window.electronAPI.downloadAppUpdate();
                     if (!download.success) {
-                        log(`\nUpdate download failed: ${download.error}\n`);
+                        log(`\n${classicText('updateDownloadFailed')}\n${download.error}\n`);
                         await showUpdateModal({
                             title: 'VidButler',
                             currentVersion,
                             latestVersion: appUpdate.version,
-                            sectionTitle: 'Update Status',
-                            status: 'Download failed',
+                            sectionTitle: classicText('updateStatus'),
+                            status: classicText('updateFailed'),
                             message: download.error,
-                            confirmText: 'OK',
+                            confirmText: classicText('ok'),
                             cancelText: null
                         });
                     } else {
-                        log(`\nUpdate downloaded. Restarting VidButler…\n`);
+                        log('\n' + classicText('updateRestarting') + '\n');
                         const installing = await window.electronAPI.installAppUpdate();
-                        if (!installing) throw new Error('The downloaded update was not ready to install.');
+                        if (!installing) throw new Error(classicText('updateNotReady'));
                     }
                 } finally {
                     removeProgressListener();
                 }
             }
         } else {
-            log(`\n✅ App is up to date!`);
+            log('\n✅ ' + classicText('upToDate'));
             await showUpdateModal({
                 title: 'VidButler',
                 currentVersion,
                 latestVersion: currentVersion,
-                sectionTitle: 'Update Status',
-                status: "✅ You're up to date!",
-                confirmText: 'OK',
+                sectionTitle: classicText('updateStatus'),
+                status: '✅ ' + classicText('upToDate'),
+                confirmText: classicText('ok'),
                 cancelText: null
             });
         }
     } catch (error) {
-        log(`\nError: ${classicErrorMessage(error)}`);
+        log('\n' + classicText('errorDetail', { detail: classicErrorMessage(error) }));
         await showUpdateModal({
             title: 'VidButler',
             currentVersion: currentVersion || '',
-            sectionTitle: 'Update Status',
-            status: 'Check failed',
-            message: `Could not check for updates:\n\n${classicErrorMessage(error)}`,
-            confirmText: 'OK',
+            sectionTitle: classicText('updateStatus'),
+            status: classicText('updateCheckFailed'),
+            message: classicText('updateCheckError', { detail: classicErrorMessage(error) }),
+            confirmText: classicText('ok'),
             cancelText: null
         });
     } finally {
         if (updateBtn) {
             updateBtn.disabled = false;
-            updateBtn.textContent = 'Check for Updates';
+            window.UiLanguage.label(updateBtn, 'checkUpdates');
         }
     }
 };
@@ -372,18 +370,18 @@ function validateRunInputs(): ClassicRunInputs {
     const downloadFolder = classicElement<HTMLInputElement>('downloadFolder').value.trim();
 
     if (!url) {
-        return { ok: false, error: 'Error: You must enter a video URL.' };
+        return { ok: false, error: classicText('missingVideoUrl') };
     }
     if (!['', 'brave', 'chrome', 'firefox', 'safari'].includes(browser)) {
-        return { ok: false, error: 'Error: Invalid browser selection.' };
+        return { ok: false, error: classicText('invalidBrowser') };
     }
     if (!downloadFolder && action !== 'List Formats' && action !== 'Download Subtitles') {
-        return { ok: false, error: 'Error: Please select a download folder.' };
+        return { ok: false, error: classicText('missingFolder') };
     }
     if (action === 'Download (Custom Format)' && !formatCode) {
         return {
             ok: false,
-            error: 'Error: Please enter a format code (e.g., 140, 356, or 140+356) for audio/video download.'
+            error: classicText('missingFormat')
         };
     }
 
@@ -411,7 +409,7 @@ async function buildActionArgs(action: string, { url, browser, downloadFolder, f
             args.push('-f', formatCode);
             if (!cachedFormatList) {
                 classicElement('output').textContent =
-                    'Detecting format metadata... (run "List Formats" first to skip this step)';
+                    classicText('detectingFormat');
             }
             if (!await isImageFormat(formatCode, browser, url)) {
                 const audioFmt = await getAudioOnlyWebmFormat(formatCode, browser, url);
@@ -443,11 +441,11 @@ function showCancelButton(onCancel: (() => void | Promise<void>) | null = null) 
 
     cancelActionControls.style.display = 'block';
     cancelActionBtn.disabled = false;
-    cancelActionBtn.textContent = 'Cancel Action';
+    window.UiLanguage.label(cancelActionBtn, 'cancelAction');
 
     cancelActionBtn.onclick = async () => {
         cancelActionBtn.disabled = true;
-        cancelActionBtn.textContent = 'Cancelling...';
+        window.UiLanguage.label(cancelActionBtn, 'cancelling');
         if (onCancel) {
             await onCancel();
         } else {
@@ -463,12 +461,12 @@ function hideCancelButton() {
     if (cancelActionBtn) {
         cancelActionBtn.onclick = null;
         cancelActionBtn.disabled = false;
-        cancelActionBtn.textContent = 'Cancel Action';
+        window.UiLanguage.label(cancelActionBtn, 'cancelAction');
     }
 }
 
 // Classic mode progress bar from yt-dlp or ffmpeg stdout/stderr lines
-function updateDownloadProgress(text: string, defaultTitle = 'Download Progress:') {
+function updateDownloadProgress(text: string, encodingTitle = 'encodingProgress') {
     const container = document.getElementById('classicProgressBarContainer');
     if (!container || !text) return;
 
@@ -492,13 +490,7 @@ function updateDownloadProgress(text: string, defaultTitle = 'Download Progress:
         const statusEl = document.getElementById('classicProgressStatus');
         const etaEl = document.getElementById('classicProgressEta');
 
-        if (titleEl) {
-            if (type === 'ffmpeg') {
-                titleEl.textContent = defaultTitle === 'Download Progress:' ? 'Encoding Progress:' : defaultTitle;
-            } else {
-                titleEl.textContent = 'Download Progress:';
-            }
-        }
+        if (titleEl) window.UiLanguage.label(titleEl, type === 'ffmpeg' ? encodingTitle : 'downloadProgress');
 
         if (fill) fill.style.width = Math.min(100, Math.max(0, pct)) + '%';
         if (percentEl) percentEl.textContent = pct.toFixed(1) + '%';
@@ -518,7 +510,7 @@ function updateDownloadProgress(text: string, defaultTitle = 'Download Progress:
             statusEl.textContent = statusText;
         }
         if (etaEl) {
-            etaEl.textContent = eta ? `ETA ${eta}` : '';
+            etaEl.textContent = eta ? classicText('eta', { time: eta }) : '';
         }
     }
 }
@@ -536,7 +528,7 @@ function resetDownloadProgress() {
         const etaEl = document.getElementById('classicProgressEta');
         if (etaEl) etaEl.textContent = '';
         const titleEl = document.getElementById('classicProgressTitle');
-        if (titleEl) titleEl.textContent = 'Download Progress:';
+        if (titleEl) window.UiLanguage.label(titleEl, 'downloadProgress');
     }
 }
 
@@ -720,14 +712,10 @@ async function handleCookiePermissionError(browserName: string) {
         : 'browser';
 
     const confirmed = await showConfirmModal({
-        title: 'Files & Folders Permission Required',
-        message:
-            `macOS blocked access to ${browserLabel} cookies.\n\n` +
-            `Due to macOS privacy restrictions, reading cookies from ${browserLabel} requires granting access in "Files & Folders" settings in System Settings.\n\n` +
-            `Would you like to open System Settings > Privacy & Security > Files & Folders now?\n\n` +
-            `(Note: You will need to restart the app after granting access.)`,
-        confirmText: 'Open System Settings',
-        cancelText: 'Cancel'
+        title: classicText('cookiePermission'),
+        message: classicText('cookiePermissionDetail', { browser: browserLabel }),
+        confirmText: classicText('openSystemSettings'),
+        cancelText: classicText('cancel')
     });
 
     if (confirmed) {
@@ -739,27 +727,20 @@ async function handleCookiePermissionError(browserName: string) {
 // Handle optional re-encode workflow following download
 async function handleReEncodePrompt({ url, downloadFolder, commandLine, cleanResult }: Pick<ClassicRunFields, 'url' | 'downloadFolder'> & { commandLine: string; cleanResult: string }) {
     const shouldReEncode = await showConfirmModal({
-        title: 'Re-encode to MP4?',
-        message:
-            'Video download completed! Would you like to re-encode it to high quality MP4 (H.264/AAC)?\n\n' +
-            'This will:\n' +
-            '• Use H.264 video codec with high quality (CRF 22)\n' +
-            '• Use AAC audio codec for maximum compatibility\n' +
-            '• Replace the original file with the re-encoded version\n\n' +
-            'Note: Re-encoding may take some time depending on the video length.\n\n' +
-            'If you skip re-encoding, the original video format will be preserved.',
-        confirmText: 'Re-encode',
-        cancelText: 'Skip'
+        title: classicText('reencodeTitle'),
+        message: classicText('reencodeDetail'),
+        confirmText: classicText('reencode'),
+        cancelText: classicText('skip')
     });
 
     if (!shouldReEncode) {
         classicElement('output').textContent +=
-            '\n\nRe-encoding skipped. Original video file preserved.';
+            '\n\n' + classicText('reencodeSkipped');
         return;
     }
 
     classicElement('output').textContent +=
-        '\n\nRe-encoding videos to H.264/AAC...\n';
+        '\n\n' + classicText('reencoding') + '\n';
 
     // Prefer exact downloaded file path from yt-dlp output, or fall back to extracted video ID
     const downloadedPath = extractDownloadedPath(cleanResult);
@@ -767,14 +748,14 @@ async function handleReEncodePrompt({ url, downloadFolder, commandLine, cleanRes
 
     if (!targetIdentifier) {
         classicElement('output').textContent +=
-            'Could not determine video file or extract video ID from URL.';
+            classicText('videoNotFound');
         return;
     }
 
     showCancelButton();
     resetDownloadProgress();
     const titleEl = document.getElementById('classicProgressTitle');
-    if (titleEl) titleEl.textContent = 'Re-encoding Progress:';
+    if (titleEl) window.UiLanguage.label(titleEl, 'reencodingProgress');
 
     try {
         const reEncodeResult = await window.electronAPI.reEncodeToMp4(downloadFolder, targetIdentifier) as ConversionDisplay | string;
@@ -788,31 +769,31 @@ async function handleReEncodePrompt({ url, downloadFolder, commandLine, cleanRes
 
         if (res.tmpFiles && res.tmpFiles.length > 0) {
             const shouldDelete = await showCleanupModal(
-                'Re-encoding completed successfully. Do you want to delete the temporary downloaded files (original video and thumbnail)?'
+                classicText('cleanupEncode')
             );
             if (shouldDelete) {
                 await window.electronAPI.deleteTemporaryFiles(res.tmpFiles);
-                classicElement('output').textContent += '\n\nTemporary files cleaned up.';
+                classicElement('output').textContent += '\n\n' + classicText('temporaryFilesDeleted');
             }
         }
 
         if (res.cancelled) {
-            renderStatusBanner('cancelled', '❌ Re-encoding canceled!');
+            renderStatusBanner('cancelled', '❌ ' + classicText('encodeCancelled'));
             resetDownloadProgress();
         } else if (res.success) {
-            renderStatusBanner('success', '✅ Re-encoding completed successfully!');
+            renderStatusBanner('success', '✅ ' + classicText('encodeDone'));
             const fill = document.getElementById('classicProgressBarFill');
             if (fill) fill.style.width = '100%';
             const percentEl = document.getElementById('classicProgressPercent');
             if (percentEl) percentEl.textContent = '100%';
         } else {
-            renderStatusBanner('error', '❌ Re-encoding failed!');
+            renderStatusBanner('error', '❌ ' + classicText('encodeFailed'));
             resetDownloadProgress();
         }
     } catch (reEncodeError) {
         classicElement('output').textContent +=
-            `\nRe-encoding error: ${classicErrorMessage(reEncodeError)}`;
-        renderStatusBanner('error', '❌ Re-encoding failed!');
+            '\n' + classicText('encodeError', { detail: classicErrorMessage(reEncodeError) });
+        renderStatusBanner('error', '❌ ' + classicText('encodeFailed'));
         resetDownloadProgress();
     } finally {
         hideCancelButton();
@@ -842,7 +823,7 @@ window.runCommand = async function () {
     }
 
     const args = await buildActionArgs(action, { url, browser, downloadFolder, formatCode });
-    const commandLine = 'Running: yt-dlp ' + args.join(' ');
+    const commandLine = classicText('runningCommand') + ' yt-dlp ' + args.join(' ');
     const outputElement = classicElement('output');
 
     progressHandler = window.electronAPI.onProgress((progress) => {
@@ -888,17 +869,17 @@ window.runCommand = async function () {
         }
 
         if (isError && isCookiePermissionError(res.error, res.output)) {
-            renderStatusBanner('error', '❌ Files & Folders permission required to read cookies');
+            renderStatusBanner('error', '❌ ' + classicText('cookiePermissionStatus'));
             await handleCookiePermissionError(browser);
         } else if (action !== 'List Formats') {
             if (isCancelled) {
-                renderStatusBanner('cancelled', '❌ Download canceled!');
+                renderStatusBanner('cancelled', '❌ ' + classicText('downloadCancelled'));
                 resetDownloadProgress();
             } else if (isError) {
-                renderStatusBanner('error', '❌ Download failed!');
+                renderStatusBanner('error', '❌ ' + classicText('downloadFailed'));
                 resetDownloadProgress();
             } else {
-                renderStatusBanner('success', '✅ Download completed!');
+                renderStatusBanner('success', '✅ ' + classicText('downloadDone'));
                 const fill = document.getElementById('classicProgressBarFill');
                 if (fill && fill.style.width !== '0%') {
                     fill.style.width = '100%';
@@ -908,13 +889,13 @@ window.runCommand = async function () {
             }
         }
     } catch (e) {
-        outputElement.textContent += '\nError: ' + classicErrorMessage(e);
+        outputElement.textContent += '\n' + classicText('errorDetail', { detail: classicErrorMessage(e) });
         resetDownloadProgress();
         if (isCookiePermissionError(classicErrorMessage(e), '')) {
-            renderStatusBanner('error', '❌ Files & Folders permission required to read cookies');
+            renderStatusBanner('error', '❌ ' + classicText('cookiePermissionStatus'));
             await handleCookiePermissionError(browser);
         } else if (action !== 'List Formats') {
-            renderStatusBanner('error', '❌ Download failed!');
+            renderStatusBanner('error', '❌ ' + classicText('downloadFailed'));
         }
     } finally {
         hideCancelButton();
@@ -945,37 +926,37 @@ async function handleSubtitleDownload(url: string, browser: string, downloadFold
     const output = classicElement('output');
 
     if (!downloadFolder) {
-        output.textContent = 'Error: Please select a download folder.';
+        output.textContent = classicText('missingFolder');
         return;
     }
 
-    output.textContent = 'Fetching available subtitles...';
+    output.textContent = classicText('fetchingSubtitles');
 
     try {
         const proxyUrl = window.SharedContext.getProxyUrl();
         const result = await window.electronAPI.listSubtitles(url, browser, proxyUrl);
 
         if (result.error) {
-            output.textContent = `Error listing subtitles: ${result.message}`;
+            output.textContent = classicText('listSubtitlesError', { detail: result.message });
             if (isCookiePermissionError(result.message)) {
-                renderStatusBanner('error', '❌ Files & Folders permission required to read cookies');
+                renderStatusBanner('error', '❌ ' + classicText('cookiePermissionStatus'));
                 await handleCookiePermissionError(browser);
             }
             return;
         }
 
         if (!result.subtitles || result.subtitles.length === 0) {
-            output.textContent = 'No subtitles available for this video.';
+            output.textContent = classicText('noSubtitles');
             return;
         }
 
         const selectedSubtitle = await showSubtitleModal(result.subtitles, result.isAutoGenerated);
         if (!selectedSubtitle) {
-            output.textContent = 'Subtitle download cancelled.';
+            output.textContent = classicText('subtitleDownloadCancelled');
             return;
         }
 
-        output.textContent = `Downloading ${selectedSubtitle.name} (${selectedSubtitle.code}) subtitle...`;
+        output.textContent = classicText('downloadingSubtitle', { name: selectedSubtitle.name, code: selectedSubtitle.code });
 
         const args = [...getProxyArgs(), '--remote-components', 'ejs:github'];
         if (browser) {
@@ -991,7 +972,7 @@ async function handleSubtitleDownload(url: string, browser: string, downloadFold
             url
         );
 
-        const commandLine = 'Running: yt-dlp ' + args.join(' ');
+        const commandLine = classicText('runningCommand') + ' yt-dlp ' + args.join(' ');
         output.textContent = commandLine + '\n';
 
         if (progressHandler) {
@@ -1017,35 +998,35 @@ async function handleSubtitleDownload(url: string, browser: string, downloadFold
             const cleanResult = cleanYtDlpResult(res.output);
 
             if (res.cancelled) {
-                output.textContent = 'Subtitle download cancelled.';
-                renderStatusBanner('cancelled', '❌ Download canceled!');
+                output.textContent = classicText('subtitleDownloadCancelled');
+                renderStatusBanner('cancelled', '❌ ' + classicText('downloadCancelled'));
             } else if (!res.success && (res.output || '').includes('There are no subtitles for the requested languages')) {
-                output.textContent = 'No subtitles available for this video.';
-                renderStatusBanner('error', '❌ No subtitles available for this video.');
+                output.textContent = classicText('noSubtitles');
+                renderStatusBanner('error', '❌ ' + classicText('noSubtitles'));
             } else if (!res.success) {
-                output.textContent = `${commandLine}\n${res.error || res.output || 'Subtitle download failed.'}`;
+                output.textContent = `${commandLine}\n${res.error || res.output || classicText('subtitleDownloadFailed')}`;
                 if (isCookiePermissionError(res.error, res.output)) {
-                    renderStatusBanner('error', '❌ Files & Folders permission required to read cookies');
+                    renderStatusBanner('error', '❌ ' + classicText('cookiePermissionStatus'));
                     await handleCookiePermissionError(browser);
                 } else {
-                    renderStatusBanner('error', '❌ Download failed!');
+                    renderStatusBanner('error', '❌ ' + classicText('downloadFailed'));
                 }
             } else {
                 output.textContent = cleanResult
                     ? `${commandLine}\n${cleanResult}`
                     : `${commandLine}\nLanguage: ${selectedSubtitle.name} (${selectedSubtitle.code})\nFolder: ${downloadFolder}`;
-                renderStatusBanner('success', `✅ Subtitle downloaded: ${selectedSubtitle.name} (${selectedSubtitle.code})`);
+                renderStatusBanner('success', '✅ ' + classicText('subtitleDownloaded', { name: selectedSubtitle.name, code: selectedSubtitle.code }));
             }
         } finally {
             hideCancelButton();
         }
     } catch (error) {
-        output.textContent = `Error: ${classicErrorMessage(error)}`;
+        output.textContent = classicText('errorDetail', { detail: classicErrorMessage(error) });
         if (isCookiePermissionError(classicErrorMessage(error))) {
-            renderStatusBanner('error', '❌ Files & Folders permission required to read cookies');
+            renderStatusBanner('error', '❌ ' + classicText('cookiePermissionStatus'));
             await handleCookiePermissionError(browser);
         } else {
-            renderStatusBanner('error', '❌ Download failed!');
+            renderStatusBanner('error', '❌ ' + classicText('downloadFailed'));
         }
     }
 }
@@ -1057,7 +1038,7 @@ async function handleHardsubAction(url: string, browser: string, downloadFolder:
     const subtitlePosition = (document.getElementById('subtitlePosition') as HTMLSelectElement | null)?.value || 'bottom';
 
     if (!downloadFolder) {
-        output.textContent = 'Error: Please select a download folder.';
+        output.textContent = classicText('missingFolder');
         return;
     }
 
@@ -1067,36 +1048,36 @@ async function handleHardsubAction(url: string, browser: string, downloadFolder:
 
     progressHandler = window.electronAPI.onProgress((progress) => {
         output.textContent = progress;
-        updateDownloadProgress(progress, 'Hardsub Progress:');
+        updateDownloadProgress(progress, 'hardsubProgress');
     });
 
-    output.textContent = 'Fetching available subtitles...';
+    output.textContent = classicText('fetchingSubtitles');
 
     try {
         const proxyUrl = window.SharedContext.getProxyUrl();
         const result = await window.electronAPI.listSubtitles(url, browser, proxyUrl);
 
         if (result.error) {
-            output.textContent = `Error listing subtitles: ${result.message}`;
+            output.textContent = classicText('listSubtitlesError', { detail: result.message });
             if (isCookiePermissionError(result.message)) {
-                renderStatusBanner('error', '❌ Files & Folders permission required to read cookies');
+                renderStatusBanner('error', '❌ ' + classicText('cookiePermissionStatus'));
                 await handleCookiePermissionError(browser);
             }
             return;
         }
 
         if (!result.subtitles || result.subtitles.length === 0) {
-            output.textContent = 'No subtitles available for this video.';
+            output.textContent = classicText('noSubtitles');
             return;
         }
 
         const selectedSubtitle = await showSubtitleModal(result.subtitles, result.isAutoGenerated);
         if (!selectedSubtitle) {
-            output.textContent = 'Subtitle selection cancelled.';
+            output.textContent = classicText('subtitleSelectionCancelled');
             return;
         }
 
-        output.textContent = `Selected subtitle: ${selectedSubtitle.name} (${selectedSubtitle.code})\nStarting download...`;
+        output.textContent = classicText('subtitleSelected', { name: selectedSubtitle.name, code: selectedSubtitle.code });
         showCancelButton();
         resetDownloadProgress();
 
@@ -1132,7 +1113,7 @@ async function handleHardsubAction(url: string, browser: string, downloadFolder:
 
             if (res.tmpFiles && res.tmpFiles.length > 0) {
                 const shouldDelete = await showCleanupModal(
-                    'Hardsub completed successfully. Do you want to delete the temporary downloaded files (original video, thumbnail, and subtitles)?'
+                    classicText('cleanupHardsub')
                 );
                 if (shouldDelete) {
                     await window.electronAPI.deleteTemporaryFiles(res.tmpFiles);
@@ -1140,20 +1121,20 @@ async function handleHardsubAction(url: string, browser: string, downloadFolder:
             }
 
             if (res.cancelled) {
-                renderStatusBanner('cancelled', '❌ Hardsub canceled!');
+                renderStatusBanner('cancelled', '❌ ' + classicText('hardsubCancelled'));
                 resetDownloadProgress();
             } else if (res.success) {
-                renderStatusBanner('success', '✅ Hardsub completed!');
+                renderStatusBanner('success', '✅ ' + classicText('hardsubDone'));
                 const fill = document.getElementById('classicProgressBarFill');
                 if (fill) fill.style.width = '100%';
                 const percentEl = document.getElementById('classicProgressPercent');
                 if (percentEl) percentEl.textContent = '100%';
             } else {
                 if (isCookiePermissionError(res.message, res.error)) {
-                    renderStatusBanner('error', '❌ Files & Folders permission required to read cookies');
+                    renderStatusBanner('error', '❌ ' + classicText('cookiePermissionStatus'));
                     await handleCookiePermissionError(browser);
                 } else {
-                    renderStatusBanner('error', '❌ Hardsub failed!');
+                    renderStatusBanner('error', '❌ ' + classicText('hardsubFailed'));
                 }
                 resetDownloadProgress();
             }
@@ -1163,15 +1144,15 @@ async function handleHardsubAction(url: string, browser: string, downloadFolder:
     } catch (error) {
         const message = classicErrorMessage(error);
         if ((error && typeof error === 'object' && 'cancelled' in error && error.cancelled) || message.includes('cancelled by user')) {
-            output.textContent = 'Action cancelled by user.';
-            renderStatusBanner('cancelled', '❌ Hardsub canceled!');
+            output.textContent = classicText('actionCancelled');
+            renderStatusBanner('cancelled', '❌ ' + classicText('hardsubCancelled'));
         } else {
-            output.textContent = `Error: ${classicErrorMessage(error)}`;
+            output.textContent = classicText('errorDetail', { detail: classicErrorMessage(error) });
             if (isCookiePermissionError(classicErrorMessage(error))) {
-                renderStatusBanner('error', '❌ Files & Folders permission required to read cookies');
+                renderStatusBanner('error', '❌ ' + classicText('cookiePermissionStatus'));
                 await handleCookiePermissionError(browser);
             } else {
-                renderStatusBanner('error', '❌ Hardsub failed!');
+                renderStatusBanner('error', '❌ ' + classicText('hardsubFailed'));
             }
         }
         resetDownloadProgress();
@@ -1186,7 +1167,7 @@ function showSubtitleModal(subtitles: ClassicSubtitle[], isAutoGenerated = false
         const cancelBtn = classicElement('cancelSubtitleBtn');
 
         // Clear previous list
-        subtitleList.innerHTML = '';
+        subtitleList.replaceChildren();
 
         // Add warning banner if auto-translated
         if (isAutoGenerated) {
@@ -1197,7 +1178,9 @@ function showSubtitleModal(subtitles: ClassicSubtitle[], isAutoGenerated = false
             warning.style.border = '1px solid #ffc107';
             warning.style.borderRadius = '4px';
             warning.style.color = '#856404';
-            warning.innerHTML = 'ℹ️ <strong>Auto-Generated Subtitles</strong><br>No manually uploaded subtitles found. Showing auto-generated captions.';
+            const title = document.createElement('strong');
+            title.textContent = classicText('autoSubtitles');
+            warning.append('ℹ️ ', title, document.createElement('br'), classicText('autoSubtitlesDetail'));
             subtitleList.appendChild(warning);
         }
 
@@ -1248,9 +1231,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const proxyInput = document.getElementById('proxyAddress') as HTMLTextAreaElement | null;
 
     // Restore persisted user settings
+    let saved: Record<string, unknown> = {};
     if (window.electronAPI?.getSettings) {
         try {
-            const saved = await window.electronAPI.getSettings();
+            saved = await window.electronAPI.getSettings();
 
             // Browser for Cookies
             const browserEl = document.getElementById('browser') as HTMLSelectElement | null;
@@ -1281,6 +1265,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.warn('Could not load saved settings:', e);
         }
     }
+
+    window.UiLanguage.restore(saved);
 
     // Update UI when download folder is set by the main process (e.g. first-run prompt)
     window.electronAPI?.onDownloadFolderUpdated?.((folder) => {
@@ -1361,7 +1347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (result.ok || result.cancelled) return;
             depCheckResult.textContent = result.error ?? '';
         } catch {
-            depCheckResult.textContent = 'Could not delete local data.';
+            depCheckResult.textContent = classicText('deleteLocalDataFailed');
         } finally {
             deleteLocalDataBtn.disabled = false;
         }
@@ -1426,45 +1412,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (checkDependenciesBtn && depCheckResult) {
         checkDependenciesBtn.addEventListener('click', async () => {
             checkDependenciesBtn.disabled = true;
-            checkDependenciesBtn.textContent = 'Checking…';
+            window.UiLanguage.label(checkDependenciesBtn, 'checking');
             depCheckResult.style.display = 'block';
-            depCheckResult.textContent = 'Checking system dependencies…';
+            depCheckResult.textContent = classicText('checkingDependencies');
 
             try {
                 const res = await window.electronAPI.checkDependencies();
                 if (!res || !res.success) {
-                    depCheckResult.textContent = `❌ ${res?.message || 'Failed to check dependencies.'}`;
+                    depCheckResult.textContent = `❌ ${res?.message || classicText('dependencyCheckFailed')}`;
                 } else {
                     const lines = [];
                     for (const dep of res.dependencies || []) {
                         if (dep.installed) {
                             lines.push(`✅ ${dep.name}: ${dep.version}`);
                             if (dep.name === 'ffmpeg' && dep.hasSubtitlesFilter === false) {
-                                lines.push('   ⚠️ Warning: Missing subtitles filter (libass). Hardsubbing disabled.');
+                                lines.push('   ⚠️ ' + classicText('missingLibass'));
                             }
                         } else {
-                            lines.push(`❌ ${dep.name}: Not installed`);
+                            lines.push('❌ ' + classicText('missingDependency', { name: dep.name }));
                         }
                     }
                     if (res.allInstalled) {
-                        lines.push('\n🎉 All system dependencies are satisfied!');
+                        lines.push('\n🎉 ' + classicText('dependenciesOk'));
                     } else if (res.missing && res.missing.length > 0) {
-                        lines.push(`\n⚠️ Missing dependencies: ${res.missing.join(', ')}`);
+                        lines.push('\n⚠️ ' + classicText('missingDependencies', { names: res.missing.join(', ') }));
                     }
                     depCheckResult.textContent = lines.join('\n');
                 }
             } catch (err) {
-                depCheckResult.textContent = `❌ Error: ${classicErrorMessage(err)}`;
+                depCheckResult.textContent = '❌ ' + classicText('errorDetail', { detail: classicErrorMessage(err) });
             } finally {
                 checkDependenciesBtn.disabled = false;
-                checkDependenciesBtn.textContent = 'Check Dependencies';
+                window.UiLanguage.label(checkDependenciesBtn, 'checkDependencies');
             }
         });
     }
 });
 
 // Show asynchronous confirmation modal and return boolean without freezing UI thread
-function showConfirmModal({ title = 'Confirm Action', message = '', confirmText = 'Confirm', cancelText = 'Cancel' }: ConfirmModalOptions = {}) {
+function showConfirmModal({ title = classicText('confirmAction'), message = '', confirmText = classicText('confirm'), cancelText = classicText('cancel') }: ConfirmModalOptions = {}) {
     return new Promise<boolean>((resolve) => {
         const modal = document.getElementById('confirmModal');
         const titleEl = document.getElementById('confirmTitle');
@@ -1524,13 +1510,13 @@ function showConfirmModal({ title = 'Confirm Action', message = '', confirmText 
 function showUpdateModal({
     title = 'VidButler',
     version = '',
-    sectionTitle = 'Update Status',
+    sectionTitle = classicText('updateStatus'),
     status = '',
     currentVersion = '',
     latestVersion = '',
     notes = '',
     message = '',
-    confirmText = 'OK',
+    confirmText = classicText('ok'),
     cancelText = null,
     secondaryText = null
 }: UpdateModalOptions = {}) {

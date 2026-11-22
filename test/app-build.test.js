@@ -29,18 +29,21 @@ test('the compiled app loads the AI backend as JavaScript and preserves Electron
 
     const html = await readFile(source('index.html'), 'utf8');
     const scriptsAndStyles = Array.from(html.matchAll(/<(?:script src|link rel="stylesheet" href)="([^"]+)"/g), ([, file]) => file);
+    const compiledScripts = new Set(['ai-ui.js', 'renderer.js', 'ui-language.js', 'i18n/catalog.cjs']);
     for (const file of ['index.html', 'preload.cjs', ...scriptsAndStyles]) {
         const built = await readFile(join(output, file));
-        if (file === 'ai-ui.js' || file === 'renderer.js') new Script(built.toString('utf8'), { filename: file });
+        if (compiledScripts.has(file)) new Script(built.toString('utf8'), { filename: file });
         else assert.deepEqual(built, await readFile(source(file)), file);
     }
 
     await execFileAsync(process.execPath, ['--no-strip-types', '--input-type=module', '-e', `
         import assert from 'node:assert/strict';
+        import catalog from './out/i18n/catalog.cjs';
         import { ChatService } from './out/llm/chat-service.js';
         import { createProvider } from './out/llm/providers/index.js';
         import { getTool } from './out/llm/tool-registry.js';
         import { cancelCurrentTask } from './out/core/tools.js';
+        assert.equal(catalog.translate('de', 'run'), 'Ausführen');
         assert.equal(typeof ChatService, 'function');
         assert.equal(getTool('download_video').name, 'download_video');
         assert.equal(cancelCurrentTask(), false);

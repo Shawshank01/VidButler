@@ -1,7 +1,8 @@
-// Settings the renderer may write through the generic 'set-settings' channel (the classic UI's own
+// Settings the renderer may write through the generic 'set-settings' channel (shared UI and Classic
 // preferences). It is an allow-list: any other key, and any value of the wrong type, is dropped.
 // AI settings are not on it; they can only change through the validated ai-* handlers, because they
 // hold provider URLs, model names and security options.
+import uiCatalog from './i18n/catalog.cjs';
 import { ALLOWED_BROWSERS } from './llm/provider-settings.js';
 
 const MAX_STRING_CHARS = 2048;
@@ -9,6 +10,7 @@ const isShortString = (v) => typeof v === 'string' && v.length <= MAX_STRING_CHA
 
 /** Setting name -> predicate for an acceptable value. */
 const CLASSIC_SETTINGS = {
+    uiLanguage: uiCatalog.isPreference,
     downloadFolder: isShortString,
     browser: (v) => ALLOWED_BROWSERS.includes(v),
     subtitlePosition: (v) => v === 'bottom' || v === 'top',

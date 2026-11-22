@@ -43,7 +43,7 @@ export const fileTools = [
         name: TOOL_NAMES.listDownloads,
         description:
             'List the most recent files in the download folder (name, size, modified time). Use it to find exact file names before re-encoding or deleting.',
-        describe: () => 'List files in the download folder',
+        describe: (_a, t) => t('toolFileList'),
         async run(_args, ctx) {
             const folder = requireFolder(ctx);
             let entries;
@@ -75,7 +75,10 @@ export const fileTools = [
             }
         },
         required: ['files'],
-        describe: (a) => `Delete ${Array.isArray(a.files) ? a.files.length : 0} file(s): ${Array.isArray(a.files) ? a.files.join(', ') : ''}`,
+        describe: (a, t) => t('toolDelete', {
+            count: Array.isArray(a.files) ? a.files.length : 0,
+            files: Array.isArray(a.files) ? a.files.join(', ') : ''
+        }),
         async run(args, ctx) {
             const folder = requireFolder(ctx);
             if (!Array.isArray(args.files) || args.files.length === 0 || args.files.length > MAX_DELETE_FILES) {

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import catalog from '../src/i18n/catalog.cjs';
 
 // Static checks that catch the most common UI wiring mistakes without needing a window:
 // a script looking up an element id that does not exist, or the preload/IPC names drifting apart.
@@ -26,28 +27,25 @@ test('every id looked up by the AI renderer exists in index.html', () => {
 });
 
 test('Gemini key help does not describe the API key as free', () => {
-    const label = 'Get a Gemini API key from Google AI Studio';
-    assert.ok(html.includes(`id="aiKeyHelpLink">${label}</a>`));
-    assert.ok(aiUi.includes(`text: '${label}'`));
+    assert.match(html, /id="aiKeyHelpLink"[^>]*data-i18n="geminiKeyHelp"/);
+    assert.match(aiUi, /label: 'geminiKeyHelp'/);
+    assert.equal(catalog.translate('en', 'geminiKeyHelp'), 'Get a Gemini API key from Google AI Studio');
 });
 
 test('AI empty chat groups examples by section and shows re-encode above Delete', () => {
-    assert.ok(aiUi.includes("title.textContent = 'Tell me what you want to do. Click an example to try it:';"));
-    const downloads = aiUi.match(/category: 'Download',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
-    const subtitles = aiUi.match(/category: 'Subtitles',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
-    const information = aiUi.match(/category: 'Information',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
-    const fileManagement = aiUi.match(/category: 'File Management',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
-    assert.ok(downloads.includes("'Get the audio of <link>'"));
-    assert.ok(downloads.includes("'Extract the audio from <filename>'"));
-    assert.ok(downloads.includes("'Download as a clip from <time> to <time>'"));
-    assert.ok(subtitles.includes("'Download the available subtitles for <link>'"));
-    assert.ok(subtitles.includes("'Add subtitles at the top'"));
-    const subtitleType = "'Are subtitles for <link> manual or auto-generated?'";
-    assert.ok(subtitles.includes(subtitleType));
-    assert.ok(!information.includes(subtitleType));
-    assert.ok(information.includes("'What’s the title, uploader, and duration of <link>?'"));
-    assert.ok(information.includes("'Summarize this video: <link>'"));
-    assert.match(fileManagement, /'Re-encode <filename> as high-quality MP4',\s*'Delete <filename> in my download folder'/);
+    assert.match(aiUi, /title.textContent = t\('examplesIntro'\);/);
+    const downloads = aiUi.match(/category: 'exampleDownload',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
+    const subtitles = aiUi.match(/category: 'exampleSubtitles',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
+    const information = aiUi.match(/category: 'exampleInformation',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
+    const fileManagement = aiUi.match(/category: 'exampleFiles',\s*items: \[([^\]]*)\]/)?.[1] ?? '';
+    for (const example of ['exampleAudio', 'exampleExtract', 'exampleClip']) assert.ok(downloads.includes(`'${example}'`));
+    for (const example of ['exampleDownloadSubtitles', 'exampleSubtitleType', 'exampleSubtitlesTop']) {
+        assert.ok(subtitles.includes(`'${example}'`));
+    }
+    assert.ok(!information.includes("'exampleSubtitleType'"));
+    assert.ok(information.includes("'exampleVideoInfo'"));
+    assert.ok(information.includes("'exampleSummary'"));
+    assert.match(fileManagement, /'exampleReencode',\s*'exampleDelete'/);
 });
 
 test('renderer scripts load as classic scripts in the expected order', () => {
@@ -55,7 +53,7 @@ test('renderer scripts load as classic scripts in the expected order', () => {
         assert.doesNotMatch(attributes, /\btype\s*=\s*["']?module\b/i);
         return attributes.match(/\bsrc="([^"]+)"/)?.[1];
     });
-    assert.deepEqual(files, ['log-classification.cjs', 'shared-context.js', 'renderer.js', 'markdown.js', 'ai-ui.js']);
+    assert.deepEqual(files, ['log-classification.cjs', 'shared-context.js', 'i18n/catalog.cjs', 'ui-language.js', 'renderer.js', 'markdown.js', 'ai-ui.js']);
 });
 
 test('assistant messages are rendered as Markdown, user and error messages as plain text', () => {
@@ -94,7 +92,7 @@ test('AI mode hides every classic-only control via CSS and the switch is wired',
 });
 
 test('the proxy selector starts disabled and offers SOCKS5 and HTTP', () => {
-    const options = html.match(/<select id="proxyType"[^>]*\bdisabled>([\s\S]*?)<\/select>/)?.[1];
+    const options = html.match(/<select id="proxyType"[^>]*\bdisabled\b[^>]*>([\s\S]*?)<\/select>/)?.[1];
     assert.ok(options);
     assert.match(options, /<option value="socks5" selected>SOCKS5<\/option>/);
     assert.match(options, /<option value="http">HTTP<\/option>/);
@@ -112,8 +110,8 @@ test('the AI UI sends only the three context fields the main process validates',
 test('retry countdown and in-progress status update in real time with styled indicator', () => {
     assert.match(aiUi, /function startRetryProgress/);
     assert.match(aiUi, /function clearRetryProgress/);
-    assert.match(aiUi, /Retrying in \$\{secondsLeft\} s/);
-    assert.match(aiUi, /Retrying now/);
+    assert.match(aiUi, /t\('retryIn', \{ seconds: secondsLeft, details \}\)/);
+    assert.match(aiUi, /t\('retryNow', \{ details \}\)/);
     assert.match(css, /\.ai-progress\.retrying\s*\{/);
 });
 
@@ -125,8 +123,8 @@ test('classic download progress bar and #019D9C theme styling are present', () =
 });
 
 test('re-encode and hardsub support progress bar updates', () => {
-    assert.match(rendererScript, /updateDownloadProgress\(progress,\s*['"]Hardsub Progress:['"]\)/);
-    assert.match(rendererScript, /updateDownloadProgress\(text: string,\s*defaultTitle/);
+    assert.match(rendererScript, /updateDownloadProgress\(progress,\s*['"]hardsubProgress['"]\)/);
+    assert.match(rendererScript, /updateDownloadProgress\(text: string,\s*encodingTitle/);
     assert.match(rendererScript, /download\|ffmpeg/);
 });
 
@@ -163,8 +161,8 @@ test('update prompt modal exists, matches app info modal structure, and is wired
     assert.match(rendererScript, /showUpdateModal\(/);
     assert.match(rendererScript, /downloadAppUpdate\(\)/);
     assert.match(rendererScript, /installAppUpdate\(\)/);
-    assert.match(rendererScript, /Download and Restart/);
-    assert.match(rendererScript, /Copy Homebrew Command/);
+    assert.match(rendererScript, /classicText\('downloadRestart'\)/);
+    assert.match(rendererScript, /classicText\('copyHomebrew'\)/);
     assert.match(rendererScript, /copyMacUpdateCommand\(\)/);
     assert.match(preload, /invoke\('copy-mac-update-command'\)/);
     assert.match(main, /handle\('copy-mac-update-command'/);
@@ -182,9 +180,9 @@ test('download-folder-updated event is exposed by preload, handled by main and r
 });
 
 test('context errors (download folder, browser, proxy) do not show Open AI Settings button and folder errors offer Choose Download Folder', () => {
-    assert.match(aiUi, /const isContextError = \/download folder\|cookie browser\|proxy address\/i\.test/);
-    assert.match(aiUi, /const needsSettings = !isContextError &&/);
-    assert.match(aiUi, /Choose Download Folder/);
+    assert.match(aiUi, /text: error\.contextField \? t\(contextKeys\[error\.contextField\]\)/);
+    assert.match(aiUi, /const needsSettings = !error\.contextField &&/);
+    assert.match(aiUi, /t\('chooseDownloadFolder'\)/);
     assert.match(aiUi, /window\.chooseFolder/);
 });
 

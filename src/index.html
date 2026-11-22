@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="UTF-8" />
@@ -15,7 +15,7 @@
             <div class="header-top">
                 <div class="header-brand">
                     <button type="button" id="appInfoBtn" class="brand-icon" aria-label="About VidButler"
-                        title="About VidButler">
+                        title="About VidButler" data-i18n-aria-label="about" data-i18n-title="about">
                         <svg viewBox="0 0 512 512" fill="currentColor">
                             <path
                                 d="M 163 91 L 163 271 Q 163 316 202 293.5 L 358 203.5 Q 397 181 358 158.5 L 202 68.5 Q 163 46 163 91 Z">
@@ -33,12 +33,18 @@
                 </div>
                 <div class="header-controls">
                     <span id="modeNotice" class="mode-notice" role="status"></span>
-                    <div class="mode-switch" role="group" aria-label="Interface mode">
+                    <label class="language-control">
+                        <span class="visually-hidden" data-i18n="language">Language</span>
+                        <select id="uiLanguage" disabled>
+                            <option value="auto" data-i18n="systemLanguage">System language</option>
+                        </select>
+                    </label>
+                    <div class="mode-switch" role="group" aria-label="Interface mode" data-i18n-aria-label="interfaceMode">
                         <button type="button" id="modeClassicBtn" class="mode-btn active"
-                            aria-pressed="true">Classic</button>
-                        <button type="button" id="modeAiBtn" class="mode-btn" aria-pressed="false">AI</button>
+                            aria-pressed="true" data-i18n="classic">Classic</button>
+                        <button type="button" id="modeAiBtn" class="mode-btn" aria-pressed="false" data-i18n="ai">AI</button>
                     </div>
-                    <button type="button" id="aiSettingsBtn" class="ai-settings-btn" style="display: none">AI
+                    <button type="button" id="aiSettingsBtn" class="ai-settings-btn" style="display: none" data-i18n="aiSettings">AI
                         Settings</button>
                 </div>
             </div>
@@ -46,18 +52,18 @@
             <div class="download-controls">
                 <div class="input-row">
                     <div class="input-group url-input classic-only">
-                        <label for="url">Video URL:</label>
-                        <input type="url" id="url" placeholder="Enter video URL" />
+                        <label for="url" data-i18n="videoUrl">Video URL:</label>
+                        <input type="url" id="url" placeholder="Enter video URL" data-i18n-placeholder="enterVideoUrl" />
                     </div>
 
                     <div class="input-group short-input browser-group">
-                        <label for="browser">Browser for Cookies:</label>
+                        <label for="browser" data-i18n="cookieBrowser">Browser for Cookies:</label>
                         <select id="browser">
-                            <option value="" selected>No cookies</option>
+                            <option value="" selected data-i18n="noCookies">No cookies</option>
                             <option value="brave">Brave</option>
                             <option value="chrome">Chrome</option>
                             <option value="firefox">Firefox</option>
-                            <option value="safari">Safari (Not Recommended)</option>
+                            <option value="safari" data-i18n="safari">Safari (Not Recommended)</option>
                         </select>
                     </div>
 
@@ -67,72 +73,72 @@
                                 <input type="checkbox" id="proxyEnabled" />
                                 <span class="slider"></span>
                             </label>
-                            <label for="proxyEnabled" class="proxy-label">Proxy:</label>
+                            <label for="proxyEnabled" class="proxy-label" data-i18n="proxy">Proxy:</label>
                         </div>
                         <div class="proxy-fields">
-                            <select id="proxyType" aria-label="Proxy type" disabled>
+                            <select id="proxyType" aria-label="Proxy type" disabled data-i18n-aria-label="proxyType">
                                 <option value="socks5" selected>SOCKS5</option>
                                 <option value="http">HTTP</option>
                             </select>
                             <textarea id="proxyAddress" aria-label="Proxy address" placeholder="Host:port"
-                                rows="1" spellcheck="false" disabled>127.0.0.1:1080</textarea>
+                                rows="1" spellcheck="false" disabled data-i18n-aria-label="proxyAddress" data-i18n-placeholder="hostPort">127.0.0.1:1080</textarea>
                         </div>
                     </div>
                 </div>
 
                 <div class="input-row">
                     <div class="input-group classic-only">
-                        <label for="action">Action:</label>
+                        <label for="action" data-i18n="action">Action:</label>
                         <select id="action">
-                            <option value="Download Video (Best Quality)">
+                            <option value="Download Video (Best Quality)" data-i18n="bestVideo">
                                 Download Video (Best Quality)
                             </option>
-                            <option value="List Formats">List Formats</option>
-                            <option value="Download (Custom Format)">Download (Custom Format)</option>
-                            <option value="Download Thumbnail">Download Thumbnail</option>
-                            <option value="Download Subtitles">Download Subtitles</option>
-                            <option value="Download & Re-encode as high quality MP4 (H.264/AAC)">
+                            <option value="List Formats" data-i18n="listFormats">List Formats</option>
+                            <option value="Download (Custom Format)" data-i18n="customFormat">Download (Custom Format)</option>
+                            <option value="Download Thumbnail" data-i18n="downloadThumbnail">Download Thumbnail</option>
+                            <option value="Download Subtitles" data-i18n="downloadSubtitles">Download Subtitles</option>
+                            <option value="Download & Re-encode as high quality MP4 (H.264/AAC)" data-i18n="downloadMp4">
                                 Download & Re-encode as high quality MP4 (H.264/AAC)
                             </option>
-                            <option value="Download & Add Hardsub">
+                            <option value="Download & Add Hardsub" data-i18n="downloadHardsub">
                                 Download & Add Hardsub
                             </option>
                         </select>
                     </div>
 
                     <div class="input-group download-folder-group">
-                        <label for="downloadFolder">Download Folder:</label>
+                        <label for="downloadFolder" data-i18n="downloadFolder">Download Folder:</label>
                         <div class="folder-input">
                             <input type="text" id="downloadFolder" readonly />
-                            <button type="button" id="chooseFolderBtn">Choose</button>
+                            <button type="button" id="chooseFolderBtn" data-i18n="choose">Choose</button>
                         </div>
                     </div>
 
                     <div class="input-group run-button-group classic-only">
                         <span class="run-label-spacer" aria-hidden="true">&nbsp;</span>
-                        <button type="button" id="runCommandBtn" class="run-button">Run</button>
+                        <button type="button" id="runCommandBtn" class="run-button" data-i18n="run">Run</button>
                     </div>
                 </div>
 
                 <div class="input-row conditional-row">
                     <div class="input-group short-input classic-only" id="formatCodeGroup" style="display: none">
-                        <label for="formatCode">Format Code:</label>
-                        <input type="text" id="formatCode" placeholder="e.g., 140, 356, or 140+356" />
+                        <label for="formatCode" data-i18n="formatCode">Format Code:</label>
+                        <input type="text" id="formatCode" placeholder="e.g., 140, 356, or 140+356" data-i18n-placeholder="formatExample" />
                     </div>
 
                     <div class="input-group short-input classic-only" id="codecGroup" style="display: none">
-                        <label for="codec">Video Codec:</label>
+                        <label for="codec" data-i18n="videoCodec">Video Codec:</label>
                         <select id="codec">
-                            <option value="h264">H.264 (Better Compatibility)</option>
-                            <option value="hevc">HEVC (Better Quality)</option>
+                            <option value="h264" data-i18n="h264">H.264 (Better Compatibility)</option>
+                            <option value="hevc" data-i18n="hevc">HEVC (Better Quality)</option>
                         </select>
                     </div>
 
                     <div class="input-group short-input classic-only" id="subtitlePositionGroup" style="display: none">
-                        <label for="subtitlePosition">Subtitle Position:</label>
+                        <label for="subtitlePosition" data-i18n="subtitlePosition">Subtitle Position:</label>
                         <select id="subtitlePosition">
-                            <option value="bottom">Bottom (Default)</option>
-                            <option value="top">Top</option>
+                            <option value="bottom" data-i18n="bottom">Bottom (Default)</option>
+                            <option value="top" data-i18n="top">Top</option>
                         </select>
                     </div>
 
@@ -140,14 +146,14 @@
             </div>
 
             <div id="cancelActionControls" class="classic-only" style="display: none;">
-                <button id="cancelActionBtn">Cancel Action</button>
+                <button id="cancelActionBtn" data-i18n="cancelAction">Cancel Action</button>
             </div>
         </div>
 
         <!-- Classic Mode Download Progress Bar -->
         <div id="classicProgressBarContainer" class="classic-progress-container classic-only" style="display: none;">
             <div class="classic-progress-info">
-                <span id="classicProgressTitle" class="classic-progress-title">Download Progress:</span>
+                <span id="classicProgressTitle" class="classic-progress-title" data-i18n="downloadProgress">Download Progress:</span>
                 <span id="classicProgressStatus" class="classic-progress-status"></span>
                 <span id="classicProgressEta" class="classic-progress-eta"></span>
                 <span id="classicProgressPercent" class="classic-progress-percent">0%</span>
@@ -161,30 +167,30 @@
             <div class="output-header">
                 <div class="output-header-title">
                     <span class="output-dot"></span>
-                    <span>Process Output Log</span>
+                    <span data-i18n="outputLog">Process Output Log</span>
                 </div>
             </div>
-            <div id="output" class="classic-only" role="log" aria-label="Command output"></div>
+            <div id="output" class="classic-only" role="log" aria-label="Command output" data-i18n-aria-label="commandOutput"></div>
         </div>
 
         <!-- AI assistant panel (shown in AI mode) -->
-        <section id="aiPanel" class="ai-panel" aria-label="AI assistant">
+        <section id="aiPanel" class="ai-panel" aria-label="AI assistant" data-i18n-aria-label="assistant">
             <div id="aiSetupBanner" class="ai-banner" style="display: none">
                 <span id="aiSetupText"></span>
-                <button type="button" id="aiSetupBtn">Open AI Settings</button>
+                <button type="button" id="aiSetupBtn" data-i18n="openAiSettings">Open AI Settings</button>
             </div>
-            <div id="aiMessages" class="ai-messages" role="log" aria-live="polite" aria-label="Conversation"></div>
+            <div id="aiMessages" class="ai-messages" role="log" aria-live="polite" aria-label="Conversation" data-i18n-aria-label="conversation"></div>
             <div id="aiProgress" class="ai-progress" aria-live="off"></div>
             <div class="ai-composer">
                 <div class="ai-composer-side">
-                    <button type="button" id="aiNewChatBtn">New chat</button>
+                    <button type="button" id="aiNewChatBtn" data-i18n="newChat">New chat</button>
                     <div id="aiModelHint" class="ai-hint" aria-live="polite"></div>
                 </div>
                 <textarea id="aiInput" rows="2"
-                    placeholder="Describe what you want, e.g. &quot;Download this video: https://...&quot; (Enter to send, Shift+Enter for a new line)"></textarea>
+                    placeholder="Describe what you want, e.g. &quot;Download this video: https://...&quot; (Enter to send, Shift+Enter for a new line)" data-i18n-placeholder="chatPlaceholder"></textarea>
                 <div class="ai-composer-buttons">
-                    <button type="button" id="aiSendBtn" class="run-button">Send</button>
-                    <button type="button" id="aiStopBtn" class="ai-stop-btn" style="display: none">Stop</button>
+                    <button type="button" id="aiSendBtn" class="run-button" data-i18n="send">Send</button>
+                    <button type="button" id="aiStopBtn" class="ai-stop-btn" style="display: none" data-i18n="stop">Stop</button>
                 </div>
             </div>
         </section>
@@ -193,51 +199,51 @@
         <div id="aiSettingsModal" class="modal" style="display: none;" role="dialog" aria-modal="true"
             aria-labelledby="aiSettingsTitle">
             <div class="modal-content ai-settings">
-                <h2 id="aiSettingsTitle">AI Settings</h2>
+                <h2 id="aiSettingsTitle" data-i18n="aiSettings">AI Settings</h2>
 
                 <div class="ai-field">
-                    <label for="aiProviderSelect">Provider</label>
+                    <label for="aiProviderSelect" data-i18n="provider">Provider</label>
                     <select id="aiProviderSelect"></select>
                 </div>
 
                 <div class="ai-field">
-                    <label for="aiModelInput">Model</label>
+                    <label for="aiModelInput" data-i18n="model">Model</label>
                     <input type="text" id="aiModelInput" autocomplete="off" spellcheck="false" />
                 </div>
 
                 <div class="ai-field" id="aiBaseUrlField">
-                    <label for="aiBaseUrlInput">Server URL</label>
+                    <label for="aiBaseUrlInput" data-i18n="serverUrl">Server URL</label>
                     <input type="text" id="aiBaseUrlInput" autocomplete="off" spellcheck="false" />
                 </div>
 
                 <div class="ai-field" id="aiThinkingField">
-                    <label for="aiThinkingSelect">Reasoning effort</label>
+                    <label for="aiThinkingSelect" data-i18n="reasoningEffort">Reasoning effort</label>
                     <select id="aiThinkingSelect"></select>
-                    <div class="ai-hint" id="aiThinkingHint">How long Gemini thinks before answering. Fast is enough for
+                    <div class="ai-hint" id="aiThinkingHint" data-i18n="geminiEffortHint">How long Gemini thinks before answering. Fast is enough for
                         downloads and conversions.</div>
                 </div>
 
                 <div class="ai-field" id="aiKeyField">
-                    <label for="aiKeyInput">API key</label>
+                    <label for="aiKeyInput" data-i18n="apiKey">API key</label>
                     <div class="folder-input">
                         <input type="password" id="aiKeyInput" autocomplete="off" spellcheck="false"
-                            placeholder="Paste a new key to replace the saved one" />
-                        <button type="button" id="aiKeySaveBtn">Save key</button>
-                        <button type="button" id="aiKeyRemoveBtn">Remove</button>
+                            placeholder="Paste a new key to replace the saved one" data-i18n-placeholder="replaceKey" />
+                        <button type="button" id="aiKeySaveBtn" data-i18n="saveKey">Save key</button>
+                        <button type="button" id="aiKeyRemoveBtn" data-i18n="remove">Remove</button>
                     </div>
                     <div class="ai-hint" id="aiKeyStatus"></div>
                     <div class="ai-hint" id="aiKeyHelp" style="display: none">
-                        <a href="#" id="aiKeyHelpLink">Get a Gemini API key from Google AI Studio</a>
+                        <a href="#" id="aiKeyHelpLink" data-i18n="geminiKeyHelp">Get a Gemini API key from Google AI Studio</a>
                     </div>
                 </div>
 
                 <div class="ai-field">
-                    <label for="aiConfirmSelect">Ask me before running</label>
+                    <label for="aiConfirmSelect" data-i18n="askBefore">Ask me before running</label>
                     <select id="aiConfirmSelect">
-                        <option value="risky">Risky actions only: re-encode, hardsub, delete, playlists (recommended)
+                        <option value="risky" data-i18n="riskyActions">Risky actions only: re-encode, hardsub, delete, playlists (recommended)
                         </option>
-                        <option value="always">Every action</option>
-                        <option value="never">Never (the assistant runs everything)</option>
+                        <option value="always" data-i18n="everyAction">Every action</option>
+                        <option value="never" data-i18n="neverAsk">Never (the assistant runs everything)</option>
                     </select>
                 </div>
 
@@ -245,9 +251,9 @@
                 <div id="aiTestResult" class="ai-test-result" role="status"></div>
 
                 <div class="modal-buttons">
-                    <button type="button" id="aiTestBtn">Test connection</button>
-                    <button type="button" id="aiSettingsCancelBtn">Cancel</button>
-                    <button type="button" id="aiSettingsSaveBtn" class="run-button">Save</button>
+                    <button type="button" id="aiTestBtn" data-i18n="testConnection">Test connection</button>
+                    <button type="button" id="aiSettingsCancelBtn" data-i18n="cancel">Cancel</button>
+                    <button type="button" id="aiSettingsSaveBtn" class="run-button" data-i18n="save">Save</button>
                 </div>
             </div>
         </div>
@@ -256,12 +262,12 @@
         <div id="aiConfirmModal" class="modal" style="display: none;" role="alertdialog" aria-modal="true"
             aria-labelledby="aiConfirmTitle" aria-describedby="aiConfirmDescription">
             <div class="modal-content">
-                <h2 id="aiConfirmTitle">Allow this action?</h2>
+                <h2 id="aiConfirmTitle" data-i18n="allowAction">Allow this action?</h2>
                 <div id="aiConfirmDescription" class="ai-confirm-desc"></div>
                 <div id="aiConfirmRisk" class="ai-confirm-risk"></div>
                 <div class="modal-buttons">
-                    <button type="button" class="cancel-btn" id="aiConfirmDenyBtn">Deny</button>
-                    <button type="button" class="run-button" id="aiConfirmAllowBtn">Allow</button>
+                    <button type="button" class="cancel-btn" id="aiConfirmDenyBtn" data-i18n="deny">Deny</button>
+                    <button type="button" class="run-button" id="aiConfirmAllowBtn" data-i18n="allow">Allow</button>
                 </div>
             </div>
         </div>
@@ -269,10 +275,10 @@
         <!-- Subtitle Selection Modal -->
         <div id="subtitleModal" class="modal" style="display: none;">
             <div class="modal-content">
-                <h2>Select Subtitle Language</h2>
+                <h2 data-i18n="selectSubtitle">Select Subtitle Language</h2>
                 <div id="subtitleList" class="subtitle-list"></div>
                 <div class="modal-buttons">
-                    <button id="cancelSubtitleBtn" class="cancel-btn">Cancel</button>
+                    <button id="cancelSubtitleBtn" class="cancel-btn" data-i18n="cancel">Cancel</button>
                 </div>
             </div>
         </div>
@@ -280,13 +286,13 @@
         <!-- Cleanup Modal -->
         <div id="cleanupModal" class="modal" style="display: none;">
             <div class="modal-content">
-                <h2>Cleanup Temporary Files</h2>
-                <p id="cleanupMessage" style="text-align: center; margin-bottom: 20px;">Re-encoding completed
+                <h2 data-i18n="temporaryFiles">Cleanup Temporary Files</h2>
+                <p id="cleanupMessage" style="text-align: center; margin-bottom: 20px;" data-i18n="cleanupEncode">Re-encoding completed
                     successfully. Do you want to delete the temporary downloaded files (original video and thumbnail)?
                 </p>
                 <div class="modal-buttons">
-                    <button class="cancel-btn" id="deleteFilesBtn">Delete Files</button>
-                    <button class="run-button" id="keepFilesBtn">Keep Files</button>
+                    <button class="cancel-btn" id="deleteFilesBtn" data-i18n="deleteFiles">Delete Files</button>
+                    <button class="run-button" id="keepFilesBtn" data-i18n="keepFiles">Keep Files</button>
                 </div>
             </div>
         </div>
@@ -294,13 +300,13 @@
         <!-- Confirmation Modal -->
         <div id="confirmModal" class="modal" style="display: none;">
             <div class="modal-content">
-                <h2 id="confirmTitle">Confirm Action</h2>
+                <h2 id="confirmTitle" data-i18n="confirmAction">Confirm Action</h2>
                 <div id="confirmMessage"
                     style="text-align: left; margin-bottom: 20px; white-space: pre-wrap; line-height: 1.5; max-height: 50vh; overflow-y: auto;">
                 </div>
                 <div class="modal-buttons">
-                    <button class="cancel-btn" id="confirmCancelBtn">Cancel</button>
-                    <button class="run-button" id="confirmAcceptBtn">Confirm</button>
+                    <button class="cancel-btn" id="confirmCancelBtn" data-i18n="cancel">Cancel</button>
+                    <button class="run-button" id="confirmAcceptBtn" data-i18n="confirm">Confirm</button>
                 </div>
             </div>
         </div>
@@ -331,13 +337,13 @@
                         </div>
                     </div>
                     <button type="button" class="modal-close-btn" id="appInfoCloseBtn"
-                        aria-label="Close">&times;</button>
+                        aria-label="Close" data-i18n-aria-label="close">&times;</button>
                 </div>
 
                 <div class="app-info-body">
                     <div class="app-info-section">
                         <div class="app-info-row">
-                            <span class="app-info-label">Developer</span>
+                            <span class="app-info-label" data-i18n="developer">Developer</span>
                             <span class="app-info-value">Michifumi</span>
                         </div>
                         <div class="app-info-row">
@@ -349,7 +355,7 @@
                     </div>
 
                     <div class="app-info-section">
-                        <div class="app-info-section-title">Bundled Tool Versions</div>
+                        <div class="app-info-section-title" data-i18n="toolVersions">Bundled Tool Versions</div>
                         <div class="app-info-grid" id="bundledToolsGrid">
                             <div class="app-info-row">
                                 <span class="app-info-label">yt-dlp</span>
@@ -370,12 +376,12 @@
                 </div>
 
                 <div class="modal-buttons app-info-actions">
-                    <button type="button" id="checkDependenciesBtn" class="dep-check-btn" style="display: none;">Check
+                    <button type="button" id="checkDependenciesBtn" class="dep-check-btn" style="display: none;" data-i18n="checkDependencies">Check
                         Dependencies</button>
-                    <button type="button" id="checkUpdateBtn" class="update-button">Check for
+                    <button type="button" id="checkUpdateBtn" class="update-button" data-i18n="checkUpdates">Check for
                         Updates</button>
-                    <button type="button" id="deleteLocalDataBtn" class="dep-check-btn">Delete Local Data</button>
-                    <button type="button" class="cancel-btn" id="appInfoDoneBtn">Close</button>
+                    <button type="button" id="deleteLocalDataBtn" class="dep-check-btn" data-i18n="deleteLocalData">Delete Local Data</button>
+                    <button type="button" class="cancel-btn" id="appInfoDoneBtn" data-i18n="close">Close</button>
                 </div>
             </div>
         </div>
@@ -406,28 +412,28 @@
                         </div>
                     </div>
                     <button type="button" class="modal-close-btn" id="updateModalCloseBtn"
-                        aria-label="Close">&times;</button>
+                        aria-label="Close" data-i18n-aria-label="close">&times;</button>
                 </div>
 
                 <div class="app-info-body">
                     <div class="app-info-section">
-                        <div class="app-info-section-title" id="updateModalSectionTitle">Update Status</div>
+                        <div class="app-info-section-title" id="updateModalSectionTitle" data-i18n="updateStatus">Update Status</div>
                         <div class="app-info-row">
-                            <span class="app-info-label">Status</span>
+                            <span class="app-info-label" data-i18n="status">Status</span>
                             <span class="app-info-value" id="updateModalStatus">-</span>
                         </div>
                         <div class="app-info-row" id="updateModalCurrentRow">
-                            <span class="app-info-label">Current Version</span>
+                            <span class="app-info-label" data-i18n="currentVersion">Current Version</span>
                             <span class="app-info-value" id="updateModalCurrentVersion">-</span>
                         </div>
                         <div class="app-info-row" id="updateModalLatestRow">
-                            <span class="app-info-label">Latest Version</span>
+                            <span class="app-info-label" data-i18n="latestVersion">Latest Version</span>
                             <span class="app-info-value" id="updateModalLatestVersion">-</span>
                         </div>
                     </div>
 
                     <div class="app-info-section" id="updateModalNotesSection" style="display: none;">
-                        <div class="app-info-section-title" id="updateModalNotesTitle">Release Notes</div>
+                        <div class="app-info-section-title" id="updateModalNotesTitle" data-i18n="releaseNotes">Release Notes</div>
                         <div id="updateModalNotes" class="app-info-dep-result"></div>
                     </div>
 
@@ -436,16 +442,18 @@
 
                 <div class="modal-buttons app-info-actions">
                     <button type="button" class="cancel-btn" id="updateModalCancelBtn"
-                        style="display: none;">Close</button>
-                    <button type="button" class="cancel-btn" id="updateModalSecondaryBtn" style="display: none;">Open
+                        style="display: none;" data-i18n="close">Close</button>
+                    <button type="button" class="cancel-btn" id="updateModalSecondaryBtn" style="display: none;" data-i18n="openGitHubRelease">Open
                         GitHub Release</button>
-                    <button type="button" class="update-button" id="updateModalActionBtn">OK</button>
+                    <button type="button" class="update-button" id="updateModalActionBtn" data-i18n="ok">OK</button>
                 </div>
             </div>
         </div>
     </div>
     <script src="log-classification.cjs"></script>
     <script src="shared-context.js"></script>
+    <script src="i18n/catalog.cjs"></script>
+    <script src="ui-language.js"></script>
     <script src="renderer.js"></script>
     <script src="markdown.js"></script>
     <script src="ai-ui.js"></script>

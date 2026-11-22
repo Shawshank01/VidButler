@@ -107,7 +107,7 @@ export interface AiContext {
 
 export type AiSendResult =
     | { ok: true; text: string; stoppedBecause: 'done' | 'max_steps' | 'aborted'; steps: number }
-    | { ok: false; error: { kind: string; message: string } };
+    | { ok: false; error: { kind: string; message: string; contextField?: 'folder' | 'browser' | 'proxy' } };
 
 type ThinkingLevel = 'low' | 'medium' | 'high';
 type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';

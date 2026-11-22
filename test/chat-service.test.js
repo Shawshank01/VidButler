@@ -264,16 +264,16 @@ test('send: rejects bad context before calling the model', async () => {
     const { service } = await makeService({ fetchImpl });
     const folder = await tempDir();
 
-    for (const [context, pattern] of [
-        [{ downloadFolder: '/definitely/not/here' }, /download folder/],
-        [{ downloadFolder: 'relative/path' }, /download folder/],
-        [{ downloadFolder: folder, browser: 'netscape' }, /browser/],
-        [{ downloadFolder: folder, proxy: 'socks5://x; rm -rf /' }, /proxy/]
+    for (const [context, field] of [
+        [{ downloadFolder: '/definitely/not/here' }, 'folder'],
+        [{ downloadFolder: 'relative/path' }, 'folder'],
+        [{ downloadFolder: folder, browser: 'netscape' }, 'browser'],
+        [{ downloadFolder: folder, proxy: 'socks5://x; rm -rf /' }, 'proxy']
     ]) {
         const res = await service.send('hi', context);
         assert.equal(res.ok, false);
         assert.equal(res.error.kind, 'settings');
-        assert.match(res.error.message, pattern);
+        assert.equal(res.error.contextField, field);
     }
     assert.equal(fetchImpl.calls.length, 0);
 });

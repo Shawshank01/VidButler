@@ -161,9 +161,26 @@ button.brand-icon:focus-visible {
 
 .header-controls {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     align-items: center;
     gap: 10px;
     min-width: 0;
+}
+
+.language-control select {
+    width: auto;
+    max-width: 100%;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 /* Elevated Download Controls Card */

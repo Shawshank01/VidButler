@@ -115,7 +115,7 @@ export const videoTranscriptTool = defineTool({
         page: { type: 'integer', description: MESSAGES.transcriptPageDescription }
     },
     required: ['url'],
-    describe: MESSAGES.describeTranscript,
+    describe: (a, t) => t('toolTranscript', { url: a.url }),
     async run(args, ctx) {
         const url = validateUrl(args.url);
         const lang = args.lang == null ? undefined : validateLang(args.lang);

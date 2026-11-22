@@ -11,10 +11,14 @@ test('the release smoke check rejects missing runtime files and packaged TypeScr
     t.after(() => rm(scratch, { recursive: true, force: true }));
     const app = join(scratch, 'app');
     await mkdir(join(app, 'out', 'llm'), { recursive: true });
+    await mkdir(join(app, 'out', 'i18n'), { recursive: true });
     const { main, version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
     await writeFile(join(app, 'package.json'), JSON.stringify({ main, version }));
     await writeFile(join(app, 'tools-versions.json'), await readFile(new URL('../tools-versions.json', import.meta.url)));
-    for (const file of ['main.js', 'index.html', 'styles.css', 'preload.cjs', 'renderer.js', 'ai-ui.js', 'llm/agent.js']) {
+    for (const file of [
+        'main.js', 'index.html', 'styles.css', 'preload.cjs', 'renderer.js', 'ai-ui.js',
+        'ui-language.js', 'i18n/catalog.cjs', 'llm/agent.js'
+    ]) {
         await writeFile(join(app, 'out', file), '');
     }
 

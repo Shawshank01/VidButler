@@ -6,6 +6,8 @@ import { ValidationError } from '../validate.ts';
 import { requireFolder } from '../context.js';
 import { getScratchDirectory } from '../../core/local-data.js';
 
+import uiCatalog from '../../i18n/catalog.cjs';
+import type { UiTranslator } from '../../types/ui-language.d.ts';
 import type { ConversionResult, MediaOperationResult, SubtitleTrack } from '../../core/tools.ts';
 import type { ToolDeclaration } from '../types.js';
 import type { TranscriptPart } from '../transcript-summary.ts';
@@ -47,14 +49,17 @@ interface ToolSpec {
     risk?: ToolRisk | ((args: ToolArguments) => ToolRisk);
     properties?: Record<string, unknown>;
     required?: string[];
-    describe(args: ToolArguments): string;
+    describe(args: ToolArguments, t: UiTranslator): string;
     run(args: ToolArguments, ctx: ToolContext): Promise<ToolResult>;
 }
 
-export interface Tool extends Omit<ToolSpec, 'properties' | 'required' | 'risk'> {
+export interface Tool extends Omit<ToolSpec, 'properties' | 'required' | 'risk' | 'describe'> {
+    describe(args: ToolArguments, t?: UiTranslator): string;
     risk: NonNullable<ToolSpec['risk']>;
     parameters: ToolDeclaration['parameters'] & { properties: Record<string, unknown> };
 }
+
+const english: UiTranslator = (key, values) => uiCatalog.translate('en', key, values);
 
 /** Declare a validated media tool with its model-facing JSON schema. */
 export function defineTool({ name, description, risk = 'low', properties = {}, required = [], describe, run }: ToolSpec): Tool {
@@ -63,7 +68,7 @@ export function defineTool({ name, description, risk = 'low', properties = {}, r
         description,
         risk,
         parameters: { type: 'object', properties, ...(required.length > 0 ? { required } : {}) },
-        describe,
+        describe: (args, t = english) => describe(args, t),
         run
     };
 }
