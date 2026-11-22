@@ -1186,6 +1186,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateFormatCodeVisibility();
     }
 
+    const proxyToggle = document.getElementById('proxyEnabled');
+    const proxyType = document.getElementById('proxyType');
+    const proxyInput = document.getElementById('proxyAddress');
+
     // Restore persisted user settings
     if (window.electronAPI?.getSettings) {
         try {
@@ -1203,15 +1207,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 folderEl.value = saved.downloadFolder;
             }
 
-            // SOCKS5 Proxy
-            const proxyToggleSaved = document.getElementById('proxyEnabled');
-            const proxyInputSaved = document.getElementById('proxyAddress');
-            if (proxyToggleSaved && saved.proxyEnabled !== undefined) {
-                proxyToggleSaved.checked = saved.proxyEnabled;
-                if (proxyInputSaved) proxyInputSaved.disabled = !saved.proxyEnabled;
+            if (proxyToggle && typeof saved.proxyEnabled === 'boolean') {
+                proxyToggle.checked = saved.proxyEnabled;
             }
-            if (proxyInputSaved && saved.proxyAddress !== undefined) {
-                proxyInputSaved.value = saved.proxyAddress;
+            if (proxyType) proxyType.value = saved.proxyType === 'http' ? 'http' : 'socks5';
+            if (proxyInput && typeof saved.proxyAddress === 'string') {
+                proxyInput.value = saved.proxyAddress;
             }
 
             // Subtitle Position
@@ -1248,13 +1249,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Proxy toggle wiring + persistence
-    const proxyToggle = document.getElementById('proxyEnabled');
-    const proxyInput = document.getElementById('proxyAddress');
-    if (proxyToggle && proxyInput) {
-        proxyToggle.addEventListener('change', () => {
+    if (proxyToggle && proxyType && proxyInput) {
+        const updateProxyFields = () => {
+            proxyType.disabled = !proxyToggle.checked;
             proxyInput.disabled = !proxyToggle.checked;
+        };
+        updateProxyFields();
+        proxyToggle.addEventListener('change', () => {
+            updateProxyFields();
             window.electronAPI?.setSettings({ proxyEnabled: proxyToggle.checked }).catch(console.error);
+        });
+        proxyType.addEventListener('change', () => {
+            window.electronAPI?.setSettings({ proxyType: proxyType.value }).catch(console.error);
         });
         proxyInput.addEventListener('change', () => {
             window.electronAPI?.setSettings({ proxyAddress: proxyInput.value.trim() }).catch(console.error);

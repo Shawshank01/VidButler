@@ -4,6 +4,7 @@ window.SharedContext = {
         const enabled = document.getElementById('proxyEnabled');
         const input = document.getElementById('proxyAddress');
         const address = enabled?.checked && input ? input.value.trim() : '';
-        return address ? `socks5://${address}/` : '';
+        const scheme = document.getElementById('proxyType')?.value === 'http' ? 'http' : 'socks5';
+        return address ? `${scheme}://${address}/` : '';
     }
 };

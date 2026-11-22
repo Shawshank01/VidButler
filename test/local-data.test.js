@@ -43,18 +43,24 @@ test('yt-dlp receives its own cache and scratch paths and holds the cleanup lock
     await prepareToolData(root);
     const executable = join(root, 'yt-dlp');
     await fs.writeFile(executable, `#!/usr/bin/env node
-console.log(JSON.stringify({ args: process.argv.slice(2), deno: process.env.DENO_DIR, temp: process.env.TMPDIR }));
+console.log(JSON.stringify({
+    args: process.argv.slice(2), deno: process.env.DENO_DIR, temp: process.env.TMPDIR,
+    bypass: Object.keys(process.env).filter((key) => key.toUpperCase() === 'NO_PROXY')
+}));
 `, { mode: 0o755 });
-    const child = spawnYtDlp(executable, ['--skip-download', 'https://example.test/video']);
+    const args = ['--proxy', 'http://localhost:8118/', '--skip-download', 'https://example.test/video'];
+    const env = { ...process.env, NO_PROXY: '*', no_proxy: 'example.test' };
+    const child = spawnYtDlp(executable, args, { env });
     assert.equal(lockToolData(), false);
     let stdout = '';
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => { stdout += chunk; });
     assert.deepEqual(await once(child, 'close'), [0, null]);
     assert.deepEqual(JSON.parse(stdout), {
-        args: ['--cache-dir', join(root, TOOL_DATA_DIR, 'yt-dlp'), '--skip-download', 'https://example.test/video'],
-        deno: join(root, TOOL_DATA_DIR, 'deno'), temp: getScratchDirectory()
+        args: ['--cache-dir', join(root, TOOL_DATA_DIR, 'yt-dlp'), ...args],
+        deno: join(root, TOOL_DATA_DIR, 'deno'), temp: getScratchDirectory(), bypass: []
     });
+    assert.equal(env.no_proxy, 'example.test');
     assert.equal(lockToolData(), true);
     try {
         assert.throws(() => spawnYtDlp(executable, []), /cleanup is in progress/);

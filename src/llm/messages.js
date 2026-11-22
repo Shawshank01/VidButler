@@ -43,7 +43,7 @@ export const MESSAGES = {
     describeClip: ({ media_type, start_time, end_time, url }) => `Download ${media_type} clip from ${start_time} to ${end_time} of ${url}`,
     invalidClipTimestamp: (name) => `"${name}" must be a non-negative timestamp in seconds, M:SS or H:MM:SS, optionally with up to three decimal places.`,
     invalidClipOrder: 'End time must be later than start time.',
-    clipWithSocksProxy: 'FFmpeg section downloads require a connection without a SOCKS proxy. Change the proxy setting before retrying.',
+    clipWithSocksProxy: 'SOCKS mode blocks clip downloads. Select HTTP and enter a proxy address that supports CONNECT, or turn off Proxy, then retry.',
     clipVideoToolboxFallback: 'VideoToolbox could not encode this clip. Retrying with FFmpeg’s default encoder…',
     clipAudioToolboxFallback: 'AudioToolbox could not encode this clip. Retrying with FFmpeg’s native AAC encoder…',
     noClipSaved: 'No clip was saved. Check that both timestamps are within the source duration.',

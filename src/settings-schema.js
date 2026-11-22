@@ -13,6 +13,7 @@ const CLASSIC_SETTINGS = {
     browser: (v) => ALLOWED_BROWSERS.includes(v),
     subtitlePosition: (v) => v === 'bottom' || v === 'top',
     proxyEnabled: (v) => typeof v === 'boolean',
+    proxyType: (v) => v === 'socks5' || v === 'http',
     proxyAddress: isShortString
 };
 

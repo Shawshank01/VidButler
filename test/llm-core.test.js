@@ -207,14 +207,16 @@ test('settings-schema: only known classic settings with valid values pass', asyn
             downloadFolder: '/Users/me/Videos',
             browser: 'chrome',
             proxyEnabled: true,
+            proxyType: 'http',
             aiProviderConfigs: { ollama: { baseUrl: 'http://evil' } },
             aiMode: 'ai',
             browserX: 'x',
             __proto__: { polluted: true }
         }),
-        { downloadFolder: '/Users/me/Videos', browser: 'chrome', proxyEnabled: true }
+        { downloadFolder: '/Users/me/Videos', browser: 'chrome', proxyEnabled: true, proxyType: 'http' }
     );
-    assert.deepEqual(sanitizeClassicSettings({ browser: 'netscape', proxyEnabled: 'yes', subtitlePosition: 'left' }), {});
+    assert.deepEqual(sanitizeClassicSettings({ proxyType: 'socks5' }), { proxyType: 'socks5' });
+    assert.deepEqual(sanitizeClassicSettings({ browser: 'netscape', proxyEnabled: 'yes', proxyType: 'ftp', subtitlePosition: 'left' }), {});
     assert.deepEqual(sanitizeClassicSettings(null), {});
     assert.deepEqual(sanitizeClassicSettings([1, 2]), {});
 });

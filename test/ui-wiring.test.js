@@ -95,10 +95,17 @@ test('AI mode hides every classic-only control via CSS and the switch is wired',
         assert.ok(/classic-only/.test(tag) || inClassicGroup, `${id} should be hidden in AI mode`);
     }
     // These must stay usable in AI mode because they feed the assistant's context.
-    for (const id of ['downloadFolder', 'browser', 'proxyEnabled', 'proxyAddress']) {
+    for (const id of ['downloadFolder', 'browser', 'proxyEnabled', 'proxyType', 'proxyAddress']) {
         const group = html.match(new RegExp(`<div[^>]*class="input-group[^"]*"[^>]*>(?:(?!<div class="input-group)[\\s\\S])*?id="${id}"`));
         assert.ok(!group || !/classic-only/.test(group[0]), `${id} must remain visible in AI mode`);
     }
+});
+
+test('the proxy selector starts disabled and offers SOCKS5 and HTTP', () => {
+    const options = html.match(/<select id="proxyType"[^>]*\bdisabled>([\s\S]*?)<\/select>/)?.[1];
+    assert.ok(options);
+    assert.match(options, /<option value="socks5" selected>SOCKS5<\/option>/);
+    assert.match(options, /<option value="http">HTTP<\/option>/);
 });
 
 test('model text is never rendered as HTML', () => {
@@ -107,7 +114,7 @@ test('model text is never rendered as HTML', () => {
 });
 
 test('the AI UI sends only the three context fields the main process validates', () => {
-    assert.match(aiUi, /downloadFolder:[\s\S]*browser:[\s\S]*proxy:/);
+    assert.match(aiUi, /downloadFolder:[\s\S]*browser:[\s\S]*proxy: window\.SharedContext\.getProxyUrl\(\)/);
 });
 
 test('retry countdown and in-progress status update in real time with styled indicator', () => {

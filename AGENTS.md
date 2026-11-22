@@ -17,7 +17,7 @@ It originally had only a form-based UI ("Classic mode"). The goal of the current
 | 1. Refactor | `src/main.js` split into Electron-free modules in `src/core/`. `main.js` is thin IPC handlers. Classic behaviour unchanged. | Done, user-verified |
 | 2. AI backend | `src/llm/`: 15 tools, input validation, agent loop, five provider adapters, system prompt. | Done |
 | 3A. Main-process integration | Encrypted API-key storage, chat service (settings, conversation, confirmations, cancel), IPC and preload API (`window.electronAPI.ai`). | Done, user-verified (key save, connection test) |
-| 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / SOCKS5 context controls. | Done, user-verified |
+| 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / Proxy context controls. | Done, user-verified for the original SOCKS5 control. |
 | Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines, CSP and navigation guards, repo-wide ESLint. | Done |
 | Built-in updates | Packaged apps check GitHub Releases at launch. Windows and Linux AppImages ask before downloading, then install and restart. Ad hoc–signed macOS builds offer a copyable Homebrew tap command plus a GitHub fallback. The cask removes quarantine. | Done, unit-tested. The packaged update flow needs live verification. |
 | 5.2.0 | AI time-range downloads, caption-based summaries and questions, original-language automatic caption detection, and local data cleanup. | Implemented with automated coverage. The packaged clip, transcript, and cleanup flows need live verification. |
@@ -117,7 +117,7 @@ Transcript summary mode passes short transcripts through as timestamped text. Fo
 3. **The confirmation mode controls approvals.** The settings are `always`, `risky` (default), and `never`. When a call requires confirmation, a missing callback or a prompt left unanswered for five minutes causes denial.
 4. **Tool output is untrusted data** (video titles, subtitles, error text): the system prompt says so. Replies are rendered with DOM calls only. **Never use `innerHTML` for model text** (a test enforces this in `ai-ui.js`).
 5. **The renderer receives key status only.** The settings form passes newly typed keys to the main process for saving or connection tests. `safeStorage` encrypts keys per provider in `ai-keys.json`. When secure storage is unavailable, including the Linux `basic_text` backend, new keys stay in memory. AI error paths redact stored keys and any key supplied for a connection test. Gemini, xAI, and Cohere use fixed endpoints. The OpenAI-compatible adapter uses the configured server URL and sends an optional key to that server.
-6. **`set-settings` (the generic IPC handler) is an allow-list** (`settings-schema.js`: `downloadFolder`, `browser`, `subtitlePosition`, `proxyEnabled`, `proxyAddress`, each type-checked). AI settings go only through the validated `ai-*` handlers.
+6. **`set-settings` (the generic IPC handler) is an allow-list** (`settings-schema.js`: `downloadFolder`, `browser`, `subtitlePosition`, `proxyEnabled`, `proxyType`, `proxyAddress`, each type-checked). Existing settings without `proxyType` use SOCKS5. AI settings go only through the validated `ai-*` handlers.
 7. **AI downloads default to `--no-playlist`.**
 8. **Downloaded source files and sidecars left after a successful re-encode or hardsub require explicit cleanup.** Classic mode asks before deleting paths reported in `tmpFiles`. In AI mode, `delete_files` is high risk and only deletes regular files that are direct children of the download folder. Tools clean up their own scratch files and attempt to remove unfinished FFmpeg outputs. Cancelled yt-dlp downloads can leave partial files.
 9. **Classic mode must keep working with no AI configured.** Both modes share `core/tools.js` and the same `TaskManager` lock for long-running media jobs.
@@ -167,7 +167,7 @@ pnpm test       # node --test test/   (no API key; a few need ffmpeg/ffprobe on 
 
 The `test/` suite covers the tool registry, agent, providers (mocked `fetch`), IPC contract, renderer wiring, settings and key storage, updater and release manifests, macOS signing, Homebrew cask, local data cleanup, clip encoding, subtitles and transcripts, and media operations. `media-info.test.js` uses real `ffmpeg` and `ffprobe`.
 
-CI uses Node.js 26 and pnpm 12. `.github/workflows/lint.yml` runs lint and tests for pull requests and pushes to `main` matching its path filters, with an exception for pushes whose head commit message starts with `Bump version to `. The tag-triggered `.github/workflows/release.yml` checks that the tag matches the package version and runs lint before packaging. Run lint and tests on a clean checkout before pushing to match what CI sees.
+CI uses Node.js 26 and pnpm 12. `.github/workflows/lint.yml` runs lint and tests for pull requests and pushes to `main` matching its path filters, with an exception for pushes whose head commit message starts with `Bump version to`. The tag-triggered `.github/workflows/release.yml` checks that the tag matches the package version and runs lint before packaging. Run lint and tests on a clean checkout before pushing to match what CI sees.
 
 **Not covered by automated tests / not verified live:**
 
@@ -180,7 +180,7 @@ CI uses Node.js 26 and pnpm 12. `.github/workflows/lint.yml` runs lint and tests
 
 ## 8. Known limitations and rough edges
 
-- The assistant can download a time range from an online source. Local file trimming, GIFs, joining, resizing, speed change, SponsorBlock, and chapter/metadata editing are still outside its capabilities. Time-range downloads require FFmpeg and are unavailable with a SOCKS proxy.
+- The assistant can download a time range from an online source. Local file trimming, GIFs, joining, resizing, speed change, SponsorBlock, and chapter/metadata editing are still outside its capabilities. Time-range downloads require FFmpeg and work directly or through an HTTP proxy that supports CONNECT. `download_section` rejects SOCKS proxies. yt-dlp passes the configured HTTP proxy to FFmpeg, and the app clears inherited `NO_PROXY` exceptions for those yt-dlp processes.
 - One conversation at a time; history is lost on New chat or quit; capped at 40 messages.
 - UI strings and the system prompt are English only (the model answers in the user's language). `messages.js` centralises the text but is not a translation layer.
 - **`renderer.js` and `ai-ui.js` are large classic scripts** sharing global state and DOM IDs. Exercise the affected dialogs in a live Electron window when refactoring either script.

@@ -29,7 +29,7 @@ The app provides two interfaces you can switch between at any time:
 - **MP4 re-encoding**: Convert videos to universally compatible H.264/AAC MP4 files via FFmpeg.
 - **Hardware acceleration**: Uses macOS VideoToolbox for hardsubs and supported MP4 clips.
 - **Cookie support**: Pass cookies from Chrome, Firefox, Brave, or Safari to download age-restricted or member-only videos.
-- **SOCKS5 proxy**: Route downloads and queries through a local (e.g. `127.0.0.1:1080`) or remote proxy.
+- **HTTP and SOCKS5 proxies**: Route downloads and queries through a local or remote proxy. Turn on **Proxy**, select the type, and enter the host and port.
 - **Cancellation**: Stop a running download or encoding job. Interrupted downloads can leave partial files in the download folder.
 
 ## Installation
@@ -112,7 +112,7 @@ Click **AI** in the top-right corner to open the chat panel. You can ask for dow
 - *"Download it, then re-encode it to a compatible MP4"*
 - *"Show me what's in my download folder"* / *"Delete the leftover subtitle files"*
 
-Clip downloads work with online sources and require FFmpeg. Turn off **SOCKS5 Proxy** before downloading a clip. Video summaries use available captions and can cite timestamps. Long transcripts can require several requests to your AI provider.
+Clip downloads work with online sources and require FFmpeg. To clip through a proxy, select **HTTP** and enter the address of an HTTP proxy that supports CONNECT. If your proxy only offers SOCKS5, use a local HTTP-to-SOCKS5 bridge. Video summaries use available captions and can cite timestamps. Long transcripts can require several requests to your AI provider.
 
 ### Setting Up a Provider
 
@@ -158,7 +158,7 @@ Classic mode doesn't require an AI API key.
    - **Download Subtitles**: Displays available subtitle tracks and lets you pick which to save.
    - **Download & Re-encode to MP4**: Re-encodes with H.264/AAC for maximum playback compatibility.
    - **Download & Add Hardsub**: Burns subtitles directly into the video stream with customizable position (top or bottom).
-3. If needed, select your browser under **Browser for Cookies** (helpful for age-restricted or private links) or toggle the **SOCKS5 Proxy**.
+3. If needed, select your browser under **Browser for Cookies** (helpful for age-restricted or private links) or configure **Proxy**.
 4. Click **Run**.
 
 To stop an ongoing task, click **Cancel Action**. VidButler removes unfinished FFmpeg outputs for cancelled re-encoding and hardsubbing. Interrupted downloads may leave partial files.

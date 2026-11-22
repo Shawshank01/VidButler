@@ -63,8 +63,15 @@ export function toolEnvironment(env = process.env) {
 export function spawnYtDlp(executable, args, options = {}) {
     if (toolsLocked) throw new Error('Local data cleanup is in progress.');
     const cacheArgs = runtime ? ['--cache-dir', runtime.ytDlpCache, ...args] : args;
-    const spawnOptions = { ...options, env: toolEnvironment(options.env) };
-    const child = spawn(executable, cacheArgs, spawnOptions);
+    const env = toolEnvironment(options.env);
+    const proxyIndex = args.indexOf('--proxy');
+    const proxy = proxyIndex >= 0 ? args[proxyIndex + 1] : undefined;
+    // FFmpeg honors inherited proxy exceptions even when yt-dlp sets http_proxy explicitly.
+    const usesHttpProxy = typeof proxy === 'string' && proxy.startsWith('http://');
+    const childEnv = usesHttpProxy
+        ? Object.fromEntries(Object.entries(env).filter(([key]) => key.toUpperCase() !== 'NO_PROXY'))
+        : env;
+    const child = spawn(executable, cacheArgs, { ...options, env: childEnv });
     activeTools += 1;
     child.once('close', () => { activeTools -= 1; });
     return child;

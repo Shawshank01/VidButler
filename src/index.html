@@ -67,10 +67,16 @@
                                 <input type="checkbox" id="proxyEnabled" />
                                 <span class="slider"></span>
                             </label>
-                            <label for="proxyEnabled" class="proxy-label">SOCKS5 Proxy:</label>
+                            <label for="proxyEnabled" class="proxy-label">Proxy:</label>
                         </div>
-                        <input type="text" id="proxyAddress" placeholder="127.0.0.1:1080" value="127.0.0.1:1080"
-                            disabled />
+                        <div class="proxy-fields">
+                            <select id="proxyType" aria-label="Proxy type" disabled>
+                                <option value="socks5" selected>SOCKS5</option>
+                                <option value="http">HTTP</option>
+                            </select>
+                            <input type="text" id="proxyAddress" aria-label="Proxy address" placeholder="Host:port"
+                                value="127.0.0.1:1080" disabled />
+                        </div>
                     </div>
                 </div>
 
