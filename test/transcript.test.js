@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
-import { parseWebVtt } from '../src/core/webvtt.js';
-import { listSubtitles } from '../src/core/tools.js';
-import { runAgent } from '../src/llm/agent.js';
+import { parseWebVtt } from '../src/core/webvtt.ts';
+import { listSubtitles } from '../src/core/tools.ts';
+import { runAgent } from '../src/llm/agent.ts';
 import { ProviderError } from '../src/llm/errors.js';
 import {
     MAX_SMALL_TRANSCRIPT_INPUT_CHARS, MAX_TRANSCRIPT_FILE_BYTES, MAX_TRANSCRIPT_INPUT_CHARS,
@@ -13,7 +13,7 @@ import {
 } from '../src/llm/limits.js';
 import { MESSAGES } from '../src/llm/messages.js';
 import { buildSystemPrompt } from '../src/llm/prompt.js';
-import { getTool, TOOL_NAMES } from '../src/llm/tool-registry.js';
+import { getTool, TOOL_NAMES } from '../src/llm/tool-registry.ts';
 
 const url = 'https://example.test/watch?v=captioned&list=playlist';
 const transcript = getTool(TOOL_NAMES.getVideoTranscript);

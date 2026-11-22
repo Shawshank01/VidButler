@@ -1,5 +1,5 @@
 import { MESSAGES } from './messages.js';
-import { TOOL_NAMES as T } from './tools/names.js';
+import { TOOL_NAMES as T } from './tools/names.ts';
 
 /**
  * Build the system prompt for the agent. Tool names come from TOOL_NAMES so the prompt always refers

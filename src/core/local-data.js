@@ -60,6 +60,11 @@ export function toolEnvironment(env = process.env) {
     } : env;
 }
 
+/**
+ * @param {string} executable
+ * @param {string[]} args
+ * @param {import('node:child_process').SpawnOptionsWithoutStdio} [options]
+ */
 export function spawnYtDlp(executable, args, options = {}) {
     if (toolsLocked) throw new Error('Local data cleanup is in progress.');
     const cacheArgs = runtime ? ['--cache-dir', runtime.ytDlpCache, ...args] : args;

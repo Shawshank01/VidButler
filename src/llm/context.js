@@ -2,7 +2,7 @@
 // never from the model. This is the single place that defines what a valid context is.
 import { promises as fs } from 'fs';
 import { isAbsolute } from 'path';
-import { ValidationError } from './validate.js';
+import { ValidationError } from './validate.ts';
 import { AiSettingsError, ALLOWED_BROWSERS, PROXY_PATTERN } from './provider-settings.js';
 import { MESSAGES } from './messages.js';
 

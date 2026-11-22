@@ -80,6 +80,9 @@ jobs:
         bash scripts/verify-mac-package.sh dist/VidButler-mac-${{ matrix.arch }}-*.zip
         bash scripts/verify-mac-package.sh dist/VidButler-mac-${{ matrix.arch }}-*.dmg
 
+    - name: Smoke-test packaged VidButler
+      run: node scripts/verify-package.mjs ${{ matrix.target }}
+
     - name: List build artifacts
       shell: bash
       run: |

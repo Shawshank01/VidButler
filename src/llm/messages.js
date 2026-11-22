@@ -2,6 +2,7 @@
 
 export const MESSAGES = {
     stopped: 'Stopped.',
+    assistantBusy: 'The assistant is still working on the previous request.',
     emptyAnswer: '(The assistant returned an empty answer.)',
     emptyAnswerRetryPrompt: 'Please answer the user\'s request or call the appropriate tool. Do not leave the response empty.',
     geminiStreamInterrupted: 'response stream interrupted',
@@ -20,6 +21,7 @@ export const MESSAGES = {
     transcriptLanguageDescription: 'Optional caption language code, such as "en". Omit to prefer creator-provided captions and use original-language automatic captions when needed.',
     transcriptModeDescription: 'Use "summary" (default) for the full caption track, either as captions or as timestamped notes. Use "page" to read a specific page.',
     transcriptPageDescription: 'First transcript page to read. Omit for a whole-video summary. In page mode, use the next page number returned by this tool to read further.',
+    /** @param {Record<string, unknown>} args */
     describeTranscript: ({ url }) => `Read captions from ${url}`,
     noTranscriptCaptions: 'No creator-provided or original-language automatic captions are available for this video.',
     noTranscriptLanguage: (lang, options) => `No captions are available in "${lang}". Available tracks: ${options}.`,
@@ -40,6 +42,7 @@ export const MESSAGES = {
     clipVideoHeightDescription: 'Optional maximum video height in pixels, such as 720 or 1080.',
     clipVideoContainerDescription: 'Container for a video clip. Defaults to MP4.',
     clipAudioFormatDescription: 'Output format for an audio-only clip. Defaults to best.',
+    /** @param {Record<string, unknown>} args */
     describeClip: ({ media_type, start_time, end_time, url }) => `Download ${media_type} clip from ${start_time} to ${end_time} of ${url}`,
     invalidClipTimestamp: (name) => `"${name}" must be a non-negative timestamp in seconds, M:SS or H:MM:SS, optionally with up to three decimal places.`,
     invalidClipOrder: 'End time must be later than start time.',

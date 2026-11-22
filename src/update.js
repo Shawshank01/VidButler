@@ -6,6 +6,21 @@ export const MAC_UPDATE_COMMAND =
   "brew update --force && brew upgrade --cask Shawshank01/tap/vidbutler";
 
 /**
+ * @typedef {object} UpdateCheckResult
+ * @property {boolean} supported
+ * @property {boolean} installSupported
+ * @property {boolean} hasUpdate
+ * @property {string} currentVersion
+ * @property {string} releaseUrl
+ * @property {string} message
+ * @property {boolean} [error]
+ * @property {string} [version]
+ * @property {string} [releaseNotes]
+ * @property {'homebrew' | 'automatic'} [updateMethod]
+ * @property {string} [updateCommand]
+ */
+
+/**
  * Compare two SemVer-like version strings.
  * Returns true when `latest` is newer than `current`.
  */
@@ -136,6 +151,7 @@ export class AppUpdateService {
     return () => this.progressListeners.delete(listener);
   }
 
+  /** @returns {Promise<UpdateCheckResult>} */
   async checkForUpdates() {
     if (!this.canCheckForUpdates()) {
       return {
@@ -158,6 +174,7 @@ export class AppUpdateService {
     }
   }
 
+  /** @returns {Promise<UpdateCheckResult>} */
   async #performCheck() {
     const currentVersion = this.getCurrentVersion();
     try {

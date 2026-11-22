@@ -4,12 +4,12 @@ import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { spawnSync } from 'child_process';
-import { findMediaFile } from '../src/core/media-files.js';
-import { probeMedia, summarizeMediaInfo } from '../src/core/ffmpeg.js';
-import { getLocalMediaInfo, extractAudioFromFile } from '../src/core/tools.js';
-import { getTool, getRisk } from '../src/llm/tool-registry.js';
-import { runAgent } from '../src/llm/agent.js';
-import { ValidationError } from '../src/llm/validate.js';
+import { findMediaFile } from '../src/core/media-files.ts';
+import { probeMedia, summarizeMediaInfo } from '../src/core/ffmpeg.ts';
+import { getLocalMediaInfo, extractAudioFromFile } from '../src/core/tools.ts';
+import { getTool, getRisk } from '../src/llm/tool-registry.ts';
+import { runAgent } from '../src/llm/agent.ts';
+import { ValidationError } from '../src/llm/validate.ts';
 
 async function makeFolder(files = {}) {
     const dir = await fs.mkdtemp(join(tmpdir(), 'ytdl-media-test-'));

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import ts from 'typescript';
 import classification from '../src/log-classification.cjs';
 
 const read = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8');
@@ -41,6 +42,10 @@ test('shared proxy helper reads the current controls', () => {
 });
 
 test('renderer restores the proxy type, keeps existing settings on SOCKS5, and saves control changes', async () => {
+    const renderer = ts.transpileModule(read('renderer.ts'), {
+        fileName: 'renderer.ts',
+        compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2023, strict: true }
+    }).outputText;
     function control(properties) {
         return { ...properties, addEventListener(event, listener) { this[event] = listener; } };
     }
@@ -66,7 +71,7 @@ test('renderer restores the proxy type, keeps existing settings on SOCKS5, and s
             }
         };
         runInNewContext(read('shared-context.js'), context);
-        runInNewContext(read('renderer.js'), context);
+        runInNewContext(renderer, context);
         await initialize();
 
         assert.equal(proxyType.value, type);

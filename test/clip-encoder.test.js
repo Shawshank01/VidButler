@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { taskManager } from '../src/core/task-manager.js';
-import { runAgent } from '../src/llm/agent.js';
+import { taskManager } from '../src/core/task-manager.ts';
+import { runAgent } from '../src/llm/agent.ts';
 import { MESSAGES } from '../src/llm/messages.js';
-import { getTool } from '../src/llm/tool-registry.js';
+import { getTool } from '../src/llm/tool-registry.ts';
 
 const clip = getTool('download_section');
 const clipArgs = { url: 'https://example.test/video', media_type: 'video', start_time: '15', end_time: '30.5' };

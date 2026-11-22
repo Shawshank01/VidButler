@@ -259,6 +259,9 @@ export async function findExecutable(name) {
 
 /**
  * Check if a CLI binary exists on the system globally and fetch its version.
+ * @param {string} name
+ * @param {string} [versionCommand]
+ * @returns {Promise<{name: string, installed: boolean, path: string, version: string, hasSubtitlesFilter?: boolean}>}
  */
 async function getDependencyInfo(name, versionCommand) {
     const execPath = await findExecutable(name);

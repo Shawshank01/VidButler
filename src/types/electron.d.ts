@@ -1,203 +1,55 @@
-interface SubtitleInfo {
-    code: string;
-    name: string;
-    type: 'manual' | 'auto';
-}
-
-interface AiProviderSettings {
-    label: string;
-    needsApiKey: boolean;
-    editableBaseUrl: boolean;
-    supportsThinkingLevel: boolean;
-    supportsReasoningEffort: boolean;
-    /** Empty when the provider has no such setting. */
-    thinkingLevel: 'low' | 'medium' | 'high' | '';
-    /** Empty when the provider has no such setting. */
-    reasoningEffort: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | '';
-    model: string;
-    baseUrl: string;
-    defaultModel: string;
-    defaultBaseUrl: string;
-    hasApiKey: boolean;
-}
-
-interface AiSettings {
-    mode: 'classic' | 'ai';
-    provider: 'gemini' | 'xai' | 'cohere' | 'ollama' | 'openai-compatible';
-    confirmMode: 'always' | 'risky' | 'never';
-    /** False when API keys can only be kept in memory for this session (no OS keychain). */
-    keyStorageSecure: boolean;
-    providers: Record<string, AiProviderSettings>;
-}
-
-interface AiContext {
-    downloadFolder: string;
-    browser: string;
-    /** Full proxy URL such as socks5://127.0.0.1:1080/, or empty. */
-    proxy: string;
-}
-
-type AiEvent =
-    | { type: 'assistant_text'; text: string }
-    | { type: 'assistant_delta'; text: string }
-    | { type: 'progress'; text: string }
-    | { type: 'retrying'; provider: string; attempt: number; retries: number; delayMs: number; reason: string }
-    | { type: 'tool_start'; id: string; name: string; args: Record<string, unknown>; description: string; risk: 'low' | 'high' }
-    | { type: 'tool_result'; id: string; name: string; ok: boolean; cancelled: boolean; result: Record<string, unknown> }
-    | { type: 'tool_denied'; id: string; name: string; description: string }
-    | {
-        type: 'confirm_request';
-        requestId: string;
-        name: string;
-        description: string;
-        risk: 'low' | 'high';
-        /** Why extra care is needed, when that is not obvious from `risk`. */
-        reason?: string;
-        args: Record<string, unknown>;
-    };
+import type { AiSettingsSnapshot } from '../llm/types.js';
+import type { EventMethod, InvokeMethod, InvokeResult } from './ipc.ts';
 
 interface AiApi {
-    getSettings: () => Promise<{ ok: boolean; settings?: AiSettings; error?: string }>;
-    setSettings: (update: {
-        mode?: 'classic' | 'ai';
-        provider?: string;
-        confirmMode?: string;
-        providerConfig?: {
-            type: string;
-            model?: string;
-            baseUrl?: string;
-            thinkingLevel?: 'low' | 'medium' | 'high';
-            reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
-        };
-    }) => Promise<{ ok: boolean; settings?: AiSettings; error?: string }>;
-    setApiKey: (type: string, apiKey: string) => Promise<{ ok: boolean; persisted?: boolean; settings?: AiSettings; error?: string }>;
-    removeApiKey: (type: string) => Promise<{ ok: boolean; settings?: AiSettings; error?: string }>;
-    testConnection: (overrides?: {
-        type?: string;
-        model?: string;
-        baseUrl?: string;
-        apiKey?: string;
-        thinkingLevel?: 'low' | 'medium' | 'high';
-        reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
-    }) => Promise<{ ok: boolean; message: string }>;
-    send: (message: string, context: AiContext) => Promise<
-        | { ok: true; text: string; stoppedBecause: 'done' | 'max_steps' | 'aborted'; steps: number }
-        | { ok: false; error: { kind: string; message: string } }
-    >;
-    cancel: () => Promise<boolean>;
-    reset: () => Promise<boolean>;
-    confirm: (requestId: string, approved: boolean) => Promise<boolean>;
-    onEvent: (callback: (event: AiEvent) => void) => () => void;
+    getSettings: InvokeMethod<'ai-get-settings'>;
+    setSettings: InvokeMethod<'ai-set-settings'>;
+    setApiKey: InvokeMethod<'ai-set-api-key'>;
+    removeApiKey: InvokeMethod<'ai-remove-api-key'>;
+    testConnection: InvokeMethod<'ai-test-connection'>;
+    send: InvokeMethod<'ai-send'>;
+    cancel: InvokeMethod<'ai-cancel'>;
+    reset: InvokeMethod<'ai-reset'>;
+    confirm: InvokeMethod<'ai-confirm-response'>;
+    onEvent: EventMethod<'ai-event'>;
 }
 
-interface ElectronAPI {
+export interface ElectronAPI {
     ai: AiApi;
-    chooseFolder: () => Promise<string | null>;
-    runCommand: (args: string[]) => Promise<{
-        success: boolean;
-        cancelled: boolean;
-        code: number;
-        output: string;
-        error?: string;
-    }>;
-    onProgress: (callback: (progress: string) => void) => () => void;
-    onDownloadFolderUpdated: (callback: (folder: string) => void) => () => void;
-    checkAppUpdate: () => Promise<{
-        supported?: boolean;
-        installSupported?: boolean;
-        error?: boolean;
-        hasUpdate?: boolean;
-        version?: string;
-        currentVersion?: string;
-        releaseNotes?: string;
-        releaseUrl?: string;
-        updateMethod?: 'automatic' | 'homebrew';
-        updateCommand?: string;
-        message?: string;
-    }>;
-    downloadAppUpdate: () => Promise<{
-        success: boolean;
-        version?: string;
-        error?: string;
-    }>;
-    installAppUpdate: () => Promise<boolean>;
-    copyMacUpdateCommand: () => Promise<boolean>;
-    onUpdateProgress: (callback: (progress: {
-        percent: number;
-        bytesPerSecond: number;
-        transferred: number;
-        total: number;
-    }) => void) => () => void;
-    getCurrentVersion: () => Promise<string>;
-    deleteLocalData: () => Promise<{ ok: true } | { ok: false; cancelled?: boolean; error?: string }>;
-    getAppInfo: () => Promise<{
-        name: string;
-        version: string;
-        developer: string;
-        isPackaged: boolean;
-        bundledTools: Record<string, string>;
-        platform: string;
-    }>;
-    checkDependencies: () => Promise<{
-        success: boolean;
-        allInstalled?: boolean;
-        dependencies?: Array<{
-            name: string;
-            installed: boolean;
-            path: string;
-            version: string;
-            hasSubtitlesFilter?: boolean;
-        }>;
-        missing?: string[];
-        packageManagers?: Record<string, unknown>;
-        platform?: string;
-        message?: string;
-    }>;
-
-    reEncodeToMp4: (downloadFolder: string, videoId: string) => Promise<{
-        success: boolean;
-        cancelled: boolean;
-        message: string;
-        tmpFiles: string[];
-        error?: string;
-    }>;
-    openExternal: (url: string) => Promise<boolean>;
-    openFilesAndFoldersSettings?: () => Promise<boolean>;
-    platform?: string;
-    listSubtitles: (url: string, browser: string, proxy: string) => Promise<{
-        success: boolean;
-        error: boolean;
-        message: string;
-        subtitles: SubtitleInfo[];
-        isAutoGenerated: boolean;
-    }>;
-    downloadWithHardsub: (options: {
-        url: string;
-        browser: string;
-        downloadFolder: string;
-        subtitleLang: string;
-        subtitleType: string;
-        codec: string;
-        subtitlePosition?: 'bottom' | 'top' | string;
-        proxy: string;
-    }) => Promise<{
-        success: boolean;
-        cancelled: boolean;
-        message: string;
-        tmpFiles: string[];
-        error?: string;
-    }>;
+    chooseFolder: InvokeMethod<'choose-folder'>;
+    runCommand: InvokeMethod<'run-command'>;
+    onProgress: EventMethod<'download-progress'>;
+    onDownloadFolderUpdated: EventMethod<'download-folder-updated'>;
+    checkAppUpdate: InvokeMethod<'check-app-update'>;
+    downloadAppUpdate: InvokeMethod<'download-app-update'>;
+    installAppUpdate: InvokeMethod<'install-app-update'>;
+    copyMacUpdateCommand: InvokeMethod<'copy-mac-update-command'>;
+    onUpdateProgress: EventMethod<'app-update-progress'>;
+    getCurrentVersion: InvokeMethod<'get-current-version'>;
+    getAppInfo: InvokeMethod<'get-app-info'>;
+    deleteLocalData: InvokeMethod<'delete-local-data'>;
+    checkDependencies: InvokeMethod<'check-dependencies'>;
+    reEncodeToMp4: InvokeMethod<'re-encode-to-mp4'>;
+    openExternal: InvokeMethod<'open-external'>;
+    openFilesAndFoldersSettings: () => Promise<InvokeResult<'open-external'>>;
+    platform: NodeJS.Platform;
+    listSubtitles: InvokeMethod<'list-subtitles'>;
+    downloadWithHardsub: InvokeMethod<'download-with-hardsub'>;
     /** Resolves to true if a task was running and has been cancelled. */
-    cancelCommand: () => Promise<boolean>;
-    deleteTemporaryFiles: (paths: string[]) => Promise<void>;
-    getFormatInfo: (args: string[]) => Promise<{ ok: boolean; output: string; error: string }>;
-    getSettings: () => Promise<Record<string, any>>;
-    setSettings: (updates: Record<string, any>) => Promise<Record<string, any>>;
+    cancelCommand: InvokeMethod<'cancel-command'>;
+    deleteTemporaryFiles: InvokeMethod<'delete-temporary-files'>;
+    getFormatInfo: InvokeMethod<'get-format-info'>;
+    getSettings: InvokeMethod<'get-settings'>;
+    setSettings: InvokeMethod<'set-settings'>;
 }
 
-interface Window {
-    electronAPI: ElectronAPI;
-    chooseFolder: () => Promise<void>;
-    checkUpdate: () => Promise<void>;
-    runCommand: () => Promise<void>;
+declare global {
+    type AiSettings = AiSettingsSnapshot;
+
+    interface Window {
+        electronAPI: ElectronAPI;
+        chooseFolder: () => Promise<void>;
+        checkUpdate: () => Promise<void>;
+        runCommand: () => Promise<void>;
+    }
 }

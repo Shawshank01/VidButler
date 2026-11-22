@@ -4,13 +4,13 @@ import { promises as fs } from 'fs';
 import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { runAgent, shapeResult } from '../src/llm/agent.js';
-import { TOOLS, getToolDeclarations, getRisk, getTool } from '../src/llm/tool-registry.js';
+import { runAgent, shapeResult } from '../src/llm/agent.ts';
+import { TOOLS, getToolDeclarations, getRisk, getTool } from '../src/llm/tool-registry.ts';
 import { ProviderError } from '../src/llm/errors.js';
 import { buildSystemPrompt } from '../src/llm/prompt.js';
-import { resolveFormatCode, videoFormatArgs } from '../src/llm/tools/download.js';
+import { resolveFormatCode, videoFormatArgs } from '../src/llm/tools/download.ts';
 import { MESSAGES } from '../src/llm/messages.js';
-import { taskManager } from '../src/core/task-manager.js';
+import { taskManager } from '../src/core/task-manager.ts';
 
 /** A scripted provider: returns the queued replies in order and records what it was sent. */
 function scriptedProvider(replies) {

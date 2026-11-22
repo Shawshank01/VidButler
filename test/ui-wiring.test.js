@@ -5,11 +5,11 @@ import { readFileSync } from 'node:fs';
 // Static checks that catch the most common UI wiring mistakes without needing a window:
 // a script looking up an element id that does not exist, or the preload/IPC names drifting apart.
 const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf-8');
-const aiUi = readFileSync(new URL('../src/ai-ui.js', import.meta.url), 'utf-8');
+const aiUi = readFileSync(new URL('../src/ai-ui.ts', import.meta.url), 'utf-8');
 const preload = readFileSync(new URL('../src/preload.cjs', import.meta.url), 'utf-8');
-const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf-8');
+const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf-8');
 const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf-8');
-const rendererScript = readFileSync(new URL('../src/renderer.js', import.meta.url), 'utf-8');
+const rendererScript = readFileSync(new URL('../src/renderer.ts', import.meta.url), 'utf-8');
 
 const htmlIds = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
 
@@ -18,8 +18,8 @@ test('html ids are unique', () => {
     assert.deepEqual(dupes, []);
 });
 
-test('every id looked up by ai-ui.js exists in index.html', () => {
-    const used = new Set([...aiUi.matchAll(/\$\('([^']+)'\)/g)].map((m) => m[1]));
+test('every id looked up by the AI renderer exists in index.html', () => {
+    const used = new Set([...aiUi.matchAll(/\$(?:<\w+>)?\('([^']+)'\)/g)].map((m) => m[1]));
     assert.ok(used.size > 20, 'expected to find many lookups');
     const missing = [...used].filter((id) => !htmlIds.includes(id));
     assert.deepEqual(missing, []);
@@ -50,12 +50,12 @@ test('AI empty chat groups examples by section and shows re-encode above Delete'
     assert.match(fileManagement, /'Re-encode <filename> as high-quality MP4',\s*'Delete <filename> in my download folder'/);
 });
 
-test('scripts are loaded in the right order', () => {
-    const renderer = html.indexOf('src="renderer.js"');
-    const markdown = html.indexOf('src="markdown.js"');
-    const ai = html.indexOf('src="ai-ui.js"');
-    assert.ok(renderer !== -1 && markdown !== -1 && ai !== -1);
-    assert.ok(renderer < markdown && markdown < ai, 'markdown.js must load before ai-ui.js');
+test('renderer scripts load as classic scripts in the expected order', () => {
+    const files = [...html.matchAll(/<script\b([^>]*)>/g)].map(([, attributes]) => {
+        assert.doesNotMatch(attributes, /\btype\s*=\s*["']?module\b/i);
+        return attributes.match(/\bsrc="([^"]+)"/)?.[1];
+    });
+    assert.deepEqual(files, ['log-classification.cjs', 'shared-context.js', 'renderer.js', 'markdown.js', 'ai-ui.js']);
 });
 
 test('assistant messages are rendered as Markdown, user and error messages as plain text', () => {
@@ -69,15 +69,7 @@ test('streaming responses render as Markdown live on every text delta', () => {
     assert.match(aiUi, /updateStreamingMessage\(streamingText\)/);
 });
 
-test('every preload ai.* method maps to an ipcMain handler', () => {
-    const channels = [...preload.matchAll(/ipcRenderer\.invoke\('(ai-[a-z-]+)'/g)].map((m) => m[1]);
-    assert.ok(channels.length >= 8);
-    for (const channel of channels) {
-        assert.ok(main.includes(`ipcMain.handle('${channel}'`), `missing handler for ${channel}`);
-    }
-});
-
-test('ai-ui.js only calls API methods that preload exposes', () => {
+test('the AI renderer only calls API methods that preload exposes', () => {
     const exposed = new Set(
         [...preload.slice(preload.indexOf('ai: {')).matchAll(/^\s{8}(\w+): /gm)].map((m) => m[1])
     );
@@ -134,7 +126,7 @@ test('classic download progress bar and #019D9C theme styling are present', () =
 
 test('re-encode and hardsub support progress bar updates', () => {
     assert.match(rendererScript, /updateDownloadProgress\(progress,\s*['"]Hardsub Progress:['"]\)/);
-    assert.match(rendererScript, /updateDownloadProgress\(text,\s*defaultTitle/);
+    assert.match(rendererScript, /updateDownloadProgress\(text: string,\s*defaultTitle/);
     assert.match(rendererScript, /download\|ffmpeg/);
 });
 
@@ -174,17 +166,17 @@ test('update prompt modal exists, matches app info modal structure, and is wired
     assert.match(rendererScript, /Download and Restart/);
     assert.match(rendererScript, /Copy Homebrew Command/);
     assert.match(rendererScript, /copyMacUpdateCommand\(\)/);
-    assert.match(preload, /ipcRenderer\.invoke\('copy-mac-update-command'\)/);
-    assert.match(main, /ipcMain\.handle\('copy-mac-update-command'/);
-    assert.match(preload, /ipcRenderer\.on\('app-update-progress'/);
+    assert.match(preload, /invoke\('copy-mac-update-command'\)/);
+    assert.match(main, /handle\('copy-mac-update-command'/);
+    assert.match(preload, /subscribe\('app-update-progress'/);
     assert.match(main, /checkForUpdatesOnLaunch\(win\)/);
     assert.match(css, /#updateModal,\s*#confirmModal\s*\{\s*z-index:\s*2200;/);
 });
 
 test('download-folder-updated event is exposed by preload, handled by main and received in renderer', () => {
     assert.match(preload, /onDownloadFolderUpdated:\s*\(callback\)\s*=>/);
-    assert.match(preload, /ipcRenderer\.on\('download-folder-updated'/);
-    assert.match(main, /win\.webContents\.send\('download-folder-updated'/);
+    assert.match(preload, /subscribe\('download-folder-updated'/);
+    assert.match(main, /sendEvent\(win\.webContents, 'download-folder-updated'/);
     assert.match(main, /async function promptInitialDownloadFolder/);
     assert.match(rendererScript, /window\.electronAPI\?\.onDownloadFolderUpdated\?\.\(/);
 });
@@ -248,14 +240,14 @@ test('index.html enforces a strict Content-Security-Policy without inline handle
     assert.doesNotMatch(html, /\son[a-z]+\s*=/i);
 });
 
-test('Choose, Run, and Check for Updates buttons are wired via addEventListener in renderer.js', () => {
+test('the Classic renderer wires Choose, Run, and Check for Updates with addEventListener', () => {
     for (const id of ['chooseFolderBtn', 'runCommandBtn', 'checkUpdateBtn']) {
         assert.match(html, new RegExp(`id="${id}"`));
         assert.match(rendererScript, new RegExp(`getElementById\\('${id}'\\)[\\s\\S]*?addEventListener\\('click'`));
     }
 });
 
-test('main.js denies new windows and unexpected navigations', () => {
+test('the main process denies new windows and unexpected navigations', () => {
     assert.match(main, /setWindowOpenHandler\(\(\)\s*=>\s*\(\{\s*action:\s*'deny'\s*\}\)\)/);
     assert.match(main, /win\.webContents\.on\('will-navigate'/);
     assert.match(main, /event\.preventDefault\(\)/);

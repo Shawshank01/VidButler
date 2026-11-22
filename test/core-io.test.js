@@ -4,10 +4,11 @@ import { EventEmitter } from 'node:events';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { attachLineStreamFilters } from '../src/core/log-filter.js';
-import { findHardsubSourceFiles, findMatchingThumbnail } from '../src/core/media-files.js';
-import { buildFfmpegHardsubArgs, buildFfmpegReEncodeArgs } from '../src/core/ffmpeg.js';
-import { cancelCurrentTask, listSubtitles, runYtDlp } from '../src/core/tools.js';
+import { attachLineStreamFilters } from '../src/core/log-filter.ts';
+import { findHardsubSourceFiles, findMatchingThumbnail } from '../src/core/media-files.ts';
+import { buildFfmpegHardsubArgs, buildFfmpegReEncodeArgs } from '../src/core/ffmpeg.ts';
+import { taskManager } from '../src/core/task-manager.ts';
+import { cancelCurrentTask, listSubtitles, runYtDlp } from '../src/core/tools.ts';
 
 async function makeFolder(files) {
     const dir = await fs.mkdtemp(join(tmpdir(), 'ytdl-core-io-test-'));
@@ -139,11 +140,37 @@ wait
             cancelCurrentTask();
         });
         assert.ok(childPid);
-        assert.equal(result.cancelled, true);
+        assert.deepEqual(result, {
+            success: false,
+            cancelled: true,
+            code: -1,
+            output: 'Action cancelled by user.',
+            error: 'Action cancelled by user.'
+        });
         assert.ok(stoppedInTime, 'the child downloader kept running after cancellation');
     } finally {
         clearTimeout(cleanup);
     }
+});
+
+test('cancelling before spawn keeps the media lock until the cancelled task ends', () => {
+    const task = taskManager.startTask('hardsub');
+    try {
+        assert.equal(cancelCurrentTask(), true);
+        assert.throws(() => taskManager.spawnProcess(task, 'ffmpeg', []), /cancelled by user/);
+        assert.throws(() => taskManager.startTask('run-command'), /Another task is already running/);
+    } finally {
+        taskManager.endTask(task);
+    }
+
+    const next = taskManager.startTask('run-command');
+    try {
+        assert.equal(next.isCancelled, false);
+        assert.equal(next.isDone, false);
+    } finally {
+        taskManager.endTask(next);
+    }
+    assert.equal(cancelCurrentTask(), false);
 });
 
 // ---------- ffmpeg arguments ----------

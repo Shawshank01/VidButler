@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GeminiProvider, DEFAULT_GEMINI_MODEL, toGeminiDeclaration } from '../src/llm/providers/gemini.js';
-import { getToolDeclarations } from '../src/llm/tool-registry.js';
-import { OllamaProvider } from '../src/llm/providers/ollama.js';
-import { OpenAICompatibleProvider } from '../src/llm/providers/openai-compatible.js';
-import { createProvider } from '../src/llm/providers/index.js';
+import { GeminiProvider, DEFAULT_GEMINI_MODEL, toGeminiDeclaration } from '../src/llm/providers/gemini.ts';
+import { getToolDeclarations } from '../src/llm/tool-registry.ts';
+import { OllamaProvider } from '../src/llm/providers/ollama.ts';
+import { OpenAICompatibleProvider } from '../src/llm/providers/openai-compatible.ts';
+import { createProvider } from '../src/llm/providers/index.ts';
 import { ProviderError } from '../src/llm/errors.js';
 import { requestJson, parseRetryAfterMs, DEFAULT_RETRIES, DEFAULT_RETRY_DELAY_MS } from '../src/llm/providers/http.js';
 import { MAX_RETRY_AFTER_MS } from '../src/llm/limits.js';

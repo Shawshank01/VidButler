@@ -177,7 +177,7 @@ export function requestJson({
  * Like `requestJson`, but resolves with the successful Response so the caller can read a streamed
  * body (see ./stream.js). Retries only cover failures before the response starts; `timeoutMs`
  * limits the whole stream.
- * Takes the same options as `requestJson`.
+ * @param {Parameters<typeof requestJson>[0]} options
  */
 export function requestStream({
     fetchImpl,

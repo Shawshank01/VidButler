@@ -1,74 +1,66 @@
+// @ts-check
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('electronAPI', {
+// Electron's IPC methods are untyped at the transport boundary.
+/** @type {import('./types/ipc.ts').Invoke} */
+const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
+
+/** @type {import('./types/ipc.ts').Subscribe} */
+const subscribe = (channel, callback) => {
+    /** @type {(event: import('electron').IpcRendererEvent, payload: Parameters<typeof callback>[0]) => void} */
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on(channel, listener);
+    return () => { ipcRenderer.removeListener(channel, listener); };
+};
+
+/** @type {import('./types/electron.js').ElectronAPI} */
+const electronAPI = {
     platform: process.platform,
-    chooseFolder: () => ipcRenderer.invoke('choose-folder'),
-    runCommand: (cmd) => ipcRenderer.invoke('run-command', cmd),
-    onProgress: (callback) => {
-        const listener = (_, progress) => callback(progress);
-        ipcRenderer.on('download-progress', listener);
-        return () => {
-            ipcRenderer.removeListener('download-progress', listener);
-        };
-    },
-    onDownloadFolderUpdated: (callback) => {
-        const listener = (_, folder) => callback(folder);
-        ipcRenderer.on('download-folder-updated', listener);
-        return () => {
-            ipcRenderer.removeListener('download-folder-updated', listener);
-        };
-    },
-    checkAppUpdate: () => ipcRenderer.invoke('check-app-update'),
-    downloadAppUpdate: () => ipcRenderer.invoke('download-app-update'),
-    installAppUpdate: () => ipcRenderer.invoke('install-app-update'),
-    copyMacUpdateCommand: () => ipcRenderer.invoke('copy-mac-update-command'),
-    onUpdateProgress: (callback) => {
-        const listener = (_, progress) => callback(progress);
-        ipcRenderer.on('app-update-progress', listener);
-        return () => {
-            ipcRenderer.removeListener('app-update-progress', listener);
-        };
-    },
-    getCurrentVersion: () => ipcRenderer.invoke('get-current-version'),
-    getAppInfo: () => ipcRenderer.invoke('get-app-info'),
-    deleteLocalData: () => ipcRenderer.invoke('delete-local-data'),
-    checkDependencies: () => ipcRenderer.invoke('check-dependencies'),
+    chooseFolder: () => invoke('choose-folder'),
+    runCommand: (cmd) => invoke('run-command', cmd),
+    onProgress: (callback) => subscribe('download-progress', callback),
+    onDownloadFolderUpdated: (callback) => subscribe('download-folder-updated', callback),
+    checkAppUpdate: () => invoke('check-app-update'),
+    downloadAppUpdate: () => invoke('download-app-update'),
+    installAppUpdate: () => invoke('install-app-update'),
+    copyMacUpdateCommand: () => invoke('copy-mac-update-command'),
+    onUpdateProgress: (callback) => subscribe('app-update-progress', callback),
+    getCurrentVersion: () => invoke('get-current-version'),
+    getAppInfo: () => invoke('get-app-info'),
+    deleteLocalData: () => invoke('delete-local-data'),
+    checkDependencies: () => invoke('check-dependencies'),
 
     reEncodeToMp4: (downloadFolder, videoId) =>
-        ipcRenderer.invoke('re-encode-to-mp4', downloadFolder, videoId),
-    openExternal: (url) => ipcRenderer.invoke('open-external', url),
+        invoke('re-encode-to-mp4', downloadFolder, videoId),
+    openExternal: (url) => invoke('open-external', url),
     openFilesAndFoldersSettings: () =>
-        ipcRenderer.invoke(
+        invoke(
             'open-external',
             'x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_FilesAndFolders'
         ),
     // Hardsub feature APIs
-    listSubtitles: (url, browser, proxy) => ipcRenderer.invoke('list-subtitles', url, browser, proxy),
-    downloadWithHardsub: (options) => ipcRenderer.invoke('download-with-hardsub', options),
+    listSubtitles: (url, browser, proxy) => invoke('list-subtitles', url, browser, proxy),
+    downloadWithHardsub: (options) => invoke('download-with-hardsub', options),
     // Generic command API
-    cancelCommand: () => ipcRenderer.invoke('cancel-command'),
-    deleteTemporaryFiles: (paths) => ipcRenderer.invoke('delete-temporary-files', paths),
-    getFormatInfo: (args) => ipcRenderer.invoke('get-format-info', args),
+    cancelCommand: () => invoke('cancel-command'),
+    deleteTemporaryFiles: (paths) => invoke('delete-temporary-files', paths),
+    getFormatInfo: (args) => invoke('get-format-info', args),
     // Persistent user settings
-    getSettings: () => ipcRenderer.invoke('get-settings'),
-    setSettings: (updates) => ipcRenderer.invoke('set-settings', updates),
+    getSettings: () => invoke('get-settings'),
+    setSettings: (updates) => invoke('set-settings', updates),
     // AI mode. API keys can be set or removed but are never readable from the renderer.
     ai: {
-        getSettings: () => ipcRenderer.invoke('ai-get-settings'),
-        setSettings: (update) => ipcRenderer.invoke('ai-set-settings', update),
-        setApiKey: (type, apiKey) => ipcRenderer.invoke('ai-set-api-key', type, apiKey),
-        removeApiKey: (type) => ipcRenderer.invoke('ai-remove-api-key', type),
-        testConnection: (overrides) => ipcRenderer.invoke('ai-test-connection', overrides),
-        send: (message, context) => ipcRenderer.invoke('ai-send', message, context),
-        cancel: () => ipcRenderer.invoke('ai-cancel'),
-        reset: () => ipcRenderer.invoke('ai-reset'),
-        confirm: (requestId, approved) => ipcRenderer.invoke('ai-confirm-response', requestId, approved),
-        onEvent: (callback) => {
-            const listener = (_, payload) => callback(payload);
-            ipcRenderer.on('ai-event', listener);
-            return () => {
-                ipcRenderer.removeListener('ai-event', listener);
-            };
-        }
+        getSettings: () => invoke('ai-get-settings'),
+        setSettings: (update) => invoke('ai-set-settings', update),
+        setApiKey: (type, apiKey) => invoke('ai-set-api-key', type, apiKey),
+        removeApiKey: (type) => invoke('ai-remove-api-key', type),
+        testConnection: (overrides) => invoke('ai-test-connection', overrides),
+        send: (message, context) => invoke('ai-send', message, context),
+        cancel: () => invoke('ai-cancel'),
+        reset: () => invoke('ai-reset'),
+        confirm: (requestId, approved) => invoke('ai-confirm-response', requestId, approved),
+        onEvent: (callback) => subscribe('ai-event', callback)
     }
-});
+};
+
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);

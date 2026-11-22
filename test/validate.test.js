@@ -10,7 +10,7 @@ import {
     validateIntRange,
     validateTimestamp,
     validateBool
-} from '../src/llm/validate.js';
+} from '../src/llm/validate.ts';
 
 test('validateUrl accepts http(s) URLs and trims', () => {
     assert.equal(validateUrl('  https://www.youtube.com/watch?v=abc  '), 'https://www.youtube.com/watch?v=abc');

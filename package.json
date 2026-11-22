@@ -2,13 +2,15 @@
   "name": "vidbutler",
   "version": "5.2.0",
   "description": "Video downloader and media processor using yt-dlp and FFmpeg with AI assistance",
-  "main": "src/main.js",
+  "main": "out/main.js",
   "type": "module",
   "scripts": {
     "test": "node --test test/",
-    "prestart": "node src/check-dependencies.js",
+    "prestart": "pnpm run compile:app && node out/check-dependencies.js",
     "start": "electron .",
     "lint": "eslint .",
+    "typecheck": "tsc --project tsconfig.json",
+    "compile:app": "node scripts/compile-app.mjs",
     "postinstall": "electron-builder install-app-deps",
     "prepare-tools": "node scripts/prepare-tools.mjs",
     "build": "pnpm prepare-tools && electron-builder --publish never",
@@ -51,11 +53,15 @@
   },
   "homepage": "https://github.com/Shawshank01/Vidbutler#readme",
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
     "electron": "^45.4.1",
     "electron-builder": "^26.18.1",
     "eslint": "^10.15.0",
-    "globals": "^17.14.0"
+    "globals": "^17.14.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0"
   },
   "optionalDependencies": {
     "dmg-license": "^1.0.11"
@@ -68,6 +74,7 @@
     "publish": {
       "provider": "github"
     },
+    "beforePack": "./scripts/compile-app.mjs",
     "afterPack": "./scripts/prepare-mac-signing.mjs",
     "mac": {
       "icon": "build/icon.png",
@@ -114,10 +121,10 @@
       }
     ],
     "files": [
-      "**/*",
-      "!test{,/**}",
-      "!docs{,/**}",
-      "!build-tools{,/**}",
+      "out/**/*",
+      "build/icon.png",
+      "tools-versions.json",
+      "LICENSE",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
       "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
       "!**/node_modules/*.d.ts",

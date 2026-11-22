@@ -45,6 +45,9 @@ jobs:
     - name: Run lint
       run: pnpm run lint
 
+    - name: Run type check
+      run: pnpm run typecheck
+
   release:
     needs: [ lint, tools ]
     runs-on: ${{ matrix.os }}
@@ -140,6 +143,22 @@ jobs:
         WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
         WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
       run: pnpm exec electron-builder build ${{ matrix.builder_args }} --publish never
+
+    - name: Smoke-test packaged VidButler
+      if: runner.os != 'Linux'
+      run: node scripts/verify-package.mjs ${{ matrix.target }}
+
+    - name: Smoke-test the packaged AppImage
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        VIDBUTLER_SMOKE_NO_SANDBOX: '1'
+      run: |
+        if ! command -v xvfb-run >/dev/null || ! command -v xauth >/dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth
+        fi
+        xvfb-run -a node scripts/verify-package.mjs "${{ matrix.target }}"
 
     - name: Preserve architecture-specific update manifest
       shell: bash

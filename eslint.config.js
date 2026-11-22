@@ -1,5 +1,7 @@
 import js from "@eslint/js";
+import { defineConfig } from "eslint/config";
 import globals from "globals";
+import tseslint from "typescript-eslint";
 
 const sharedRules = {
     "no-unused-vars": "warn",
@@ -7,7 +9,7 @@ const sharedRules = {
     "no-undef": "warn"
 };
 
-export default [
+export default defineConfig([
     { ignores: ["dist/**", "build-tools/**", "out/**", "coverage/**"] },
     js.configs.recommended,
     {
@@ -33,5 +35,14 @@ export default [
             }
         },
         rules: sharedRules
+    },
+    {
+        files: ["**/*.ts"],
+        extends: [tseslint.configs.recommended],
+        rules: {
+            "no-undef": "off",
+            "no-console": "off",
+            "@typescript-eslint/no-unused-vars": "warn"
+        }
     }
-];
+]);

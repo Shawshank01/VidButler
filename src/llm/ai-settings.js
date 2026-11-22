@@ -1,6 +1,6 @@
 // AI settings: reading/validating/saving them, API key slots, and turning the saved settings into a
 // provider. Electron-free; storage is injected.
-import { createProvider, PROVIDER_TYPES } from './providers/index.js';
+import { createProvider, PROVIDER_TYPES } from './providers/index.ts';
 import {
     AiSettingsError,
     MODES,
@@ -26,7 +26,10 @@ export class AiSettings {
         this.fetchImpl = fetchImpl;
     }
 
-    /** Settings safe to send to the renderer. Never includes API keys. */
+    /**
+     * Settings safe to send to the renderer. Never includes API keys.
+     * @returns {Promise<import('./types.js').AiSettingsSnapshot>}
+     */
     async get() {
         const saved = await this.store.read();
         const configs =

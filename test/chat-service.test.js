@@ -4,10 +4,10 @@ import { spawn } from 'node:child_process';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { taskManager } from '../src/core/task-manager.js';
+import { taskManager } from '../src/core/task-manager.ts';
 import { ChatService, AiSettingsError, trimHistory } from '../src/llm/chat-service.js';
 import { KeyStore } from '../src/llm/key-store.js';
-import { DEFAULT_RETRIES } from '../src/llm/providers/http.js';
+import { DEFAULT_RETRIES, DEFAULT_RETRY_DELAY_MS } from '../src/llm/providers/http.js';
 
 const SECRET = 'AIzaSy-super-secret-key-0000';
 
@@ -345,10 +345,14 @@ test('send: a busy server is retried, the UI is told, and the user gets the answ
     assert.equal(res.ok, true);
     assert.equal(res.text, 'worked on the second try');
     const retrying = events.find((e) => e.type === 'retrying');
-    assert.ok(retrying, 'a retrying event reaches the UI');
-    assert.equal(retrying.provider, 'Gemini');
-    assert.equal(retrying.attempt, 1);
-    assert.equal(retrying.reason, 'HTTP 503');
+    assert.deepEqual(retrying, {
+        type: 'retrying',
+        provider: 'Gemini',
+        attempt: 1,
+        retries: DEFAULT_RETRIES,
+        delayMs: DEFAULT_RETRY_DELAY_MS,
+        reason: 'HTTP 503'
+    });
     assert.match(lines.join('\n'), new RegExp(`retrying after HTTP 503: attempt 1 of ${DEFAULT_RETRIES}`));
 }, { timeout: 15000 });
 

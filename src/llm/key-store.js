@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 
 /**
  * Stores API keys encrypted at rest. The encryption itself is injected (`crypto`) so this class
- * has no Electron dependency; main.js passes an adapter around Electron's `safeStorage`.
+ * has no Electron dependency; main.ts passes an adapter around Electron's `safeStorage`.
  *
  * - Keys are kept per provider type in a small JSON file, base64 of the encrypted bytes.
  * - If the OS cannot provide real encryption (e.g. Linux without a keyring), keys are NOT written
@@ -12,8 +12,8 @@ import { promises as fs } from 'fs';
  *
  * @typedef {object} CryptoAdapter
  * @property {() => boolean} isAvailable
- * @property {(plain: string) => Buffer} encrypt
- * @property {(encrypted: Buffer) => string} decrypt
+ * @property {(plain: string) => Buffer | Promise<Buffer>} encrypt
+ * @property {(encrypted: Buffer) => string | Promise<string>} decrypt
  */
 export class KeyStore {
     /**

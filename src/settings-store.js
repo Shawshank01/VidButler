@@ -15,7 +15,10 @@ export class SettingsStore {
         this.queue = Promise.resolve();
     }
 
-    /** The saved settings. A missing file means first run; an unreadable one is treated as empty. */
+    /**
+     * A missing file means first run. An unreadable one is treated as empty.
+     * @returns {Promise<Record<string, unknown>>}
+     */
     async read() {
         let text;
         try {
@@ -38,6 +41,8 @@ export class SettingsStore {
     /**
      * Merge `updates` into the saved settings and return the result. Calls are applied one after
      * another, so concurrent updates cannot overwrite each other. Rejects if the file cannot be written.
+     * @param {object} updates
+     * @returns {Promise<Record<string, unknown>>}
      */
     merge(updates) {
         const run = this.queue.then(async () => {

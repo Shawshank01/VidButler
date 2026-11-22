@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Conversation } from '../src/llm/conversation.js';
+import { Conversation } from '../src/llm/conversation.ts';
 import { ConfirmationBroker } from '../src/llm/confirmations.js';
 import { redactSecrets } from '../src/llm/redact.js';
 import { sanitizeProviderConfig, AiSettingsError } from '../src/llm/provider-settings.js';
-import { OllamaProvider } from '../src/llm/providers/ollama.js';
-import { GeminiProvider } from '../src/llm/providers/gemini.js';
+import { OllamaProvider } from '../src/llm/providers/ollama.ts';
+import { GeminiProvider } from '../src/llm/providers/gemini.ts';
 import { ProviderError } from '../src/llm/errors.js';
 
 function streamResponse(chunks, { status = 200 } = {}) {
@@ -27,12 +27,15 @@ test('failTurn answers unanswered tool calls and records the failure', () => {
     const c = new Conversation();
     c.messages.push(
         { role: 'user', text: 'go' },
-        { role: 'assistant', text: '', toolCalls: [{ id: 'a', name: 'x' }, { id: 'b', name: 'y' }] },
+        { role: 'assistant', text: '', toolCalls: [{ id: 'a', name: 'x' }, { id: 'b', providerCallId: 'remote-b', name: 'y' }] },
         { role: 'tool', toolCallId: 'a', name: 'x', result: { ok: true } }
     );
     c.failTurn('(failed)');
     assert.deepEqual(c.messages.map((m) => m.role), ['user', 'assistant', 'tool', 'tool', 'assistant']);
     assert.equal(c.messages[3].toolCallId, 'b');
+    assert.equal(c.messages[3].providerCallId, 'remote-b');
+    assert.equal(c.messages[3].name, 'y');
+    assert.equal(c.messages[3].result.ok, false);
     assert.equal(c.messages[4].text, '(failed)');
 });
 
@@ -180,12 +183,12 @@ test('Gemini streaming retries without thinkingLevel for models that reject it',
 // ---------- prompt / tool registry consistency ----------
 
 test('TOOL_NAMES and the registered tools are the same set', async () => {
-    const { TOOLS, TOOL_NAMES } = await import('../src/llm/tool-registry.js');
+    const { TOOLS, TOOL_NAMES } = await import('../src/llm/tool-registry.ts');
     assert.deepEqual([...TOOLS.map((t) => t.name)].sort(), Object.values(TOOL_NAMES).sort());
 });
 
 test('the system prompt only mentions tools and parameters that exist', async () => {
-    const { getToolDeclarations } = await import('../src/llm/tool-registry.js');
+    const { getToolDeclarations } = await import('../src/llm/tool-registry.ts');
     const { buildSystemPrompt } = await import('../src/llm/prompt.js');
     const known = new Set();
     for (const decl of getToolDeclarations()) {
@@ -222,7 +225,7 @@ test('settings-schema: only known classic settings with valid values pass', asyn
 });
 
 test('resolveInFolder only accepts direct children of the folder', async () => {
-    const { resolveInFolder } = await import('../src/llm/tools/files.js');
+    const { resolveInFolder } = await import('../src/llm/tools/files.ts');
     assert.equal(resolveInFolder('/data/dl', 'a.mp4'), '/data/dl/a.mp4');
     assert.equal(resolveInFolder('/data/dl', '../a.mp4'), null);
     assert.equal(resolveInFolder('/data/dl', '/etc/passwd'), null);
@@ -234,7 +237,7 @@ test('deleteTemporaryFiles only deletes files that a finished task offered', asy
     const { promises: fsp } = await import('fs');
     const { tmpdir } = await import('os');
     const { join } = await import('path');
-    const { deleteTemporaryFiles } = await import('../src/core/tools.js');
+    const { deleteTemporaryFiles } = await import('../src/core/tools.ts');
     const dir = await fsp.mkdtemp(join(tmpdir(), 'ytdl-tmpdel-'));
     const victim = join(dir, 'precious.txt');
     await fsp.writeFile(victim, 'x');
@@ -243,7 +246,7 @@ test('deleteTemporaryFiles only deletes files that a finished task offered', asy
 });
 
 test('URLs the user did not type need confirmation, even for low-risk tools', async () => {
-    const { runAgent } = await import('../src/llm/agent.js');
+    const { runAgent } = await import('../src/llm/agent.ts');
     const { isForeignUrl } = await import('../src/llm/provenance.js');
     const history = [{ role: 'user', text: 'please grab https://example.com/watch?v=1.' }];
     assert.equal(isForeignUrl(history, 'https://example.com/watch?v=1'), false);

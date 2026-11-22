@@ -1,5 +1,5 @@
 // Validation of the AI settings that come from the renderer. Pure functions, no I/O.
-import { PROVIDER_TYPES } from './providers/index.js';
+import { PROVIDER_TYPES } from './providers/index.ts';
 
 export const MODES = ['classic', 'ai'];
 export const CONFIRM_MODES = ['always', 'risky', 'never'];

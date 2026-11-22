@@ -1,4 +1,7 @@
+// @ts-check
 import { CONFIRMATION_TIMEOUT_MS } from './limits.js';
+
+/** @import {AiEvent, ConfirmationRequest} from './types.js' */
 
 /**
  * Tracks the confirmation prompts that are waiting for the user.
@@ -18,8 +21,8 @@ export class ConfirmationBroker {
 
     /**
      * Ask the user.
-     * @param {{name: string, description: string, risk: string, reason?: string, args: object}} request
-     * @param {(event: object) => void} emit  Delivers the prompt to the user's window.
+     * @param {ConfirmationRequest} request
+     * @param {(event: Extract<AiEvent, {type: 'confirm_request'}>) => void} emit
      * @returns {Promise<boolean>}
      */
     request(request, emit) {
@@ -42,7 +45,11 @@ export class ConfirmationBroker {
         });
     }
 
-    /** Called when the user clicks Allow / Deny. Returns false for unknown or already settled ids. */
+    /**
+     * Called when the user clicks Allow / Deny. Returns false for unknown or already settled ids.
+     * @param {string} requestId
+     * @param {boolean} approved
+     */
     resolve(requestId, approved) {
         const settle = this.pending.get(requestId);
         if (!settle) return false;
