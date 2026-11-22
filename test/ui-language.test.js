@@ -7,12 +7,14 @@ import catalog from '../src/i18n/catalog.cjs';
 import { sanitizeClassicSettings } from '../src/settings-schema.js';
 
 const read = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8');
-const codes = ['en', 'de', 'fr', 'es', 'it', 'pl', 'nl', 'pt', 'zh-Hans', 'zh-Hant', 'ja'];
+const codes = ['en', 'de', 'fr', 'es', 'it', 'pl', 'nl', 'pt', 'zh-Hans', 'zh-Hant', 'ja', 'ru', 'uk'];
 
 test('system language matches supported regional tags and preferences use an allow-list', () => {
     assert.deepEqual(Object.keys(catalog.languages), codes);
     assert.equal(catalog.resolveLanguage(['ko-KR', 'FR-CA', 'en-GB']), 'fr');
     assert.equal(catalog.resolveLanguage(['pt_BR']), 'pt');
+    assert.equal(catalog.resolveLanguage(['ru-KZ', 'uk-UA']), 'ru');
+    assert.equal(catalog.resolveLanguage(['ko-KR', 'uk_UA', 'ru-RU']), 'uk');
     assert.equal(catalog.resolveLanguage(['ko-KR', null, 'constructor']), 'en');
     assert.equal(catalog.translate('xx', 'run'), 'Run');
     for (const uiLanguage of ['auto', ...codes]) {
@@ -110,4 +112,18 @@ test('renderer switches labels and accessibility attributes without changing act
     assert.deepEqual(pendingWrites.at(-1), { uiLanguage: 'ja' });
     assert.equal(document.documentElement.lang, 'ja');
     assert.equal(option.textContent, 'ダウンロード（カスタム形式）');
+
+    context.window.UiLanguage.restore({ systemLanguage: 'ru-RU' });
+    assert.equal(document.documentElement.lang, 'ru');
+    assert.equal(option.textContent, 'Скачать в выбранном формате');
+    assert.equal(picker.options.find(({ value }) => value === 'ru').text, 'Русский');
+
+    picker.value = 'uk';
+    await picker.change();
+    assert.deepEqual(pendingWrites.at(-1), { uiLanguage: 'uk' });
+    assert.equal(document.documentElement.lang, 'uk');
+    assert.equal(option.textContent, 'Завантажити у вибраному форматі');
+    assert.equal(input.placeholder, 'Введіть посилання на відео');
+    assert.equal(picker.options.find(({ value }) => value === 'uk').text, 'Українська');
+    assert.equal(option.value, 'Download (Custom Format)');
 });
