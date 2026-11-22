@@ -168,21 +168,6 @@ button.brand-icon:focus-visible {
     min-width: 0;
 }
 
-.language-control select {
-    width: auto;
-    max-width: 100%;
-}
-
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-}
-
 /* Elevated Download Controls Card */
 .download-controls {
     background-color: var(--bg-surface);

@@ -33,12 +33,6 @@
                 </div>
                 <div class="header-controls">
                     <span id="modeNotice" class="mode-notice" role="status"></span>
-                    <label class="language-control">
-                        <span class="visually-hidden" data-i18n="language">Language</span>
-                        <select id="uiLanguage" disabled>
-                            <option value="auto" data-i18n="systemLanguage">System language</option>
-                        </select>
-                    </label>
                     <div class="mode-switch" role="group" aria-label="Interface mode" data-i18n-aria-label="interfaceMode">
                         <button type="button" id="modeClassicBtn" class="mode-btn active"
                             aria-pressed="true" data-i18n="classic">Classic</button>
@@ -341,6 +335,13 @@
                 </div>
 
                 <div class="app-info-body">
+                    <div class="app-info-section">
+                        <label for="uiLanguage" data-i18n="language">Language</label>
+                        <select id="uiLanguage" disabled>
+                            <option value="auto" data-i18n="systemLanguage">System language</option>
+                        </select>
+                    </div>
+
                     <div class="app-info-section">
                         <div class="app-info-row">
                             <span class="app-info-label" data-i18n="developer">Developer</span>

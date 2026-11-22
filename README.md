@@ -19,7 +19,7 @@ The app provides two interfaces you can switch between at any time:
 ![VidButler UI AI Mode](public/VidButler-UI.png)
 *AI Mode UI*
 
-Use the language picker in the app header to choose English, German, French, Spanish, Italian, Polish, Dutch, Portuguese, Simplified Chinese, Traditional Chinese, Japanese, Russian, or Ukrainian. The **System language** setting follows your operating system’s language preferences, with English as the fallback. VidButler remembers your choice across restarts.
+Click the VidButler icon to open **About**, then use the **Language** picker to choose English, German, French, Spanish, Italian, Polish, Dutch, Portuguese, Simplified Chinese, Traditional Chinese, Japanese, Russian, or Ukrainian. The **System language** setting follows your operating system’s language preferences, with English as the fallback. VidButler remembers your choice across restarts.
 
 ## Features
 

@@ -144,6 +144,13 @@ test('app info modal is wired to the brand icon and exposes info', () => {
     assert.match(rendererScript, /appInfoGithubLink/);
 });
 
+test('the language picker is labeled and lives in About', () => {
+    const about = html.slice(html.indexOf('id="appInfoModal"'), html.indexOf('id="updateModal"'));
+    assert.match(about, /<label for="uiLanguage" data-i18n="language">Language<\/label>/);
+    assert.match(about, /<select id="uiLanguage" disabled>/);
+    assert.equal([...html.matchAll(/id="uiLanguage"/g)].length, 1);
+});
+
 test('update prompt modal exists, matches app info modal structure, and is wired in renderer', () => {
     assert.match(html, /id="updateModal"/);
     assert.match(html, /id="updateModalTitle"/);

@@ -1387,10 +1387,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         appInfoBtn.addEventListener('click', async () => {
             await loadAppInfo();
             appInfoModal.style.display = 'flex';
+            appInfoCloseBtn?.focus();
         });
 
         const closeInfoModal = () => {
             appInfoModal.style.display = 'none';
+            appInfoBtn.focus();
         };
 
         if (appInfoCloseBtn) appInfoCloseBtn.addEventListener('click', closeInfoModal);
