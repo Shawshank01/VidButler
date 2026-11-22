@@ -2,6 +2,7 @@
 import { reEncodeToMp4, downloadWithHardsub, getLocalMediaInfo, extractAudioFromFile } from '../../core/tools.ts';
 import { findMediaFile } from '../../core/media-files.ts';
 import { requireFolder } from '../context.js';
+import { MESSAGES } from '../messages.js';
 import { validateUrl, validateLang, validateFileHint, validateEnum } from '../validate.ts';
 import { TOOL_NAMES } from './names.ts';
 import { AUDIO_FORMATS, defineTool, mediaOutcome, outcome, progressOf, resolveSubtitle, urlProperty } from './common.ts';
@@ -47,8 +48,7 @@ export const mediaTools = [
     }),
     defineTool({
         name: TOOL_NAMES.downloadWithHardsub,
-        description:
-            'Download a video and burn (hardcode) a subtitle language into it with ffmpeg. Slow and CPU-intensive. Call list_subtitles first to see which language codes exist.',
+        description: MESSAGES.downloadWithHardsubDescription,
         risk: 'high',
         properties: {
             url: urlProperty,

@@ -50,6 +50,12 @@ export const MESSAGES = {
     clipAudioToolboxFallback: 'AudioToolbox could not encode this clip. Retrying with FFmpeg’s native AAC encoder…',
     noClipSaved: 'No clip was saved. Check that both timestamps are within the source duration.',
     downloadSectionPrompt: (tool) => `- When the user asks to download or clip a time range from an online source, call ${tool} with media_type "video" or "audio", and start_time and end_time as timestamp strings. Ask for any missing or ambiguous times. Pass the requested video height (or max_height for a cap), container, or audio format. If the clip cannot be downloaded, ask before downloading the full source.`,
+    downloadWithHardsubDescription: 'Download the source video and selected subtitle track together, then burn the subtitles into a single output MP4 with ffmpeg. This tool handles both downloads itself. Encoding is slow and CPU-intensive. Call list_subtitles first to see which language codes exist.',
+    downloadWithHardsubPrompt: (hardsub, video, subtitles) => [
+        `- For a full online video with burned-in subtitles, including requests to place subtitles at the top or bottom, use ${hardsub} as the only download tool for that output. Pass position: "top" or "bottom" when requested. It downloads the source video and caption track and produces an MP4.`,
+        `- For that same video, call ${video} only if the user also requests a standalone clean copy, and call ${subtitles} only if the user also requests a separate subtitle file. If both a burned-in video and a separate subtitle file are requested, use the subtitle file reported by ${hardsub} when available.`
+    ].join('\n'),
+    hardsubCleanupPrompt: '- After hardsubbing succeeds, name the finished MP4 and identify any intermediate files actually reported by the tool. Ask whether to keep or delete those files. Keep any files the user explicitly requested.',
     cancelledByUser: 'Cancelled by the user.',
     declinedByUser: 'The user declined to run this action.',
     toolNotRun: 'Not run: the request failed.',

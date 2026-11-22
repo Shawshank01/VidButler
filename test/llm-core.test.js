@@ -201,6 +201,20 @@ test('the system prompt only mentions tools and parameters that exist', async ()
     for (const word of snakeCase) assert.ok(known.has(word), `prompt mentions unknown tool or parameter "${word}"`);
 });
 
+test('hardsub instructions use one download tool for a video with subtitles at the top', async () => {
+    const { getToolDeclarations } = await import('../src/llm/tool-registry.ts');
+    const { buildSystemPrompt } = await import('../src/llm/prompt.js');
+    const prompt = buildSystemPrompt();
+    assert.match(prompt, /subtitles at the top or bottom, use download_with_hardsub as the only download tool/);
+    assert.match(prompt, /Pass position: "top" or "bottom" when requested/);
+    assert.match(prompt, /call download_video only if the user also requests a standalone clean copy/);
+    assert.match(prompt, /call download_subtitles only if the user also requests a separate subtitle file/);
+    assert.match(prompt, /use the subtitle file reported by download_with_hardsub when available/);
+
+    const declaration = getToolDeclarations().find((tool) => tool.name === 'download_with_hardsub');
+    assert.match(declaration.description, /Download the source video and selected subtitle track together/);
+});
+
 // ---------- security ----------
 
 test('settings-schema: only known classic settings with valid values pass', async () => {
