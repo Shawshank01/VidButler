@@ -39,7 +39,10 @@ export const MESSAGES = {
     downloadSectionDescription: 'Download a time range from a single online video or audio source. The cut is re-encoded for accurate timing.',
     clipMediaTypeDescription: 'Choose video with sound, or audio only.',
     clipTimeDescription: (edge, example) => `${edge} timestamp from the start of the source. Use seconds, M:SS or H:MM:SS, optionally with milliseconds. Example ${example}.`,
-    clipVideoHeightDescription: 'Optional maximum video height in pixels, such as 720 or 1080.',
+    exactVideoHeightDescription: 'Exact video height in pixels (720, 1080, 1440 for 2K, or 2160 for 4K). Do not substitute another resolution.',
+    maxVideoHeightDescription: 'Maximum video height in pixels. Use for a cap, such as up to 1080p.',
+    /** @param {number} height */
+    exactResolutionUnavailable: (height) => `No downloadable ${height}p format matched the request. Check available formats and ask before choosing a different resolution.`,
     clipVideoContainerDescription: 'Container for a video clip. Defaults to MP4.',
     clipAudioFormatDescription: 'Output format for an audio-only clip. Defaults to best.',
     /** @param {Record<string, unknown>} args */
@@ -50,7 +53,7 @@ export const MESSAGES = {
     clipVideoToolboxFallback: 'VideoToolbox could not encode this clip. Retrying with FFmpeg’s default encoder…',
     clipAudioToolboxFallback: 'AudioToolbox could not encode this clip. Retrying with FFmpeg’s native AAC encoder…',
     noClipSaved: 'No clip was saved. Check that both timestamps are within the source duration.',
-    downloadSectionPrompt: (tool) => `- When the user asks to download or clip a time range from an online source, call ${tool} with media_type "video" or "audio", and start_time and end_time as timestamp strings. Ask for any missing or ambiguous times. Pass any requested video max_height or container, or audio format, to the same tool. If the clip cannot be downloaded, ask before downloading the full source.`,
+    downloadSectionPrompt: (tool) => `- When the user asks to download or clip a time range from an online source, call ${tool} with media_type "video" or "audio", and start_time and end_time as timestamp strings. Ask for any missing or ambiguous times. Pass the requested video height (or max_height for a cap), container, or audio format. If the clip cannot be downloaded, ask before downloading the full source.`,
     cancelledByUser: 'Cancelled by the user.',
     declinedByUser: 'The user declined to run this action.',
     toolNotRun: 'Not run: the request failed.',

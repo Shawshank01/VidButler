@@ -60,6 +60,68 @@ test('compatible video download requires H.264 and AAC without a codec fallback'
     await assert.rejects(tool.run({ url: 'https://example.com/v', compatible: 'true' }, {}), /compatible/);
 });
 
+test('exact video resolution applies to both muxed and split stream selectors', () => {
+    for (const [container, compatible] of [['mp4', false], ['webm', false], ['mp4', true]]) {
+        const args = videoFormatArgs({ height: 1440, container, compatible });
+        const selector = args[args.indexOf('-f') + 1];
+        assert.equal(selector.split('/').length, 2);
+        assert.ok(selector.split('/').every(branch => branch.includes('[height=1440]')));
+    }
+});
+
+test('a 2K follow-up overrides the model’s 2560p limit and unrelated format ID', async (t) => {
+    const downloader = t.mock.method(taskManager, 'spawnProcess', () => spawn(process.execPath, ['-e', '']));
+    const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    const events = [];
+    await runAgent({
+        provider: scriptedProvider([
+            { toolCalls: [call('download_video', { url, max_height: 2560, format_code: '313+140' })] },
+            { text: 'done' }
+        ]),
+        system: 's',
+        history: [{ role: 'user', text: `List formats for ${url}` }],
+        userText: 'download it as 2k',
+        ctx: { downloadFolder: tmpdir() },
+        onEvent: (e) => events.push(e)
+    });
+    const start = events.find(e => e.type === 'tool_start');
+    assert.equal(start.args.height, 1440);
+    assert.equal(start.args.max_height, undefined);
+    assert.equal(start.args.format_code, undefined);
+    const [, , args] = downloader.mock.calls[0].arguments;
+    assert.equal(args[args.indexOf('-f') + 1], 'bv*[height=1440]+ba/b[height=1440]');
+    assert.ok(args[args.indexOf('-o') + 1].includes('1440p'));
+});
+
+test('an unavailable exact resolution stops without retrying at another resolution', async (t) => {
+    const downloader = t.mock.method(taskManager, 'spawnProcess', () => spawn(process.execPath, [
+        '-e', 'console.error("ERROR: Requested format is not available"); process.exitCode = 1;'
+    ]));
+    const tool = getTool('download_video');
+    const result = await tool.run({ url: 'https://example.com/v', height: 1440 }, { downloadFolder: tmpdir() });
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.files, []);
+    assert.match(result.error, /1440p.*ask before choosing a different resolution/i);
+    assert.equal(downloader.mock.callCount(), 1);
+});
+
+test('video clips distinguish an exact resolution from an explicit cap', async (t) => {
+    const downloader = t.mock.method(taskManager, 'spawnProcess', () => spawn(process.execPath, ['-e', '']));
+    const url = 'https://example.com/v';
+    for (const [request, operator] of [['2560x1440', '='], ['2560\u00D71440', '='], ['up to 1440p', '<=']]) {
+        await runAgent({
+            provider: scriptedProvider([
+                { toolCalls: [call('download_section', { url, media_type: 'video', start_time: '0:10', end_time: '0:20', max_height: 2160 })] },
+                { text: 'done' }
+            ]),
+            system: 's', history: [], userText: `Clip 0:10 to 0:20 in ${request} from ${url}`,
+            ctx: { downloadFolder: tmpdir() }
+        });
+        const [, , args] = downloader.mock.calls.at(-1).arguments;
+        assert.equal(args[args.indexOf('-f') + 1], `bv*[height${operator}1440]+ba/b[height${operator}1440]`);
+    }
+});
+
 test('every tool has a valid declaration and risk', () => {
     const decls = getToolDeclarations();
     assert.equal(decls.length, TOOLS.length);
@@ -130,8 +192,8 @@ test('the agent downloads video and audio sections and reports the finished clip
         assert.equal(option('-P'), folder);
         return option;
     });
-    assert.match(commands[0]('-f'), /height<=720/);
-    assert.match(commands[0]('-o'), /\[clip 75\.25-150\.5 video mp4 720p-max\]/);
+    assert.match(commands[0]('-f'), /height=720/);
+    assert.match(commands[0]('-o'), /\[clip 75\.25-150\.5 video mp4 720p\]/);
     assert.match(commands[1]('-o'), /\[clip 75\.25-150\.5 audio mp3\]/);
     assert.equal(commands[1]('--audio-format'), 'mp3');
     assert.deepEqual(progress, ['[download] Finished', '[download] Finished']);
@@ -501,7 +563,8 @@ test('a delete_files call with non-string entries is rejected instead of crashin
     assert.equal(toolMessage.result.ok, false);
 });
 
-test('download_video reconciles max_height from user text (e.g. 720p)', async () => {
+test('download_video uses an exact height for a plain 720p request', async (t) => {
+    t.mock.method(taskManager, 'spawnProcess', () => spawn(process.execPath, ['-e', '']));
     const events = [];
     const provider = scriptedProvider([
         { toolCalls: [call('download_video', { url: 'https://youtube.com/watch?v=height-test' })] },
@@ -519,12 +582,13 @@ test('download_video reconciles max_height from user text (e.g. 720p)', async ()
 
     const starts = events.filter((e) => e.type === 'tool_start');
     assert.equal(starts.length, 1);
-    assert.equal(starts[0].args.max_height, 720);
+    assert.equal(starts[0].args.height, 720);
     assert.equal(starts[0].args.container, 'mp4');
-    assert.match(starts[0].description, /max 720p/);
+    assert.match(starts[0].description, /\(720p\)/);
 });
 
-test('download_video resolves resolution or quality alias to max_height', async () => {
+test('download_video resolves a resolution alias to an exact height', async (t) => {
+    t.mock.method(taskManager, 'spawnProcess', () => spawn(process.execPath, ['-e', '']));
     const events = [];
     const provider = scriptedProvider([
         { toolCalls: [call('download_video', { url: 'https://youtube.com/watch?v=alias-test', resolution: '480p' })] },
@@ -542,8 +606,8 @@ test('download_video resolves resolution or quality alias to max_height', async 
 
     const starts = events.filter((e) => e.type === 'tool_start');
     assert.equal(starts.length, 1);
-    assert.equal(starts[0].args.max_height, 480);
-    assert.match(starts[0].description, /max 480p/);
+    assert.equal(starts[0].args.height, 480);
+    assert.match(starts[0].description, /\(480p\)/);
 });
 
 test('download_audio reconciles format to best by default and mp3 for compatibility/device issues', async () => {

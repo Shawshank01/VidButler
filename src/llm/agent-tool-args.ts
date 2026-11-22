@@ -10,6 +10,16 @@ function asArguments(value: unknown): ToolArguments | undefined {
     return value && typeof value === 'object' ? value as ToolArguments : undefined;
 }
 
+function parseVideoHeight(value: string) {
+    const token = value.toLowerCase().trim();
+    if (token === '2k' || token === 'qhd') return 1440;
+    if (token === '4k' || token === 'uhd') return 2160;
+    if (token === '8k') return 4320;
+    const match = token.match(/^(?:\d{3,5}\s*[x\u00D7]\s*)?(\d{3,4})p?$/);
+    const height = Number(match?.[1]);
+    return height >= 144 && height <= 4320 ? height : undefined;
+}
+
 function lastToolArgument(message: Extract<ChatMessage, { role: 'assistant' }>, name: string) {
     if (!Array.isArray(message.toolCalls)) return undefined;
     for (const call of message.toolCalls) {
@@ -403,30 +413,28 @@ export async function normalizeToolArgs(call: ToolCall, tool: Tool, history: Cha
                 supplied.format_code = args.format_code;
             }
         }
+    }
 
-        if (!args.max_height) {
-            const rawHeight = args.height ?? args.resolution ?? args.res ?? args.quality ?? args.maxHeight;
-            if (rawHeight !== undefined && rawHeight !== null) {
-                const parsed = parseInt(String(rawHeight).replace(/[^0-9]/g, ''), 10);
-                if (Number.isInteger(parsed) && parsed >= 144 && parsed <= 4320) {
-                    args.max_height = parsed;
-                }
+    if (call.name === TOOL_NAMES.downloadVideo || (call.name === TOOL_NAMES.downloadSection && args.media_type === 'video')) {
+        const userText = (history.findLast(m => m.role === 'user')?.text || '').replace(/https?:\/\/\S+/gi, ' ');
+        const request = userText.match(/\b(?:(up to|at most|no higher than|no more than|max(?:imum)?|under)\s+)?(\d{3,5}\s*[x\u00D7]\s*\d{3,4}p?|\d{3,4}p|[248]k|qhd|uhd)\b(\s+or (?:lower|less|below)\b)?/i);
+        const requestedHeight = request && parseVideoHeight(request[2]);
+        if (requestedHeight) {
+            const capped = request[1] || request[3];
+            args.height = capped ? undefined : requestedHeight;
+            args.max_height = capped ? requestedHeight : undefined;
+            // A model-supplied format selector could bypass the user's height constraint.
+            delete args.format_code;
+            if (supplied) delete supplied.format_code;
+        } else if (args.height == null && args.max_height == null) {
+            const alias = args.resolution ?? args.res ?? args.quality;
+            if (typeof alias === 'string' || typeof alias === 'number') args.height = parseVideoHeight(String(alias));
+            if (args.height == null && (typeof args.maxHeight === 'string' || typeof args.maxHeight === 'number')) {
+                args.max_height = parseVideoHeight(String(args.maxHeight));
             }
         }
-
-        if (!args.max_height) {
-            const lastUser = history.findLast((m) => m.role === 'user');
-            const userText = lastUser?.text || '';
-            const heightMatch = userText.match(/\b(2160|1440|1080|720|480|360|240|144)p?\b/i);
-            if (heightMatch) {
-                args.max_height = parseInt(heightMatch[1], 10);
-            } else if (/\b4k\b/i.test(userText)) {
-                args.max_height = 2160;
-            } else if (/\b2k\b/i.test(userText)) {
-                args.max_height = 1440;
-            }
-        }
-        if (supplied && args.max_height) {
+        if (supplied) {
+            supplied.height = args.height;
             supplied.max_height = args.max_height;
         }
     }

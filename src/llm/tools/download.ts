@@ -43,7 +43,8 @@ export function resolveFormatCode(formatCode?: string) {
 
 export const MERGE_FORMATS = ['mp4', 'mkv', 'webm'] as const;
 
-export function videoFormatArgs({ maxHeight, formatCode, container, compatible, recode = false }: {
+export function videoFormatArgs({ height, maxHeight, formatCode, container, compatible, recode = false }: {
+    height?: number;
     maxHeight?: number;
     formatCode?: string;
     container: typeof MERGE_FORMATS[number];
@@ -51,18 +52,18 @@ export function videoFormatArgs({ maxHeight, formatCode, container, compatible, 
     recode?: boolean;
 }) {
     const specific = [];
+    const filter = height ? `[height=${height}]` : maxHeight ? `[height<=${maxHeight}]` : '';
     if (compatible) {
-        const height = maxHeight ? `[height<=${maxHeight}]` : '';
-        specific.push('-f', `bv*[vcodec^=avc]${height}+ba[acodec^=mp4a]/b[vcodec^=avc][acodec^=mp4a]${height}`);
-    } else if (formatCode) {
+        specific.push('-f', `bv*[vcodec^=avc]${filter}+ba[acodec^=mp4a]/b[vcodec^=avc][acodec^=mp4a]${filter}`);
+    } else if (formatCode && !height) {
         specific.push('-f', resolveFormatCode(formatCode));
-    } else if (maxHeight) {
-        specific.push('-f', `bv*[height<=${maxHeight}]+ba/b[height<=${maxHeight}]`);
+    } else if (filter) {
+        specific.push('-f', `bv*${filter}+ba/b${filter}`);
     } else if (container === 'mp4') {
         specific.push('-f', 'bv*[vcodec^=avc]+ba[acodec^=mp4a]/bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b');
     }
 
-    if (container === 'mp4' && maxHeight && !formatCode && !compatible) {
+    if (container === 'mp4' && (height || (maxHeight && !formatCode)) && !compatible) {
         // Pick the highest resolution first; prefer MP4-compatible codecs only as a tie-breaker.
         // Let yt-dlp use MKV when the chosen streams cannot be merged into MP4.
         specific.push('--merge-output-format', 'mp4/mkv', '--format-sort', 'res,vcodec:h264,ext:mp4:m4a');
@@ -73,28 +74,36 @@ export function videoFormatArgs({ maxHeight, formatCode, container, compatible, 
     return specific;
 }
 
+export function explainResolutionFailure(result: Awaited<ReturnType<typeof runDownload>>, height?: number) {
+    if (height && !result.ok && !result.cancelled && /Requested format is not available/i.test(result.output)) {
+        return { ...result, error: MESSAGES.exactResolutionUnavailable(height) };
+    }
+    return result;
+}
+
 const langProperty = { type: 'string', description: 'Subtitle language code from list_subtitles, e.g. "en".' };
 
 export const downloadTools = [
     defineTool({
         name: TOOL_NAMES.downloadVideo,
         description:
-            'Download a video to the user\'s download folder with thumbnail embedded. Supports a maximum resolution, exact format codes, or a compatible H.264/AAC download. Only downloads a single video unless playlist is true.',
+            'Download a video to the user\'s download folder with thumbnail embedded. Supports exact or maximum resolution, exact format codes, or a compatible H.264/AAC download. Only downloads a single video unless playlist is true.',
         risk: playlistRisk,
         properties: {
             url: urlProperty,
+            height: { type: 'integer', description: MESSAGES.exactVideoHeightDescription },
             max_height: {
                 type: 'integer',
-                description: 'Optional maximum video height in pixels, e.g. 1080, 720 or 480. Omit for best quality.'
+                description: MESSAGES.maxVideoHeightDescription
             },
             format_code: {
                 type: 'string',
-                description: 'Optional exact yt-dlp format code from list_formats (e.g. exact IDs like "137+140-0"). Prefer max_height instead of format_code for standard resolution requests (1080p, 720p, etc.).'
+                description: 'Optional exact yt-dlp format code from list_formats (e.g. "137+140-0"). Use height instead for standard resolution requests (1080p, 720p, etc.).'
             },
             container: {
                 type: 'string',
                 enum: MERGE_FORMATS,
-                description: 'Optional output container. Default: "mp4". With max_height, resolution takes priority over codecs and MP4 may fall back to MKV if needed.'
+                description: 'Optional output container. Default: "mp4". With height or max_height, resolution takes priority over codecs and MP4 may fall back to MKV if needed.'
             },
             compatible: {
                 type: 'boolean',
@@ -105,12 +114,14 @@ export const downloadTools = [
         required: ['url'],
         describe: (a) =>
             `Download ${a.playlist ? 'playlist' : 'video'} ${a.url}` +
+            (a.height ? ` (${a.height}p)` : '') +
             (a.max_height ? ` (max ${a.max_height}p)` : '') +
             (a.format_code ? ` (format ${a.format_code})` : '') +
             (a.compatible ? ' (H.264/AAC compatible)' : '') +
             (a.container ? ` [${a.container}]` : ''),
         async run(args, ctx) {
             const url = validateUrl(args.url);
+            const height = validateIntRange(args.height, 144, 4320, 'height');
             const maxHeight = validateIntRange(args.max_height, 144, 4320, 'max_height');
             const formatCode = args.format_code ? validateFormatCode(args.format_code) : undefined;
             const container = args.container
@@ -122,13 +133,17 @@ export const downloadTools = [
                 throw new ValidationError('compatible requires MP4 and cannot be combined with format_code');
             }
 
-            const specific = videoFormatArgs({ maxHeight, formatCode, container, compatible });
+            const specific = videoFormatArgs({ height, maxHeight, formatCode, container, compatible });
+            if (height) {
+                // Keep existing downloads at other resolutions from satisfying this request.
+                specific.push('--ignore-config', '-o', `%(title).140B [%(id).40B] [${height}p].%(ext)s`);
+            }
 
             if (container !== 'webm') {
                 specific.push('--convert-thumbnails', 'jpg', '--embed-thumbnail');
             }
 
-            return runDownload(specific, url, ctx, { playlist });
+            return explainResolutionFailure(await runDownload(specific, url, ctx, { playlist }), height);
         }
     }),
     defineTool({

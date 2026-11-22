@@ -3,7 +3,7 @@ import { aacEncoderArgs, videoBitrate } from '../../core/encoding.ts';
 import { validateEnum, validateIntRange, validateTimestamp, validateUrl, ValidationError } from '../validate.ts';
 import { AUDIO_FORMATS, defineTool, runDownload, urlProperty } from './common.ts';
 import type { ToolContext } from './common.ts';
-import { MERGE_FORMATS, videoFormatArgs } from './download.ts';
+import { explainResolutionFailure, MERGE_FORMATS, videoFormatArgs } from './download.ts';
 import { TOOL_NAMES } from './names.ts';
 
 const CLIP_OUTPUT_ARGS = ['-abort_on', 'empty_output'];
@@ -64,7 +64,8 @@ export const downloadSectionTool = defineTool({
         media_type: { type: 'string', enum: ['video', 'audio'], description: MESSAGES.clipMediaTypeDescription },
         start_time: { type: 'string', description: MESSAGES.clipTimeDescription('Start', '0:45') },
         end_time: { type: 'string', description: MESSAGES.clipTimeDescription('End', '2:10.500') },
-        max_height: { type: 'integer', description: MESSAGES.clipVideoHeightDescription },
+        height: { type: 'integer', description: MESSAGES.exactVideoHeightDescription },
+        max_height: { type: 'integer', description: MESSAGES.maxVideoHeightDescription },
         container: { type: 'string', enum: MERGE_FORMATS, description: MESSAGES.clipVideoContainerDescription },
         format: { type: 'string', enum: AUDIO_FORMATS, description: MESSAGES.clipAudioFormatDescription }
     },
@@ -86,6 +87,7 @@ export const downloadSectionTool = defineTool({
         ];
         let variant;
         let container: typeof MERGE_FORMATS[number] | undefined;
+        let height;
         let maxHeight;
         let format;
         if (mediaType === 'audio') {
@@ -94,21 +96,22 @@ export const downloadSectionTool = defineTool({
             specific.push('-f', 'bestaudio/best', '-x', '--audio-format', format);
         } else {
             container = validateEnum(args.container, MERGE_FORMATS, 'container', 'mp4');
+            height = validateIntRange(args.height, 144, 4320, 'height');
             maxHeight = validateIntRange(args.max_height, 144, 4320, 'max_height');
-            variant = `video ${container}${maxHeight ? ` ${maxHeight}p-max` : ''}`;
-            specific.push(...videoFormatArgs({ container, maxHeight, recode: container === 'webm' }));
+            variant = `video ${container}${height ? ` ${height}p` : maxHeight ? ` ${maxHeight}p-max` : ''}`;
+            specific.push(...videoFormatArgs({ container, height, maxHeight, recode: container === 'webm' }));
         }
         specific.push('-o', `%(title).140B [%(id).40B] [clip ${start}-${end} ${variant}].%(ext)s`);
 
         const outputArgs = [...CLIP_OUTPUT_ARGS];
         if (mediaType === 'audio') outputArgs.push('-vn');
-        if (container === 'mp4') outputArgs.push('-b:v', videoBitrate('h264', maxHeight));
+        if (container === 'mp4') outputArgs.push('-b:v', videoBitrate('h264', height ?? maxHeight));
         const result = process.platform === 'darwin' && (container === 'mp4' || format === 'm4a')
-            ? await downloadMacAacClip(specific, url, ctx, { mediaType, maxHeight })
+            ? await downloadMacAacClip(specific, url, ctx, { mediaType, maxHeight: height ?? maxHeight })
             : await downloadWithOutputArgs(specific, url, ctx, outputArgs);
         if (result.ok && result.files.length === 0) {
             return { ...result, ok: false, error: MESSAGES.noClipSaved };
         }
-        return result;
+        return explainResolutionFailure(result, height);
     }
 });
