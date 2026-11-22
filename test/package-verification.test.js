@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import asar from '@electron/asar';
-import { verifyAppArchive } from '../scripts/verify-package.mjs';
+import { evaluateRenderer, verifyAppArchive } from '../scripts/verify-package.mjs';
 
 test('the release smoke check rejects missing runtime files and packaged TypeScript', async (t) => {
     const scratch = await mkdtemp(join(tmpdir(), 'vidbutler-asar-'));
@@ -31,4 +31,40 @@ test('the release smoke check rejects missing runtime files and packaged TypeScr
     await rm(join(app, 'out', 'preload.cjs'));
     await asar.createPackage(app, missingPreload);
     assert.throws(() => verifyAppArchive(missingPreload), /Missing out\/preload\.cjs/);
+});
+
+class TestRendererSocket extends EventTarget {
+    close() {
+        this.dispatchEvent(Object.assign(new Event('close'), { code: 1000, reason: '' }));
+    }
+}
+
+test('a smoke-test deadline aborts an in-flight renderer command and closes its socket', async () => {
+    const controller = new AbortController();
+    const reason = new DOMException('Smoke-test deadline', 'TimeoutError');
+    const socket = new TestRendererSocket();
+    socket.send = (payload) => {
+        assert.deepEqual(JSON.parse(payload), {
+            id: 1,
+            method: 'Runtime.evaluate',
+            params: { expression: 'window.electronAPI.getAppInfo()', awaitPromise: true, returnByValue: true }
+        });
+        controller.abort(reason);
+    };
+    const closed = new Promise((resolve) => socket.addEventListener('close', resolve, { once: true }));
+    const result = evaluateRenderer('ws://localhost', 'window.electronAPI.getAppInfo()', controller.signal, function () {
+        return socket;
+    });
+    socket.dispatchEvent(new Event('open'));
+    await assert.rejects(result, (error) => error === reason);
+    await closed;
+});
+
+test('the smoke test reports a lost DevTools connection even before the socket opens', async () => {
+    const socket = new TestRendererSocket();
+    const result = evaluateRenderer('ws://localhost', 'document.readyState', new AbortController().signal, function () {
+        return socket;
+    });
+    socket.dispatchEvent(Object.assign(new Event('close'), { code: 1006, reason: '' }));
+    await assert.rejects(result, /DevTools connection closed \(code 1006\)/);
 });

@@ -71,34 +71,49 @@ async function waitForRenderer(profile, child, signal) {
     signal.throwIfAborted();
 }
 
-async function checkRenderer(address, inputs, signal) {
-    const socket = new WebSocket(address);
-    const close = () => socket.close();
-    signal.addEventListener('abort', close, { once: true });
+export async function evaluateRenderer(address, expression, signal, Socket = WebSocket) {
+    signal.throwIfAborted();
+    const socket = new Socket(address);
+    const listeners = new AbortController();
     try {
-        await once(socket, 'open', { signal });
-        const reply = new Promise((resolveReply, reject) => {
-            socket.addEventListener('close', () => reject(new Error('The packaged renderer closed.')), { once: true });
+        const reply = await new Promise((resolveReply, reject) => {
+            const once = { once: true, signal: listeners.signal };
+            signal.addEventListener('abort', () => reject(signal.reason), once);
+            socket.addEventListener('close', ({ code, reason }) => {
+                reject(new Error(`The renderer's DevTools connection closed (code ${code}${reason ? `, ${reason}` : ''}).`));
+            }, once);
+            socket.addEventListener('open', () => socket.send(JSON.stringify({
+                id: 1,
+                method: 'Runtime.evaluate',
+                params: { expression, awaitPromise: true, returnByValue: true }
+            })), once);
             socket.addEventListener('message', ({ data }) => {
-                const message = JSON.parse(data);
-                if (message.id === 1) resolveReply(message);
-            });
+                try {
+                    const message = JSON.parse(data);
+                    if (message.id === 1) resolveReply(message);
+                } catch (error) {
+                    reject(error);
+                }
+            }, { signal: listeners.signal });
         });
-        socket.send(JSON.stringify({
-            id: 1,
-            method: 'Runtime.evaluate',
-            params: {
-                expression: `(${runSmokeChecks.toString()})(${JSON.stringify(inputs)})`,
-                awaitPromise: true,
-                returnByValue: true
-            }
-        }));
-        const result = await reply;
-        if (!result.result?.result?.value) throw new Error(JSON.stringify(result));
-        return result.result.result.value;
+        if (reply.error || reply.result?.exceptionDetails || !reply.result?.result) {
+            throw new Error(JSON.stringify(reply));
+        }
+        return reply.result.result.value;
     } finally {
-        signal.removeEventListener('abort', close);
+        listeners.abort();
         socket.close();
+    }
+}
+
+async function runStage(stage, operation, timeout = 120_000) {
+    console.log(`Smoke test: ${stage}`);
+    const signal = AbortSignal.timeout(timeout);
+    try {
+        return await operation(signal);
+    } catch (error) {
+        const detail = signal.aborted ? `timed out after ${timeout / 1000}s` : error.message;
+        throw new Error(`${stage}: ${detail}`, { cause: error });
     }
 }
 
@@ -123,21 +138,26 @@ async function stopApp(child) {
     }
 }
 
-// This function runs in the actual packaged renderer via DevTools.
-async function runSmokeChecks({ downloadFolder, mediaUrl }) {
-    const until = Date.now() + 10_000;
-    while (!document.body?.dataset.mode && Date.now() < until) {
-        await new Promise((done) => setTimeout(done, 50));
+async function waitForAppUi(address, signal) {
+    while (!signal.aborted) {
+        const state = await evaluateRenderer(address, `({
+            mode: document.body?.dataset.mode,
+            classicLoaded: typeof window.runCommand === 'function'
+        })`, signal);
+        if (state.mode) return state;
+        await delay(100, undefined, { signal });
     }
+    signal.throwIfAborted();
+}
+
+// This function runs in the actual packaged renderer via DevTools.
+async function checkAiStreaming(downloadFolder) {
     const api = window.electronAPI;
-    const info = await api.getAppInfo();
-    const dependencies = await api.checkDependencies();
-    const classic = await api.runCommand(['--ignore-config', '--no-playlist', '-P', downloadFolder, mediaUrl]);
     const events = [];
     const unsubscribe = api.ai.onEvent(({ type }) => events.push(type));
     try {
         const ai = await api.ai.send('Reply to the packaged app smoke test.', { downloadFolder, browser: '', proxy: '' });
-        return { info, dependencies, classic, ai, events, mode: document.body.dataset.mode, classicLoaded: typeof window.runCommand === 'function' };
+        return { ai, events };
     } finally {
         unsubscribe();
     }
@@ -192,33 +212,45 @@ async function smokePackage(target, outputDir, scratch) {
         const args = [`--user-data-dir=${profile}`, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0'];
         if (process.platform === 'darwin') args.push('--use-mock-keychain');
         if (process.platform === 'linux' && process.env.VIDBUTLER_SMOKE_NO_SANDBOX === '1') args.push('--no-sandbox');
-        child = spawn(executable, args, { cwd: dirname(executable), detached: process.platform !== 'win32' });
+        child = spawn(executable, args, {
+            cwd: dirname(executable),
+            detached: process.platform !== 'win32',
+            env: { ...process.env, VIDBUTLER_SKIP_LAUNCH_UPDATE_CHECK: '1' }
+        });
         for (const stream of [child.stdout, child.stderr]) {
             stream.on('data', (bytes) => { output = (output + bytes.toString()).slice(-8000); });
         }
         await once(child, 'spawn');
-        const signal = AbortSignal.timeout(120_000);
-        const address = await waitForRenderer(profile, child, signal);
-        const result = await checkRenderer(address, { downloadFolder, mediaUrl: base + '/fixture.mp4' }, signal);
+        // Allow for cold starts on macOS before timing the renderer checks.
+        const address = await runStage('Find the packaged renderer', (signal) => waitForRenderer(profile, child, signal), 180_000);
+        const evaluate = (stage, expression) => runStage(stage, (signal) => evaluateRenderer(address, expression, signal));
 
-        assert.equal(result.info.isPackaged, true);
-        assert.equal(result.info.platform, process.platform);
-        assert.deepEqual(result.info.bundledTools, toolVersions);
-        assert.equal(result.mode, 'ai');
-        assert.equal(result.classicLoaded, true);
-        assert.equal(result.dependencies.allInstalled, true);
+        const { mode, classicLoaded } = await runStage('Load the app UI', (signal) => waitForAppUi(address, signal));
+        assert.equal(mode, 'ai');
+        assert.equal(classicLoaded, true);
+
+        const info = await evaluate('Read app info through IPC', 'window.electronAPI.getAppInfo()');
+        assert.equal(info.isPackaged, true);
+        assert.equal(info.platform, process.platform);
+        assert.deepEqual(info.bundledTools, toolVersions);
+
+        const dependencies = await evaluate('Check bundled dependencies through IPC', 'window.electronAPI.checkDependencies()');
+        assert.equal(dependencies.allInstalled, true);
         for (const name of ['yt-dlp', 'ffmpeg']) {
-            const detected = result.dependencies.dependencies.find((tool) => tool.name === name);
+            const detected = dependencies.dependencies.find((tool) => tool.name === name);
             assert(detected?.installed, `App did not find ${name}`);
             assert.equal(await realpath(detected.path), await realpath(toolPath(name)));
         }
-        assert.equal(result.classic.success, true, result.classic.output);
+        const classicArgs = ['--ignore-config', '--no-playlist', '-P', downloadFolder, base + '/fixture.mp4'];
+        const classic = await evaluate('Download the local fixture in Classic mode', `window.electronAPI.runCommand(${JSON.stringify(classicArgs)})`);
+        assert.equal(classic.success, true, classic.output);
         const saved = (await readdir(downloadFolder)).find((name) => name.endsWith('.mp4'));
         assert(saved, 'Classic download did not produce an MP4.');
         assert.deepEqual(await readFile(join(downloadFolder, saved)), fixture);
-        assert.equal(result.ai.ok, true, JSON.stringify(result.ai));
-        assert.equal(result.ai.text, 'Packaged smoke test passed.');
-        assert.deepEqual(result.events, ['assistant_delta', 'assistant_text']);
+        const { ai, events } = await evaluate('Stream a reply from the local AI fixture', `(${checkAiStreaming.toString()})(${JSON.stringify(downloadFolder)})`);
+        assert.equal(ai.ok, true, JSON.stringify(ai));
+        assert.equal(ai.text, 'Packaged smoke test passed.');
+        assert.deepEqual(events, ['assistant_delta', 'assistant_text']);
         console.log(`${target}: packaged renderer, bundled tools, Classic download, and AI streaming passed.`);
     } catch (error) {
         if (output) console.error(output);

@@ -220,6 +220,7 @@ function plainReleaseNotes(notes: unknown) {
 }
 
 async function checkForUpdatesOnLaunch(win: BrowserWindow) {
+    if (process.env.VIDBUTLER_SKIP_LAUNCH_UPDATE_CHECK === '1') return;
     const service = getAppUpdateService();
     if (!service.canCheckForUpdates() || !win || win.isDestroyed()) return;
 
