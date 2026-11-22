@@ -949,6 +949,7 @@ test('xAI uses the Responses API with native tool calling and fixed endpoint', a
     assert.equal(call.url, 'https://api.x.ai/v1/responses');
     assert.equal(call.init.headers.Authorization, 'Bearer xai-secret');
     assert.equal(call.body.model, 'grok-4.3');
+    assert.deepEqual(call.body.reasoning, { effort: 'none' });
     assert.equal(call.body.tools[0].name, 'list_formats');
     assert.deepEqual(call.body.input[2], {
         type: 'function_call_output',
@@ -974,28 +975,46 @@ test('xAI uses the Responses API with native tool calling and fixed endpoint', a
     assert.equal(custom.reasoningEffort, 'high');
 });
 
-test('xAI streams response text deltas from the Responses API', async () => {
+test('xAI sends None for the Grok 4.3 alias and uses the default effort for other models', async () => {
+    for (const [model, reasoning] of [['grok-4.3-latest', { effort: 'none' }], ['grok-4.7', undefined]]) {
+        const fetchImpl = fakeFetch([{ json: { status: 'completed' } }]);
+        const provider = createProvider({ type: 'xai', apiKey: 'key', model, reasoningEffort: 'none' }, { fetchImpl });
+
+        await provider.chat({ messages: userMessages });
+
+        assert.deepEqual(fetchImpl.calls[0].body.reasoning, reasoning, model);
+    }
+});
+
+test('xAI streams response text deltas and sends reasoning effort through the Responses API', async () => {
     const chunks = [
         'event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"hello "}\n\n',
         'event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"world"}\n\n',
         'event: response.completed\ndata: {"type":"response.completed","response":{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"hello world"}]}]}}\n\n'
     ];
-    const fetchImpl = async () => ({
-        ok: true,
-        body: new ReadableStream({
-            start(controller) {
-                for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
-                controller.close();
-            }
-        })
-    });
+    let payload;
+    const fetchImpl = async (_url, { body }) => {
+        payload = JSON.parse(body);
+        return {
+            ok: true,
+            body: new ReadableStream({
+                start(controller) {
+                    for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+                    controller.close();
+                }
+            })
+        };
+    };
     const deltas = [];
-    const provider = createProvider({ type: 'xai', apiKey: 'key' }, { fetchImpl });
+    const provider = createProvider({ type: 'xai', apiKey: 'key', model: 'grok-4.7', reasoningEffort: 'high' }, { fetchImpl });
     const reply = await provider.chat({
         system: '',
         messages: [{ role: 'user', text: 'hi' }],
         onTextDelta: (delta) => deltas.push(delta)
     });
+    assert.deepEqual(payload.reasoning, { effort: 'high' });
+    assert.equal(payload.reasoning_effort, undefined);
+    assert.equal(payload.stream, true);
     assert.deepEqual(deltas, ['hello ', 'world']);
     assert.equal(reply.text, 'hello world');
 });

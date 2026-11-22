@@ -24,15 +24,17 @@ The app provides two interfaces you can switch between at any time:
 - **Dual interfaces**: Switch between the traditional form and a conversational AI chat at any time.
 - **Broad platform support**: Downloads media using `yt-dlp` from YouTube, X, Instagram, TikTok, and more.
 - **Quality & format control**: Select specific resolutions and containers, or extract audio directly (M4A, MP3, Opus, FLAC, WAV).
-- **Embedded thumbnails**: Automatically attaches video thumbnails into MP4 containers.
+- **Embedded thumbnails**: Embeds thumbnails in supported video downloads. You can also save the thumbnail by itself.
 - **Subtitle handling**: Download subtitles by language, or burn them into the video (hardsub) with top or bottom positioning.
 - **MP4 re-encoding**: Convert videos to universally compatible H.264/AAC MP4 files via FFmpeg.
-- **Hardware acceleration**: Takes advantage of macOS VideoToolbox for fast encoding.
+- **Hardware acceleration**: Uses macOS VideoToolbox for hardsubs and supported MP4 clips.
 - **Cookie support**: Pass cookies from Chrome, Firefox, Brave, or Safari to download age-restricted or member-only videos.
 - **SOCKS5 proxy**: Route downloads and queries through a local (e.g. `127.0.0.1:1080`) or remote proxy.
-- **Safe cancellation**: Stop any in-progress download or encoding job with one click; partial files are cleaned up automatically.
+- **Cancellation**: Stop a running download or encoding job. Interrupted downloads can leave partial files in the download folder.
 
 ## Installation
+
+Packaged releases bundle yt-dlp, FFmpeg, and Deno. Choose `arm64` for Apple Silicon, Windows on Arm, or ARM64 Linux, and `x64` for Intel Macs and most Intel or AMD Windows and Linux PCs.
 
 ### Method 1: Homebrew (macOS)
 
@@ -46,14 +48,16 @@ brew install --cask Shawshank01/tap/vidbutler
 
 1. Download the latest release from the [Releases](https://github.com/Shawshank01/Vidbutler/releases) page.
 2. Run the installer for your operating system:
-   - **macOS:** `.dmg` (select `mac-arm64` for Apple Silicon M-series Macs)
-   - **Windows:** `.exe` installer (select `win-x64` for most users)
+   - **macOS:** `.dmg`
+   - **Windows:** `.exe` installer
    - **Linux:** `.AppImage`
 
 > [!IMPORTANT]
 > The macOS app is ad hoc–signed and is not notarised. macOS may block a direct DMG installation. Homebrew is the recommended macOS installation method. Direct-download users may need **Open Anyway** in **System Settings > Privacy & Security**, or as a fallback run `xattr -cr /Applications/VidButler.app`.
 
 ### Method 3: From Source
+
+The CI workflows use Node.js 26 and pnpm 12. For `pnpm start`, install yt-dlp and FFmpeg on your system. On macOS, run `brew install yt-dlp ffmpeg`. On Ubuntu or Debian, run `sudo apt install yt-dlp ffmpeg`. On Windows, add the tools to your `PATH`. Hardsubbing requires an FFmpeg build with the `subtitles` filter, such as Homebrew's `ffmpeg-full`. Install Deno for full [YouTube support](https://github.com/yt-dlp/yt-dlp/wiki/EJS).
 
 1. Clone the repository:
 
@@ -90,7 +94,7 @@ macOS release builds use ad hoc signing, which requires no Apple Developer Progr
 
 ## Uninstallation
 
-To remove the Homebrew release and its local data, quit VidButler and run `brew uninstall --cask --zap Shawshank01/tap/vidbutler`. For a manual install, use **About VidButler → Delete Local Data** before removing the app. Development and release share the same settings and tool data, so either cleanup also clears the development data. The download folder is isolated from VidButler's internal data directories. macOS Keychain entries and caches from standalone tools or older VidButler releases are separate.
+To remove the Homebrew release and its local data, quit VidButler and run `brew uninstall --cask --zap Shawshank01/tap/vidbutler`. For a manual install, use **About VidButler → Delete Local Data** before removing the app. This clears settings, saved API keys, and app-managed caches while keeping your downloads. On macOS, development and release share this data. macOS Keychain entries and caches from standalone tools or older VidButler releases are outside the app's cleanup scope.
 
 ## AI Mode Usage
 
@@ -101,41 +105,45 @@ Click **AI** in the top-right corner to open the chat panel. You can ask for dow
 - *"Download this video: https://..."*
 - *"Download this video in 720p: https://..."*
 - *"Download this video from 0:45 to 2:10: https://..."*
-- *"Download the audio from 1:15 to 2:30 as audio: https://..."*
+- *"Download the audio from 1:15 to 2:30: https://..."*
 - *"Get the audio of this video as an M4A"*
 - *"Summarise this video: https://..."*
 - *"What subtitle languages are available for this video?"* followed by *"Hardcode the English ones at the top"*
 - *"Download it, then re-encode it to a compatible MP4"*
 - *"Show me what's in my download folder"* / *"Delete the leftover subtitle files"*
 
+Clip downloads work with online sources and require FFmpeg. Turn off **SOCKS5 Proxy** before downloading a clip. Video summaries use available captions and can cite timestamps. Long transcripts can require several requests to your AI provider.
+
 ### Setting Up a Provider
 
-1. Click top right corner **AI**, then open **AI Settings**.
-2. Select your provider, verify the model, paste your API key, and click **Save key**.
+1. Click **AI** in the top-right corner, then open **AI Settings**.
+2. Select your provider and check the model. If your provider uses an API key, paste it and click **Save key**. For Ollama or an OpenAI-compatible server, check the server address.
 3. Click **Test connection**, then **Save**.
 4. Choose your download folder and start chatting.
 
 | Provider | Requirement | Notes |
 | --- | --- | --- |
-| **Google Gemini** (default, model `gemini-3.5-flash-lite`) | Free API key from [Google AI Studio](https://aistudio.google.com/apikey) | Free tier can be busy (HTTP 503) or rate limited, the app retries automatically. Your messages go to Google. |
-| **xAI Grok** (model `grok-4.3`) | API key from the [xAI console](https://console.x.ai) | Uses xAI's Responses API at `https://api.x.ai/v1/responses`. Your messages go to Musk. |
+| **Google Gemini** (default, model `gemini-3.5-flash-lite`) | API key from [Google AI Studio](https://aistudio.google.com/apikey) | The default model has a [free tier](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Your messages go to Google. |
+| **xAI Grok** (model `grok-4.3`) | API key from the [xAI console](https://console.x.ai) | Uses xAI's Responses API at `https://api.x.ai/v1/responses`. Your messages go to xAI. |
 | **Cohere** (model `command-a-plus-05-2026`) | API key from the [Cohere dashboard](https://dashboard.cohere.com/api-keys) | Streams replies via the [Cohere Chat API](https://docs.cohere.com/docs/streaming). Your messages go to Cohere. |
-| **Ollama (local)** | [Ollama](https://ollama.com) running with a tool-capable model, for example `LFM3:1.7b`, `Qwen3`. | Everything stays on your computer if you run a local model. Small models are faster but less reliable. |
+| **Ollama (local)** | [Ollama](https://ollama.com) running with a tool-capable model such as `lfm3:1.7b`. | With a local model and local server, the app sends chat data to Ollama on your computer. |
 | **OpenAI-compatible** | Server URL, model name, usually an API key | Works with llama.cpp, OpenAI, OpenRouter, Groq, LM Studio and similar. |
 
 Choose a model with tool calling for downloads and media operations.
 
 Additional settings:
 
-- **Reasoning effort**: Adjust how long models think before responding (*Fast* is recommended for quick downloads).
+- **Reasoning effort**: Gemini and xAI expose provider-specific settings. **None** disables reasoning on Grok 4.3 and uses the model's default effort for other xAI models.
 - **Confirmation level**: Choose whether to require approval for *Risky actions only* (default), *Every action*, or *Never*.
+
+For model requests that fail with HTTP 503, the app usually retries once. For HTTP 429, it retries if the provider supplies a valid `Retry-After` delay of up to 60 seconds. For authentication errors, check your key in **AI Settings** and click **Test connection**.
 
 ### Privacy & Security
 
-- **What is sent to the provider**: Only your chat prompts, assistant replies, and necessary tool outputs (video titles, format lists, filenames).
-- **API key storage**: Stored securely using Electron's `safeStorage` (macOS Keychain, Windows DPAPI, Linux Secret Service). Keys never touch renderer memory or client-side storage.
-- **Ephemeral conversations**: Chat history is kept in memory only during the active session. Closing the window or starting a new chat discards it completely.
-- **Isolated file operations**: File operations are strictly locked to your selected download folder.
+- **What is sent to the provider**: The app sends chat content, tool definitions, and tool results to the provider you select. Tool results can include video titles, captions, filenames, and the download folder path.
+- **API key storage**: The settings form passes the key to the main process. Saved keys are encrypted locally using Electron's `safeStorage`. If secure storage is unavailable, keys stay in memory for the current app session.
+- **Chat history**: VidButler keeps chat history in memory until you start a new chat or quit the app. Hosted providers handle sent data under their own retention policies.
+- **File operations**: The assistant operates on media in your selected download folder. File deletion requires confirmation under the default settings.
 
 ## Classic Mode Usage
 
@@ -153,42 +161,24 @@ Classic mode doesn't require an AI API key.
 3. If needed, select your browser under **Browser for Cookies** (helpful for age-restricted or private links) or toggle the **SOCKS5 Proxy**.
 4. Click **Run**.
 
-To stop an ongoing task, click **Cancel Action**. The active `yt-dlp` or `FFmpeg` process will exit immediately and clean up any incomplete temp files.
+To stop an ongoing task, click **Cancel Action**. VidButler removes unfinished FFmpeg outputs for cancelled re-encoding and hardsubbing. Interrupted downloads may leave partial files.
 
 ## Updating
 
-Installed release builds check for updates each time VidButler launches:
+Packaged macOS and Windows builds and Linux AppImages check GitHub Releases at launch.
 
-1. VidButler checks for a newer version from the official GitHub Releases feed each time it launches.
-2. On **Windows and Linux AppImage**, choose **Download and Restart**. The update is checksum-verified, installed, and the new version launches automatically.
-3. On **macOS**, choose **Copy Homebrew Command**, then paste the command into Terminal. The command refreshes the custom tap before upgrading:
+1. On **Windows and Linux AppImage**, choose **Download and Restart**. The update is checksum-verified, installed, and the new version launches automatically.
+2. On **macOS**, choose **Copy Homebrew Command**, then paste the command into Terminal to refresh the tap and upgrade.
 
    ```bash
    brew update --force && brew upgrade --cask Shawshank01/tap/vidbutler
    ```
 
    If VidButler was installed directly from a DMG, choose **Open GitHub Release** instead.
-4. You can also check manually from **About > Check for Updates**.
+3. To check manually, click the VidButler icon and choose **Check for Updates**.
 
-Source runs and extracted Linux builds cannot replace themselves; they link to the [latest release](https://github.com/Shawshank01/Vidbutler/releases/latest) instead.
-
-## Troubleshooting
-
-1. **Missing Tools in Development**
-   - Development mode expects `yt-dlp` and `ffmpeg` on your `PATH`.
-   - Install them via package managers:
-     - **macOS:** `brew install yt-dlp ffmpeg`
-     - **Linux (Ubuntu/Debian):** `sudo apt install yt-dlp ffmpeg`
-     - **Windows:** Download from official releases and add to your PATH.
-
-2. **Browser Cookies Access (macOS)**
-   - When reading cookies from Chrome, Firefox, or Safari, macOS may request permission.
-   - If access is denied, go to **System Settings > Privacy & Security > Files & Folders** and ensure `VidButler.app` is enabled.
-
-3. **AI Mode Connection Issues**
-   - **HTTP 503 (Overloaded)**: Google Gemini free tier can occasionally experience high demand. The app automatically retries; if it persists, wait a moment or try another provider.
-   - **HTTP 429 (Rate Limit)**: Quota exhausted. Wait for it to reset or switch to a local Ollama model.
-   - **Authentication Errors**: Open **AI Settings**, re-enter your key, and use **Test connection**.
+> [!NOTE]
+> In source runs and extracted Linux builds, **Check for Updates** offers to open the [latest release](https://github.com/Shawshank01/Vidbutler/releases/latest).
 
 ## Credits
 

@@ -6,6 +6,7 @@ import { isStreamable, parseStreamJson, readJsonBody, readSse } from './stream.j
 export const DEFAULT_XAI_BASE_URL = 'https://api.x.ai/v1';
 export const DEFAULT_XAI_MODEL = 'grok-4.3';
 export const XAI_REASONING_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh'];
+const MODELS_SUPPORTING_NO_REASONING = new Set(['grok-4.3', 'grok-4.3-latest']);
 
 /** xAI's native Responses API provider. */
 export class XaiProvider {
@@ -103,6 +104,8 @@ export class XaiProvider {
             throw new ProviderError('No model is configured for the xAI provider.', { kind: 'bad_request' });
         }
 
+        // Use the provider's default when None is selected for another model.
+        const sendReasoningEffort = this.reasoningEffort !== 'none' || MODELS_SUPPORTING_NO_REASONING.has(this.model);
         const request = {
             fetchImpl: this.fetchImpl,
             providerName: this.displayName,
@@ -112,7 +115,7 @@ export class XaiProvider {
                 model: this.model,
                 instructions: system || undefined,
                 input: this.#toInput(messages),
-                ...(this.reasoningEffort !== 'none' ? { reasoning_effort: this.reasoningEffort } : {}),
+                ...(sendReasoningEffort ? { reasoning: { effort: this.reasoningEffort } } : {}),
                 ...(tools.length > 0
                     ? {
                         tools: tools.map((t) => ({
