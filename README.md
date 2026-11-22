@@ -42,8 +42,6 @@ Install and update using Homebrew:
 brew install --cask Shawshank01/tap/vidbutler
 ```
 
-To remove the Homebrew release and its local data, quit VidButler and run `brew uninstall --cask --zap Shawshank01/tap/vidbutler`. For a manual install, use **About VidButler → Delete Local Data** before removing the app. Development and release share the same settings and tool data, so either cleanup also clears the development data. The download folder is isolated from VidButler's internal data directories. macOS Keychain entries and caches from standalone tools or older VidButler releases are separate.
-
 ### Method 2: Direct Download
 
 1. Download the latest release from the [Releases](https://github.com/Shawshank01/Vidbutler/releases) page.
@@ -90,6 +88,10 @@ Installers and executables are output to the `dist/` directory.
 
 macOS release builds use ad hoc signing, which requires no Apple Developer Program credentials. macOS may ask for browser access again after an update. Windows signing is used when the optional `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD` secrets are configured.
 
+## Uninstallation
+
+To remove the Homebrew release and its local data, quit VidButler and run `brew uninstall --cask --zap Shawshank01/tap/vidbutler`. For a manual install, use **About VidButler → Delete Local Data** before removing the app. Development and release share the same settings and tool data, so either cleanup also clears the development data. The download folder is isolated from VidButler's internal data directories. macOS Keychain entries and caches from standalone tools or older VidButler releases are separate.
+
 ## AI Mode Usage
 
 Click **AI** in the top-right corner to open the chat panel. You can ask for downloads, conversions, file management, or media inspection in conversational language.
@@ -101,25 +103,10 @@ Click **AI** in the top-right corner to open the chat panel. You can ask for dow
 - *"Download this video from 0:45 to 2:10: https://..."*
 - *"Download the audio from 1:15 to 2:30 as audio: https://..."*
 - *"Get the audio of this video as an M4A"*
-- *"Summarize this video: https://..."*
+- *"Summarise this video: https://..."*
 - *"What subtitle languages are available for this video?"* followed by *"Hardcode the English ones at the top"*
 - *"Download it, then re-encode it to a compatible MP4"*
 - *"Show me what's in my download folder"* / *"Delete the leftover subtitle files"*
-
-The assistant can summarize online videos from their captions and cite timestamps. It also has tools for fetching video info, inspecting local media, listing formats and subtitles, downloading full videos or clips, downloading audio and thumbnails, burning subtitles, re-encoding to MP4, and listing or deleting downloaded files.
-
-> [!NOTE]
-> Time-range downloads apply to online sources and use FFmpeg to re-encode at the requested cut points. MP4 clips and hardsubs use shared resolution-based video bitrate targets. On macOS, MP4 clips prefer H.264 via VideoToolbox, and MP4 and M4A clips prefer Apple AudioToolbox AAC at 128 kbps. The app retries with FFmpeg's video or native AAC encoder if the corresponding Apple encoder fails. AI mode shares the download folder, browser cookies, and proxy settings with Classic mode. Time-range downloads are unavailable while a SOCKS proxy is enabled because FFmpeg cannot use it.
-
-### How AI Mode Works
-
-Rather than giving an LLM direct shell access, the app executes requests through predefined, strictly validated tools:
-
-- **No shell access**: The model cannot run arbitrary terminal commands. Every operation maps to a predefined tool that builds argument arrays directly.
-- **Strict parameter validation**: URLs must use `http(s)`, file names cannot escape the designated download directory, and format codes are regex-checked.
-- **Prompt injection defense & URL provenance**: Text from websites (titles, descriptions, comments) is treated as untrusted data. URLs that did not come directly from your message require explicit confirmation before downloading.
-- **Configurable confirmations**: Operations considered high risk (re-encoding existing files, deleting files, downloading full playlists) prompt for confirmation before proceeding.
-- **Zero framework bloat**: The AI integration is written with vanilla ES modules and standard HTTP requests—no LangChain, LlamaIndex, or heavy external agent runtimes.
 
 ### Setting Up a Provider
 
@@ -136,7 +123,7 @@ Rather than giving an LLM direct shell access, the app executes requests through
 | **Ollama (local)** | [Ollama](https://ollama.com) running with a tool-capable model, for example `LFM3:1.7b`, `Qwen3`. | Everything stays on your computer if you run a local model. Small models are faster but less reliable. |
 | **OpenAI-compatible** | Server URL, model name, usually an API key | Works with llama.cpp, OpenAI, OpenRouter, Groq, LM Studio and similar. |
 
-To switch Cohere models, enter a [Chat-compatible model ID](https://docs.cohere.com/docs/models) such as `command-a-03-2025` in **Model**, then click **Test connection** and **Save**. Choose a model with tool calling for downloads and media operations. Clear **Model** to restore the default.
+Choose a model with tool calling for downloads and media operations.
 
 Additional settings:
 
@@ -152,7 +139,7 @@ Additional settings:
 
 ## Classic Mode Usage
 
-Classic mode provides a straightforward, no-fuss interface:
+Classic mode doesn't require an AI API key.
 
 1. Paste a video URL and select your destination folder.
 2. Choose your action:
@@ -181,12 +168,9 @@ Installed release builds check for updates each time VidButler launches:
    ```
 
    If VidButler was installed directly from a DMG, choose **Open GitHub Release** instead.
-4. You can also check manually from **About > Check for Updates**. Nothing is downloaded until you agree.
+4. You can also check manually from **About > Check for Updates**.
 
 Source runs and extracted Linux builds cannot replace themselves; they link to the [latest release](https://github.com/Shawshank01/Vidbutler/releases/latest) instead.
-
-> [!NOTE]
-> Packaged release builds bundle their own copies of `yt-dlp`, `FFmpeg`, and `Deno` (used for solving YouTube JavaScript challenges). In development runs (`pnpm start`), the app looks for tools installed on your system `PATH`.
 
 ## Troubleshooting
 
