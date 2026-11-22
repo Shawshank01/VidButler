@@ -185,7 +185,7 @@ button.brand-icon:focus-visible {
 
 /* Classic mode Row 1: Browser box halved, extra space added to Video URL */
 .input-row:first-of-type {
-    grid-template-columns: minmax(0, 2.7fr) minmax(130px, 0.7fr) minmax(238px, 0.85fr);
+    grid-template-columns: minmax(0, 2.7fr) minmax(130px, 0.7fr) minmax(270px, 0.85fr);
 }
 
 /* Classic mode Row 2: Action, Download Folder, Run button */
@@ -213,7 +213,7 @@ button.brand-icon:focus-visible {
 
 body[data-mode='ai'] .download-controls {
     display: grid;
-    grid-template-columns: minmax(130px, 0.45fr) minmax(0, 2.3fr) minmax(238px, 0.45fr);
+    grid-template-columns: minmax(130px, 0.45fr) minmax(0, 2.3fr) minmax(270px, 0.45fr);
     gap: 16px;
     margin-bottom: 8px;
 }
@@ -235,6 +235,39 @@ body[data-mode='ai'] .download-controls .download-folder-group {
 body[data-mode='ai'] .download-controls .proxy-group {
     grid-column: 3;
     grid-row: 1;
+}
+
+@media (max-width: 700px) {
+    .input-row:first-of-type {
+        grid-template-columns: minmax(0, 1fr) 130px;
+    }
+
+    .proxy-group {
+        grid-column: 1 / -1;
+    }
+
+    body[data-mode='ai'] .download-controls {
+        grid-template-columns: 130px minmax(0, 1fr);
+    }
+
+    body[data-mode='ai'] .download-controls .proxy-group {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+}
+
+@media (max-width: 480px) {
+    .input-row:first-of-type,
+    .input-row:nth-of-type(2),
+    .input-row.conditional-row,
+    body[data-mode='ai'] .download-controls {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body[data-mode='ai'] .download-controls :is(.browser-group, .download-folder-group, .proxy-group) {
+        grid-column: 1;
+        grid-row: auto;
+    }
 }
 
 label,
@@ -260,7 +293,8 @@ label,
 
 input[type='text'],
 input[type='url'],
-input[type='password'] {
+input[type='password'],
+#proxyAddress {
     width: 100%;
     height: 38px;
     padding: 0 12px;
@@ -320,6 +354,7 @@ textarea:focus {
 
 .folder-input input {
     flex: 1;
+    min-width: 0;
     height: 38px;
     font-size: 12px;
 }
@@ -1501,9 +1536,26 @@ body[data-mode='ai'] .ai-panel {
 }
 
 .proxy-fields {
-    display: grid;
-    grid-template-columns: 96px minmax(0, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: 8px;
+}
+
+#proxyType {
+    width: auto;
+}
+
+#proxyAddress {
+    flex: 1 1 17ch;
+    min-width: 0;
+    height: auto;
+    min-height: 38px;
+    padding-block: 9px;
+    line-height: 18px;
+    field-sizing: content;
+    overflow-wrap: anywhere;
+    resize: none;
 }
 
 .proxy-fields > :disabled {

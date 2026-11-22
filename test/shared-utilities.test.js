@@ -81,12 +81,19 @@ test('renderer restores the proxy type, keeps existing settings on SOCKS5, and s
 
         proxyType.value = 'http';
         proxyType.change();
+        let lineBreakPrevented = false;
+        proxyAddress.beforeinput({ inputType: 'insertLineBreak', preventDefault: () => { lineBreakPrevented = true; } });
+        assert.equal(lineBreakPrevented, true);
+        proxyAddress.value = 'proxy.example.test\n:8080';
+        proxyAddress.input();
+        proxyAddress.change();
+        assert.deepEqual(Array.from(context.getProxyArgs()), ['--proxy', 'http://proxy.example.test:8080/']);
         proxyEnabled.checked = false;
         proxyEnabled.change();
         assert.equal(proxyType.disabled, true);
         assert.equal(proxyAddress.disabled, true);
         assert.deepEqual(Array.from(context.getProxyArgs()), []);
-        assert.deepEqual(updates, [{ proxyType: 'http' }, { proxyEnabled: false }]);
+        assert.deepEqual(updates, [{ proxyType: 'http' }, { proxyAddress: 'proxy.example.test:8080' }, { proxyEnabled: false }]);
     }
 });
 

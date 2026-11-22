@@ -1245,7 +1245,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const proxyToggle = document.getElementById('proxyEnabled') as HTMLInputElement | null;
     const proxyType = document.getElementById('proxyType') as HTMLSelectElement | null;
-    const proxyInput = document.getElementById('proxyAddress') as HTMLInputElement | null;
+    const proxyInput = document.getElementById('proxyAddress') as HTMLTextAreaElement | null;
 
     // Restore persisted user settings
     if (window.electronAPI?.getSettings) {
@@ -1269,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (proxyType) proxyType.value = saved.proxyType === 'http' ? 'http' : 'socks5';
             if (proxyInput && typeof saved.proxyAddress === 'string') {
-                proxyInput.value = saved.proxyAddress;
+                proxyInput.value = saved.proxyAddress.replace(/[\r\n]/g, '');
             }
 
             // Subtitle Position
@@ -1318,6 +1318,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         proxyType.addEventListener('change', () => {
             window.electronAPI?.setSettings({ proxyType: proxyType.value }).catch(console.error);
+        });
+        // Wrap the display without allowing line breaks in the endpoint itself.
+        proxyInput.addEventListener('beforeinput', (event) => {
+            if (event.inputType === 'insertLineBreak') event.preventDefault();
+        });
+        proxyInput.addEventListener('input', () => {
+            if (proxyInput.value.includes('\n')) {
+                proxyInput.value = proxyInput.value.replace(/\n/g, '');
+            }
         });
         proxyInput.addEventListener('change', () => {
             window.electronAPI?.setSettings({ proxyAddress: proxyInput.value.trim() }).catch(console.error);
