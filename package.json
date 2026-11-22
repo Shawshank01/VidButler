@@ -1,6 +1,6 @@
 {
   "name": "vidbutler",
-  "version": "5.1.1",
+  "version": "5.2.0",
   "description": "Video downloader and media processor using yt-dlp and FFmpeg with AI assistance",
   "main": "src/main.js",
   "type": "module",
