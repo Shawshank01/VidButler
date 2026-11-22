@@ -42,13 +42,6 @@ Install and update using Homebrew:
 brew install --cask Shawshank01/tap/vidbutler
 ```
 
-To update in the future:
-
-```bash
-brew update --force
-brew upgrade --cask Shawshank01/tap/vidbutler
-```
-
 To remove the Homebrew release and its local data, quit VidButler and run `brew uninstall --cask --zap Shawshank01/tap/vidbutler`. For a manual install, use **About VidButler → Delete Local Data** before removing the app. Development and release share the same settings and tool data, so either cleanup also clears the development data. The download folder is isolated from VidButler's internal data directories. macOS Keychain entries and caches from standalone tools or older VidButler releases are separate.
 
 ### Method 2: Direct Download
