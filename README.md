@@ -6,7 +6,7 @@
 
 [Deutsch](docs/README.de.md) · [Français](docs/README.fr.md) · [Español](docs/README.es.md) · [Italiano](docs/README.it.md) · [Polski](docs/README.pl.md) · [Nederlands](docs/README.nl.md) · [Português](docs/README.pt.md) · [简体中文](docs/README.zh-Hans.md) · [繁體中文](docs/README.zh-Hant.md) · [日本語](docs/README.ja.md) · [Русский](docs/README.ru.md) · [Українська](docs/README.uk.md)
 
-A desktop video downloader and media processor built with Electron, powered by **yt-dlp** and **FFmpeg**. Download videos and audio from YouTube, X (Twitter), Instagram, and hundreds of other sites, with support for format selection, subtitle extraction, re-encoding, and hardsubbing.
+A cross-platform media assistant built with Electron, powered by **yt-dlp** and **FFmpeg**. Download videos and audio from YouTube, X (Twitter), Instagram, and hundreds of other sites, with support for format selection, subtitle extraction, re-encoding, and hardsubbing. AI mode can also summarize videos using available captions and download clips from online sources by start and end time.
 
 The app provides two interfaces you can switch between at any time:
 

@@ -13,6 +13,10 @@ function links(markdown) {
 
 test('the English README links every translation and the translated READMEs preserve shared resources', () => {
     const english = read(englishPath);
+    const introduction = english.split('\n## ', 1)[0];
+    assert.match(introduction, /^A cross-platform media assistant built with Electron/m);
+    assert.match(introduction, /summari[sz]e videos.*captions/i);
+    assert.match(introduction, /download clips from online sources by start and end time/i);
     const translations = readdirSync(docsPath).filter((name) => /^README\.[\w-]+\.md$/.test(name)).sort();
     const indexed = links(english).filter((link) => link.startsWith('docs/README.'))
         .map((link) => link.slice('docs/'.length)).sort();

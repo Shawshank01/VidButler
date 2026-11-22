@@ -6,7 +6,7 @@
 
 [English](../README.md)
 
-VidButler est une application de bureau Electron qui télécharge et traite des médias avec **yt-dlp** et **FFmpeg**. Téléchargez de la vidéo et de l’audio depuis YouTube, X (Twitter), Instagram et des centaines d’autres sites. Vous pouvez choisir le format, extraire les sous-titres, réencoder la vidéo et y incruster des sous-titres.
+VidButler est un assistant multimédia multiplateforme conçu avec Electron et propulsé par **yt-dlp** et **FFmpeg**. Téléchargez de la vidéo et de l’audio depuis YouTube, X (Twitter), Instagram et des centaines d’autres sites. Vous pouvez choisir le format, extraire les sous-titres, réencoder la vidéo et y incruster des sous-titres. Le mode IA peut également résumer les vidéos à partir des sous-titres disponibles et télécharger des extraits de sources en ligne en précisant les temps de début et de fin.
 
 L’application propose deux interfaces entre lesquelles vous pouvez basculer à tout moment :
 

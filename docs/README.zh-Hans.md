@@ -6,7 +6,7 @@
 
 [English](../README.md)
 
-VidButler 是一款基于 Electron 的桌面应用，使用 **yt-dlp** 和 **FFmpeg** 下载并处理媒体。你可以从 YouTube、X（Twitter）、Instagram 和数百个其他网站下载视频与音频，也可以选择格式、提取字幕、重新编码视频和将字幕嵌入画面。
+VidButler 是一款基于 Electron 构建的跨平台媒体助手，使用 **yt-dlp** 和 **FFmpeg** 下载并处理媒体。你可以从 YouTube、X（Twitter）、Instagram 和数百个其他网站下载视频与音频，也可以选择格式、提取字幕、重新编码视频和将字幕嵌入画面。AI 模式还可以根据可用字幕总结视频内容，也可以按指定的起止时间从在线来源下载片段。
 
 应用提供两种界面，你可以随时切换：
 

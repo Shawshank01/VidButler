@@ -6,7 +6,7 @@
 
 [English](../README.md)
 
-VidButler to aplikacja komputerowa oparta na Electronie, która pobiera i przetwarza multimedia za pomocą **yt-dlp** i **FFmpeg**. Pobieraj filmy i dźwięk z YouTube, X (Twittera), Instagrama i setek innych serwisów. Wybieraj formaty, wyodrębniaj napisy, przekodowuj filmy i wtapiaj w nie napisy.
+VidButler to wieloplatformowy asystent multimedialny oparty na Electronie, który korzysta z **yt-dlp** i **FFmpeg**. Pobieraj filmy i dźwięk z YouTube, X (Twittera), Instagrama i setek innych serwisów. Wybieraj formaty, wyodrębniaj napisy, przekodowuj filmy i wtapiaj w nie napisy. Tryb AI potrafi też streszczać filmy na podstawie dostępnych napisów i pobierać fragmenty ze źródeł internetowych według podanego czasu początkowego i końcowego.
 
 Aplikacja ma dwa interfejsy, między którymi można w każdej chwili przełączać:
 
