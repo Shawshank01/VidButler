@@ -191,7 +191,7 @@ The release matrix and standalone macOS and Windows build jobs run `node scripts
 
 - The assistant can download a time range from an online source. Local file trimming, GIFs, joining, resizing, speed change, SponsorBlock, and chapter/metadata editing are still outside its capabilities. Time-range downloads require FFmpeg and work directly or through an HTTP proxy that supports CONNECT. `download_section` rejects SOCKS proxies. yt-dlp passes the configured HTTP proxy to FFmpeg, and the app clears inherited `NO_PROXY` exceptions for those yt-dlp processes.
 - One conversation at a time; history is lost on New chat or quit; capped at 40 messages.
-- The UI supports English, German, French, Spanish, Italian, Polish, Dutch and Portuguese. Model replies follow the user’s prompt language. Provider diagnostics and raw tool output retain their source language.
+- The UI supports English, German, French, Spanish, Italian, Polish, Dutch, Portuguese, Simplified Chinese, Traditional Chinese and Japanese. Model replies follow the user’s prompt language. Provider diagnostics and raw tool output retain their source language.
 - **`renderer.ts` and `ai-ui.ts` are large classic scripts** sharing global state and DOM IDs. Exercise the affected dialogs in a live Electron window when refactoring either script.
 - Re-encoding an `.mp4` replaces the original file (flagged high risk and described in the confirmation text).
 - Small local models have not been evaluated; expect weaker tool selection.
