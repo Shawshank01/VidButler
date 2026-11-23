@@ -334,26 +334,6 @@ function createWindow() {
     });
 }
 
-let asyncEncryptionAvailable: boolean | null = null;
-
-async function initSafeStorageAvailability() {
-    if (typeof safeStorage.isAsyncEncryptionAvailable === 'function') {
-        try {
-            asyncEncryptionAvailable = await safeStorage.isAsyncEncryptionAvailable();
-        } catch {
-            asyncEncryptionAvailable = false;
-        }
-    } else if (typeof safeStorage.isEncryptionAvailable === 'function') {
-        try {
-            asyncEncryptionAvailable = safeStorage.isEncryptionAvailable();
-        } catch {
-            asyncEncryptionAvailable = false;
-        }
-    } else {
-        asyncEncryptionAvailable = false;
-    }
-}
-
 async function startApp() {
     await prepareToolData(app.getPath('userData'));
     const iconPath = join(__dirname, '../build/icon.png');
@@ -364,7 +344,6 @@ async function startApp() {
             console.error('[main] Failed to set dock icon:', err);
         }
     }
-    await initSafeStorageAvailability();
     createWindow();
 }
 
@@ -554,41 +533,24 @@ handle('delete-temporary-files', async (_event, paths) => deleteTemporaryFiles(p
 // ---------------------------------------------------------------------------
 let chatService: ChatService | null = null;
 let activeAiSender: WebContents | null = null;
+let safeStorageAvailability: Promise<boolean> | undefined;
+
+async function checkSafeStorageAvailability() {
+    const available = await safeStorage.isAsyncEncryptionAvailable();
+    // Linux's basic_text backend uses a hard-coded password.
+    return available === true && (process.platform !== 'linux'
+        || safeStorage.getSelectedStorageBackend() !== 'basic_text');
+}
 
 function getChatService() {
     if (!chatService) {
         const keyStore = new KeyStore({
             filePath: join(app.getPath('userData'), AI_KEYS_FILE),
             crypto: {
-                // On Linux without a keyring Electron falls back to a hard-coded password ("basic_text"),
-                // which is not real protection, so treat that as unavailable.
-                isAvailable: () => {
-                    if (asyncEncryptionAvailable !== null) {
-                        if (!asyncEncryptionAvailable) return false;
-                    } else if (typeof safeStorage.isAsyncEncryptionAvailable === 'function') {
-                        // Modern Electron supports async encryption; avoid calling deprecated sync method
-                        return true;
-                    } else if (typeof safeStorage.isEncryptionAvailable === 'function') {
-                        if (!safeStorage.isEncryptionAvailable()) return false;
-                    }
-                    if (process.platform === 'linux' && typeof safeStorage.getSelectedStorageBackend === 'function') {
-                        return safeStorage.getSelectedStorageBackend() !== 'basic_text';
-                    }
-                    return true;
-                },
-                encrypt: async (plain) => {
-                    if (typeof safeStorage.encryptStringAsync === 'function') {
-                        return safeStorage.encryptStringAsync(plain);
-                    }
-                    return safeStorage.encryptString(plain);
-                },
-                decrypt: async (encrypted) => {
-                    if (typeof safeStorage.decryptStringAsync === 'function') {
-                        const res = await safeStorage.decryptStringAsync(encrypted);
-                        return typeof res === 'object' && res !== null ? res.result : res;
-                    }
-                    return safeStorage.decryptString(encrypted);
-                }
+                // Share the keyring check across AI requests without delaying window creation.
+                isAvailable: () => safeStorageAvailability ??= checkSafeStorageAvailability().catch(() => false),
+                encrypt: (plain) => safeStorage.encryptStringAsync(plain),
+                decrypt: async (encrypted) => (await safeStorage.decryptStringAsync(encrypted)).result
             }
         });
 

@@ -11,7 +11,7 @@ import { promises as fs } from 'fs';
  * - Keys are only ever returned to main-process code via `get()`. Nothing here is sent to the renderer.
  *
  * @typedef {object} CryptoAdapter
- * @property {() => boolean} isAvailable
+ * @property {() => boolean | Promise<boolean>} isAvailable
  * @property {(plain: string) => Buffer | Promise<Buffer>} encrypt
  * @property {(encrypted: Buffer) => string | Promise<string>} decrypt
  */
@@ -28,9 +28,9 @@ export class KeyStore {
         this.sessionKeys = new Map();
     }
 
-    isPersistent() {
+    async isPersistent() {
         try {
-            return this.crypto.isAvailable() === true;
+            return (await this.crypto.isAvailable()) === true;
         } catch {
             return false;
         }
@@ -60,7 +60,7 @@ export class KeyStore {
     /** @returns {Promise<string>} The key, or '' if none is stored. */
     async get(providerType) {
         if (this.sessionKeys.has(providerType)) return this.sessionKeys.get(providerType);
-        if (!this.isPersistent()) return '';
+        if (!(await this.isPersistent())) return '';
         const data = await this.#readFile();
         const encoded = data[providerType];
         if (typeof encoded !== 'string' || !encoded) return '';
@@ -76,7 +76,7 @@ export class KeyStore {
     /** Every stored key (all providers). Only for main-process use, e.g. to scrub secrets from messages. */
     async all() {
         const keys = new Set(this.sessionKeys.values());
-        if (this.isPersistent()) {
+        if (await this.isPersistent()) {
             for (const providerType of Object.keys(await this.#readFile())) {
                 const key = await this.get(providerType);
                 if (key) keys.add(key);
@@ -96,9 +96,9 @@ export class KeyStore {
         const key = typeof apiKey === 'string' ? apiKey.trim() : '';
         if (!key) {
             await this.remove(providerType);
-            return { persisted: this.isPersistent() };
+            return { persisted: await this.isPersistent() };
         }
-        if (!this.isPersistent()) {
+        if (!(await this.isPersistent())) {
             this.sessionKeys.set(providerType, key);
             return { persisted: false };
         }

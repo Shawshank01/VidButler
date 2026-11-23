@@ -14,6 +14,23 @@ const rendererScript = readFileSync(new URL('../src/renderer.ts', import.meta.ur
 
 const htmlIds = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
 
+test('window startup does not wait for secure storage', () => {
+    const startup = main.match(/^async function startApp\(\) \{([\s\S]*?)^\}/m)?.[1] ?? '';
+    assert.match(startup, /\bcreateWindow\(\);/);
+    assert.doesNotMatch(startup, /safeStorage|getChatService/i);
+});
+
+test('API key storage uses Electron’s asynchronous encryption methods', () => {
+    for (const [method, asyncMethod] of [
+        ['isEncryptionAvailable', 'isAsyncEncryptionAvailable'],
+        ['encryptString', 'encryptStringAsync'],
+        ['decryptString', 'decryptStringAsync']
+    ]) {
+        assert.doesNotMatch(main, new RegExp(`\\bsafeStorage\\.${method}\\b`));
+        assert.match(main, new RegExp(`\\bsafeStorage\\.${asyncMethod}\\b`));
+    }
+});
+
 test('html ids are unique', () => {
     const dupes = htmlIds.filter((id, i) => htmlIds.indexOf(id) !== i);
     assert.deepEqual(dupes, []);

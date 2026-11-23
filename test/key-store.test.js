@@ -62,8 +62,9 @@ test('setting an empty key removes the stored key', async () => {
 
 test('without OS encryption keys stay in memory only and are never written to disk', async () => {
     const filePath = await tempFile();
-    const store = new KeyStore({ filePath, crypto: fakeCrypto(false) });
-    assert.equal(store.isPersistent(), false);
+    const crypto = { ...fakeCrypto(), isAvailable: async () => false };
+    const store = new KeyStore({ filePath, crypto });
+    assert.equal(await store.isPersistent(), false);
 
     assert.deepEqual(await store.set('gemini', 'memory-only-key'), { persisted: false });
     assert.equal(await store.get('gemini'), 'memory-only-key');
@@ -119,5 +120,19 @@ test('a crypto adapter that throws counts as unavailable', async () => {
         filePath: await tempFile(),
         crypto: { isAvailable: () => { throw new Error('boom'); }, encrypt: () => Buffer.alloc(0), decrypt: () => '' }
     });
-    assert.equal(store.isPersistent(), false);
+    assert.equal(await store.isPersistent(), false);
+});
+
+test('saving a key waits for the secure storage check', async () => {
+    const filePath = await tempFile();
+    const availability = Promise.withResolvers();
+    const store = new KeyStore({ filePath, crypto: { ...fakeCrypto(), isAvailable: () => availability.promise } });
+    const saving = store.set('gemini', 'saved-after-keyring-check');
+
+    await assert.rejects(fs.access(filePath), { code: 'ENOENT' });
+    availability.resolve(true);
+
+    assert.deepEqual(await saving, { persisted: true });
+    const restarted = new KeyStore({ filePath, crypto: fakeCrypto() });
+    assert.equal(await restarted.get('gemini'), 'saved-after-keyring-check');
 });

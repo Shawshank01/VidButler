@@ -59,7 +59,7 @@ export class AiSettings {
             mode: MODES.includes(saved.aiMode) ? saved.aiMode : 'classic',
             provider: normalizeProviderType(saved.aiProvider),
             confirmMode: CONFIRM_MODES.includes(saved.aiConfirmMode) ? saved.aiConfirmMode : 'risky',
-            keyStorageSecure: this.keyStore.isPersistent(),
+            keyStorageSecure: await this.keyStore.isPersistent(),
             providers
         };
     }
