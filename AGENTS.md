@@ -19,7 +19,7 @@ It originally had only a form-based UI ("Classic mode"). The goal of the current
 | 3A. Main-process integration | Encrypted API-key storage, chat service (settings, conversation, confirmations, cancel), IPC and preload API (`window.electronAPI.ai`). | Done, user-verified (key save, connection test) |
 | 3B. UI | Classic / AI switch, chat panel, AI settings dialog, Allow/Deny dialog, live progress, streamed replies, auto-scroll, shared Browser / Download Folder / Proxy context controls. | Done, user-verified for the original SOCKS5 control. |
 | Follow-ups | Gemini `thinkingLevel`, streamed Markdown replies, retries on HTTP 503 and similar, xAI Responses provider, Ollama streaming, empty-parameter tool schema fix, diagnostic `[ai]` log lines, CSP and navigation guards, repo-wide ESLint. | Done |
-| Built-in updates | Packaged apps check GitHub Releases at launch. Windows and Linux AppImages ask before downloading, then install and restart. Ad hoc–signed macOS builds offer a copyable Homebrew tap command plus a GitHub fallback. The cask removes quarantine. | Done, unit-tested. The packaged update flow needs live verification. |
+| Built-in updates | Packaged apps check GitHub Releases at launch. Windows and Linux AppImages ask before downloading, show download progress, and ask again before restarting to install. Ad hoc–signed macOS builds offer a copyable Homebrew tap command plus a GitHub fallback. The cask removes quarantine. | Done, unit-tested. The packaged update flow needs live verification. |
 | 5.2.0 | AI time-range downloads, caption-based summaries and questions, original-language automatic caption detection, and local data cleanup. | Implemented with automated coverage. The packaged clip, transcript, and cleanup flows need live verification. |
 
 ## 3. Architecture
@@ -157,7 +157,7 @@ On macOS, development and release share Electron's user-data profile under `~/Li
 | `user-settings.json` | Classic settings, `uiLanguage`, and `aiMode`, `aiProvider`, `aiConfirmMode`, `aiProviderConfigs`. No secrets. Written atomically; a missing file means first run (defaults to AI mode), an unreadable one is treated as empty and logged. |
 | `ai-keys.json` | API keys, encrypted (`safeStorage`), file mode 0600. |
 | `tool-data/` | App-specific yt-dlp and Deno caches, and per-process scratch directories for manifests and transcripts. Normal operations clean up their scratch files. Startup removes scratch directories from dead app processes. |
-| electron-updater cache | On Windows/Linux, a verified pending app update after the user chooses Download and Restart. |
+| electron-updater cache | On Windows/Linux, a verified pending app update after the user chooses Download Update. |
 
 Homebrew zap targets known app-owned paths at both historical profile casings. The About dialog can clear local settings, saved API keys, browser data and tool files before quitting. Downloads and unfinished media files stay in the selected download folder. Shared caches made by older versions and OS-managed keychain entries are outside the profile.
 

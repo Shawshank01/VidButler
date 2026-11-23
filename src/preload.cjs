@@ -24,6 +24,7 @@ const electronAPI = {
     downloadAppUpdate: () => invoke('download-app-update'),
     installAppUpdate: () => invoke('install-app-update'),
     copyMacUpdateCommand: () => invoke('copy-mac-update-command'),
+    onUpdateAvailable: (callback) => subscribe('app-update-available', callback),
     onUpdateProgress: (callback) => subscribe('app-update-progress', callback),
     getCurrentVersion: () => invoke('get-current-version'),
     getAppInfo: () => invoke('get-app-info'),

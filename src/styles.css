@@ -1507,6 +1507,15 @@ body[data-mode='ai'] .ai-panel {
     padding: 10px 12px;
 }
 
+#updateModalProgress {
+    width: 100%;
+    accent-color: var(--accent-teal);
+}
+
+#updateModal [hidden] {
+    display: none;
+}
+
 /* Proxy controls */
 .proxy-group {
     display: flex;

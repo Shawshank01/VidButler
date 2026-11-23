@@ -60,6 +60,7 @@ test('preload subscriptions forward only the payload and remove the matching lis
     for (const [subscribe, channel, payload] of [
         [api.onProgress, 'download-progress', '75%'],
         [api.onDownloadFolderUpdated, 'download-folder-updated', '/example'],
+        [api.onUpdateAvailable, 'app-update-available', { version: '5.4.0' }],
         [api.onUpdateProgress, 'app-update-progress', { percent: 75 }],
         [api.ai.onEvent, 'ai-event', { type: 'progress', text: '75%' }]
     ]) {

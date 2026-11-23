@@ -243,61 +243,32 @@ async function checkForUpdatesOnLaunch(win: BrowserWindow) {
         return;
     }
     if (!update.hasUpdate || win.isDestroyed()) return;
+    if (update.installSupported) {
+        sendEvent(win.webContents, 'app-update-available', update);
+        return;
+    }
+    if (update.updateMethod !== 'homebrew') return;
     const t = translateUi(await readSettings());
     if (win.isDestroyed()) return;
 
     const notes = plainReleaseNotes(update.releaseNotes);
-    if (update.updateMethod === 'homebrew') {
-        const { response } = await dialog.showMessageBox(win, {
-            type: 'info',
-            buttons: [t('copyHomebrew'), t('openGitHubRelease'), t('later')],
-            defaultId: 0,
-            cancelId: 2,
-            title: t('updateAvailable'),
-            message: t('updateVersionAvailable', { version: update.version }),
-            detail:
-                [t('installedVersion', { version: update.currentVersion }),
-                    t('homebrewUpdate', { command: MAC_UPDATE_COMMAND }), notes].filter(Boolean).join('\n\n')
-        });
-
-        if (response === 0) {
-            clipboard.writeText(MAC_UPDATE_COMMAND);
-        } else if (response === 1) {
-            await shell.openExternal(update.releaseUrl);
-        }
-        return;
-    }
-
     const { response } = await dialog.showMessageBox(win, {
         type: 'info',
-        buttons: [t('downloadRestart'), t('later')],
+        buttons: [t('copyHomebrew'), t('openGitHubRelease'), t('later')],
         defaultId: 0,
-        cancelId: 1,
+        cancelId: 2,
         title: t('updateAvailable'),
         message: t('updateVersionAvailable', { version: update.version }),
         detail:
             [t('installedVersion', { version: update.currentVersion }),
-                t('installUpdate'), notes].filter(Boolean).join('\n\n')
+                t('homebrewUpdate', { command: MAC_UPDATE_COMMAND }), notes].filter(Boolean).join('\n\n')
     });
 
-    if (response !== 0 || win.isDestroyed()) return;
-
-    const result = await service.downloadUpdate();
-    clearUpdateProgress();
-    if (!result.success) {
-        if (!win.isDestroyed()) {
-            await dialog.showMessageBox(win, {
-                type: 'error',
-                buttons: [t('ok')],
-                title: t('updateFailed'),
-                message: t('updateDownloadFailed'),
-                detail: result.error
-            });
-        }
-        return;
+    if (response === 0) {
+        clipboard.writeText(MAC_UPDATE_COMMAND);
+    } else if (response === 1) {
+        await shell.openExternal(update.releaseUrl);
     }
-
-    service.installUpdate();
 }
 
 function createWindow() {

@@ -388,7 +388,7 @@
         </div>
 
         <!-- App Update Modal -->
-        <div id="updateModal" class="modal" style="display: none;" role="dialog" aria-modal="true"
+        <div id="updateModal" class="modal" style="display: none;" role="dialog" aria-modal="true" tabindex="-1"
             aria-labelledby="updateModalTitle">
             <div class="modal-content app-info-modal">
                 <div class="app-info-header">
@@ -439,6 +439,7 @@
                     </div>
 
                     <div id="updateModalMessage" class="update-modal-message" style="display: none;"></div>
+                    <progress id="updateModalProgress" max="100" aria-labelledby="updateModalSectionTitle" hidden></progress>
                 </div>
 
                 <div class="modal-buttons app-info-actions">

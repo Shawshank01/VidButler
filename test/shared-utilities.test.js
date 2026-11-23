@@ -1,11 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { setImmediate } from 'node:timers/promises';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import classification from '../src/log-classification.cjs';
 
 const read = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8');
+const renderer = ts.transpileModule(read('renderer.ts'), {
+    fileName: 'renderer.ts',
+    compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2023, strict: true }
+}).outputText;
 
 test('log classifications work in Node and classic scripts with distinct filtering policies', () => {
     const context = {};
@@ -42,10 +47,6 @@ test('shared proxy helper reads the current controls', () => {
 });
 
 test('renderer restores the proxy type, keeps existing settings on SOCKS5, and saves control changes', async () => {
-    const renderer = ts.transpileModule(read('renderer.ts'), {
-        fileName: 'renderer.ts',
-        compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2023, strict: true }
-    }).outputText;
     function control(properties) {
         return { ...properties, addEventListener(event, listener) { this[event] = listener; } };
     }
@@ -62,6 +63,7 @@ test('renderer restores the proxy type, keeps existing settings on SOCKS5, and s
                 LogClassification: classification,
                 UiLanguage: { restore() {} },
                 electronAPI: {
+                    onUpdateAvailable() {},
                     getSettings: async () => ({ proxyEnabled: true, proxyType: savedType, proxyAddress: 'localhost:8118' }),
                     setSettings: async (update) => { updates.push({ ...update }); }
                 }
@@ -96,6 +98,77 @@ test('renderer restores the proxy type, keeps existing settings on SOCKS5, and s
         assert.deepEqual(Array.from(context.getProxyArgs()), []);
         assert.deepEqual(updates, [{ proxyType: 'http' }, { proxyAddress: 'proxy.example.test:8080' }, { proxyEnabled: false }]);
     }
+});
+
+test('the startup update shows download progress and can be deferred until the next manual check', async () => {
+    class Control extends EventTarget {
+        style = {};
+        focus() {}
+        removeAttribute(name) { delete this[name]; }
+        click() { this.dispatchEvent(new Event('click')); }
+    }
+    const elements = Object.fromEntries([
+        'updateModal', 'updateModalActionBtn', 'updateModalCancelBtn', 'updateModalProgress'
+    ].map((id) => [id, new Control()]));
+    const action = elements.updateModalActionBtn;
+    const progressBar = elements.updateModalProgress;
+    const document = Object.assign(new EventTarget(), {
+        getElementById: (id) => elements[id] ?? null,
+        querySelector: (selector) => elements[selector.slice(1)] ?? null
+    });
+    const update = { supported: true, installSupported: true, hasUpdate: true, currentVersion: '5.3.3', version: '5.4.0' };
+    const download = Promise.withResolvers();
+    let offerUpdate;
+    let reportProgress;
+    let downloads = 0;
+    let installs = 0;
+    const window = {
+        LogClassification: classification,
+        UiLanguage: { text: (key) => key, restore() {} },
+        electronAPI: {
+            onUpdateAvailable: (callback) => { offerUpdate = callback; },
+            onUpdateProgress: (callback) => {
+                reportProgress = callback;
+                return () => { reportProgress = undefined; };
+            },
+            getCurrentVersion: async () => update.currentVersion,
+            checkAppUpdate: async () => ({ ...update, downloaded: true }),
+            downloadAppUpdate: () => { downloads += 1; return download.promise; },
+            installAppUpdate: async () => { installs += 1; return true; }
+        }
+    };
+    runInNewContext(renderer, { window, document, console: { log() {} } });
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    offerUpdate(update);
+
+    assert.equal(action.textContent, 'downloadUpdate');
+    assert.equal(downloads, 0);
+    action.click();
+    await setImmediate();
+    assert.equal(downloads, 1);
+    assert.equal(progressBar.hidden, false);
+    assert.equal(progressBar.value, undefined);
+    assert.equal(action.hidden, true);
+    reportProgress({ percent: 42.5 });
+    assert.equal(progressBar.value, 42.5);
+
+    download.resolve({ success: true, version: update.version });
+    await setImmediate();
+    assert.equal(progressBar.hidden, true);
+    assert.equal(reportProgress, undefined);
+    assert.equal(action.textContent, 'restartNow');
+    assert.equal(installs, 0);
+    elements.updateModalCancelBtn.click();
+    await setImmediate();
+    assert.equal(installs, 0);
+
+    const check = window.checkUpdate();
+    await setImmediate();
+    assert.equal(action.textContent, 'restartNow');
+    assert.equal(downloads, 1);
+    action.click();
+    await check;
+    assert.equal(installs, 1);
 });
 
 test('shared utilities load before both renderer scripts', () => {

@@ -24,6 +24,7 @@ export interface ElectronAPI {
     downloadAppUpdate: InvokeMethod<'download-app-update'>;
     installAppUpdate: InvokeMethod<'install-app-update'>;
     copyMacUpdateCommand: InvokeMethod<'copy-mac-update-command'>;
+    onUpdateAvailable: EventMethod<'app-update-available'>;
     onUpdateProgress: EventMethod<'app-update-progress'>;
     getCurrentVersion: InvokeMethod<'get-current-version'>;
     getAppInfo: InvokeMethod<'get-app-info'>;

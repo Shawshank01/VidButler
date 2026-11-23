@@ -1,6 +1,7 @@
 const classicText = window.UiLanguage.text;
 
 type RunCommandReply = import('./types/ipc.ts').InvokeResult<'run-command'>;
+type AppUpdateCheck = import('./types/ipc.ts').InvokeResult<'check-app-update'>;
 type ClassicSubtitle = import('./types/ipc.ts').InvokeResult<'list-subtitles'>['subtitles'][number];
 type LegacyCommandReply = RunCommandReply | string | null | undefined;
 
@@ -38,6 +39,7 @@ interface UpdateModalOptions extends ConfirmModalOptions {
     latestVersion?: string;
     notes?: string;
     secondaryText?: string | null;
+    duringDownload?: Promise<unknown>;
 }
 
 type UpdateModalResult = boolean | 'confirm' | 'secondary' | 'cancel';
@@ -171,10 +173,15 @@ window.chooseFolder = async function () {
     }
 };
 
-window.checkUpdate = async function () {
-    const updateBtn = (document.getElementById('checkUpdateBtn') as HTMLButtonElement | null)
-        || document.querySelector<HTMLButtonElement>('.update-button');
-    const output = document.getElementById('output');
+let updateFlowActive = false;
+
+window.checkUpdate = () => checkForAppUpdate();
+
+async function checkForAppUpdate(offeredUpdate?: AppUpdateCheck) {
+    if (updateFlowActive) return;
+    updateFlowActive = true;
+    const updateBtn = document.querySelector<HTMLButtonElement>('#checkUpdateBtn');
+    const output = offeredUpdate ? null : document.getElementById('output');
 
     if (updateBtn) {
         updateBtn.disabled = true;
@@ -189,7 +196,7 @@ window.checkUpdate = async function () {
 
     let currentVersion = '';
     try {
-        currentVersion = await window.electronAPI.getCurrentVersion();
+        currentVersion = offeredUpdate?.currentVersion ?? await window.electronAPI.getCurrentVersion();
         log(classicText('installedVersion', { version: currentVersion }) + '\n');
 
         const openReleasePage = async (url?: string) => {
@@ -205,7 +212,7 @@ window.checkUpdate = async function () {
             window.open(targetUrl, '_blank');
         };
 
-        const appUpdate = await window.electronAPI.checkAppUpdate();
+        const appUpdate = offeredUpdate ?? await window.electronAPI.checkAppUpdate();
 
         if (appUpdate.supported === false) {
             log('\n' + classicText('manualUpdate') + '\n');
@@ -283,53 +290,54 @@ window.checkUpdate = async function () {
                 return;
             }
 
-            const installNow = await showUpdateModal({
-                title: 'VidButler',
-                currentVersion,
-                latestVersion: appUpdate.version,
-                sectionTitle: classicText('updateAvailable'),
-                status: '🎉 ' + classicText('updateAvailable'),
-                notes: cleanedNotes,
-                message:
-                    classicText('installUpdate'),
-                confirmText: classicText('downloadRestart'),
+            const versions = { currentVersion, latestVersion: appUpdate.version };
+            if (!appUpdate.downloaded) {
+                const downloadNow = await showUpdateModal({
+                    ...versions,
+                    sectionTitle: classicText('updateAvailable'),
+                    status: '🎉 ' + classicText('updateAvailable'),
+                    notes: cleanedNotes,
+                    message: classicText('downloadUpdateQuestion'),
+                    confirmText: classicText('downloadUpdate'),
+                    cancelText: classicText('later')
+                });
+                if (downloadNow !== true) return;
+                if (updateBtn) window.UiLanguage.label(updateBtn, 'downloading');
+                const download = window.electronAPI.downloadAppUpdate().catch((error: unknown) => ({
+                    success: false as const, error: classicErrorMessage(error)
+                }));
+                await showUpdateModal({
+                    ...versions,
+                    status: classicText('downloading'),
+                    duringDownload: download
+                });
+                const result = await download;
+                if (!result.success) {
+                    log(`\n${classicText('updateDownloadFailed')}\n${result.error}\n`);
+                    await showUpdateModal({
+                        ...versions,
+                        status: classicText('updateDownloadFailed'),
+                        message: result.error
+                    });
+                    return;
+                }
+                versions.latestVersion = result.version;
+            }
+
+            const restart = await showUpdateModal({
+                ...versions,
+                status: classicText('updateDownloaded'),
+                message: classicText('updateRestartQuestion'),
+                confirmText: classicText('restartNow'),
                 cancelText: classicText('later')
             });
-
-            if (installNow) {
-                if (updateBtn) window.UiLanguage.label(updateBtn, 'downloading');
-                let lastReportedPercent = -10;
-                const removeProgressListener = window.electronAPI.onUpdateProgress((progress) => {
-                    const percent = Math.floor(Number(progress?.percent) || 0);
-                    if (percent >= lastReportedPercent + 10 || percent === 100) {
-                        lastReportedPercent = percent;
-                        log(classicText('updateProgress', { percent }) + '\n');
-                    }
-                });
-
-                try {
-                    const download = await window.electronAPI.downloadAppUpdate();
-                    if (!download.success) {
-                        log(`\n${classicText('updateDownloadFailed')}\n${download.error}\n`);
-                        await showUpdateModal({
-                            title: 'VidButler',
-                            currentVersion,
-                            latestVersion: appUpdate.version,
-                            sectionTitle: classicText('updateStatus'),
-                            status: classicText('updateFailed'),
-                            message: download.error,
-                            confirmText: classicText('ok'),
-                            cancelText: null
-                        });
-                    } else {
-                        log('\n' + classicText('updateRestarting') + '\n');
-                        const installing = await window.electronAPI.installAppUpdate();
-                        if (!installing) throw new Error(classicText('updateNotReady'));
-                    }
-                } finally {
-                    removeProgressListener();
-                }
+            if (restart !== true) return;
+            const installing = await window.electronAPI.installAppUpdate();
+            if (!installing) {
+                await showUpdateModal({ ...versions, status: classicText('updateFailed'), message: classicText('updateNotReady') });
+                return;
             }
+            log('\n' + classicText('updateRestarting') + '\n');
         } else {
             log('\n✅ ' + classicText('upToDate'));
             await showUpdateModal({
@@ -354,12 +362,13 @@ window.checkUpdate = async function () {
             cancelText: null
         });
     } finally {
+        updateFlowActive = false;
         if (updateBtn) {
             updateBtn.disabled = false;
             window.UiLanguage.label(updateBtn, 'checkUpdates');
         }
     }
-};
+}
 
 // Validate form inputs before running any action
 function validateRunInputs(): ClassicRunInputs {
@@ -1211,6 +1220,7 @@ function showSubtitleModal(subtitles: ClassicSubtitle[], isAutoGenerated = false
 
 // Initialise and bind change handler
 document.addEventListener('DOMContentLoaded', async () => {
+    window.electronAPI?.onUpdateAvailable((update) => { void checkForAppUpdate(update); });
     const chooseFolderBtn = document.getElementById('chooseFolderBtn');
     if (chooseFolderBtn) chooseFolderBtn.addEventListener('click', () => window.chooseFolder());
 
@@ -1520,7 +1530,8 @@ function showUpdateModal({
     message = '',
     confirmText = classicText('ok'),
     cancelText = null,
-    secondaryText = null
+    secondaryText = null,
+    duringDownload
 }: UpdateModalOptions = {}) {
     return new Promise<UpdateModalResult>((resolve) => {
         const modal = document.getElementById('updateModal');
@@ -1539,6 +1550,7 @@ function showUpdateModal({
         const cancelBtn = document.getElementById('updateModalCancelBtn');
         const secondaryBtn = document.getElementById('updateModalSecondaryBtn');
         const actionBtn = document.getElementById('updateModalActionBtn');
+        const progressBar = document.querySelector<HTMLProgressElement>('#updateModalProgress');
 
         if (!modal || !actionBtn || !cancelBtn) {
             resolve(false);
@@ -1598,6 +1610,16 @@ function showUpdateModal({
         }
 
         actionBtn.textContent = confirmText;
+        actionBtn.hidden = Boolean(duringDownload);
+        if (closeBtn) closeBtn.hidden = Boolean(duringDownload);
+        if (progressBar) {
+            progressBar.hidden = !duringDownload;
+            progressBar.removeAttribute('value');
+        }
+        const removeProgressListener = duringDownload && window.electronAPI.onUpdateProgress(({ percent }) => {
+            if (progressBar) progressBar.value = percent;
+            if (statusEl) statusEl.textContent = classicText('updateProgress', { percent: Math.floor(percent) });
+        });
         if (cancelText) {
             cancelBtn.textContent = cancelText;
             cancelBtn.style.display = '';
@@ -1614,6 +1636,7 @@ function showUpdateModal({
         const hasSecondaryAction = Boolean(secondaryText && secondaryBtn);
 
         const cleanup = () => {
+            removeProgressListener?.();
             modal.style.display = 'none';
             cancelBtn.style.display = '';
             if (secondaryBtn) secondaryBtn.style.display = 'none';
@@ -1641,16 +1664,16 @@ function showUpdateModal({
         };
 
         const handleBackdrop = (e: MouseEvent) => {
-            if (e.target === modal) {
+            if (!duringDownload && e.target === modal) {
                 handleDismiss();
             }
         };
 
         const handleKeydown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' || (duringDownload && e.key === 'Tab')) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                handleDismiss();
+                if (!duringDownload) handleDismiss();
             }
         };
 
@@ -1662,7 +1685,12 @@ function showUpdateModal({
         document.addEventListener('keydown', handleKeydown, true);
 
         modal.style.display = 'flex';
-        actionBtn.focus();
+        if (duringDownload) {
+            modal.focus();
+            void duringDownload.then(handleDismiss, handleDismiss);
+        } else {
+            actionBtn.focus();
+        }
     });
 }
 window.showUpdateModal = showUpdateModal;

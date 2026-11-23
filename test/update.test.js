@@ -158,7 +158,7 @@ test("concurrent checks share one updater request", async () => {
   assert.deepEqual(await first, await second);
 });
 
-test("a consented update reports progress, downloads, and can restart into the new version", async () => {
+test("a download reports progress and stays cached until an explicit restart", async () => {
   const updater = new FakeUpdater({ version: "1.5.0" });
   const service = createService({ updater });
   const progress = [];
@@ -173,10 +173,29 @@ test("a consented update reports progress, downloads, and can restart into the n
   const result = await service.downloadUpdate();
 
   assert.deepEqual(result, { success: true, version: "1.5.0" });
-  assert.equal(updater.autoInstallOnAppQuit, true);
+  assert.equal(updater.autoInstallOnAppQuit, false);
   assert.equal(progress[0].percent, 42.5);
+  assert.deepEqual(updater.installs, []);
+  assert.equal((await service.checkForUpdates()).downloaded, true);
+  assert.deepEqual(await service.downloadUpdate(), result);
+  assert.equal(updater.downloadCount, 1);
   assert.equal(service.installUpdate(), true);
   assert.deepEqual(updater.installs, [[true, true]]);
+});
+
+test("a failed replacement download clears the previously downloaded version", async () => {
+  const updater = new FakeUpdater({ version: "1.5.0" });
+  const service = createService({ updater });
+  await service.checkForUpdates();
+  assert.equal((await service.downloadUpdate()).success, true);
+
+  updater.updateInfo = { version: "1.6.0" };
+  updater.downloadUpdate = async () => { throw new Error("disk full"); };
+  assert.equal((await service.checkForUpdates()).downloaded, undefined);
+  assert.equal(service.installUpdate(), false);
+  assert.equal((await service.downloadUpdate()).success, false);
+  assert.equal(service.installUpdate(), false);
+  assert.deepEqual(updater.installs, []);
 });
 
 test("failed checks and downloads return safe errors instead of throwing", async () => {

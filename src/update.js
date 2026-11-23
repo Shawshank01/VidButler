@@ -15,10 +15,13 @@ export const MAC_UPDATE_COMMAND =
  * @property {string} message
  * @property {boolean} [error]
  * @property {string} [version]
+ * @property {boolean} [downloaded]
  * @property {string} [releaseNotes]
  * @property {'homebrew' | 'automatic'} [updateMethod]
  * @property {string} [updateCommand]
  */
+
+/** @typedef {{ success: true, version: string } | { success: false, error: string }} UpdateDownloadResult */
 
 /**
  * Compare two SemVer-like version strings.
@@ -102,7 +105,7 @@ export class AppUpdateService {
     this.downloadPromise = null;
     this.progressListeners = new Set();
 
-    // Consent is required before downloading, and a declined update must not install on quit.
+    // Downloading and restarting each require consent. A normal quit leaves the update cached.
     this.updater.autoDownload = false;
     this.updater.autoInstallOnAppQuit = false;
 
@@ -192,6 +195,7 @@ export class AppUpdateService {
         hasUpdate,
         currentVersion,
         version: version || currentVersion,
+        ...(hasUpdate && version === this.downloadedVersion ? { downloaded: true } : {}),
         releaseNotes: releaseNotesText(updateInfo?.releaseNotes, version),
         releaseUrl: RELEASES_PAGE_URL,
         updateMethod: this.platform === "darwin" ? "homebrew" : "automatic",
@@ -239,6 +243,7 @@ export class AppUpdateService {
     return { version };
   }
 
+  /** @returns {Promise<UpdateDownloadResult>} */
   async downloadUpdate() {
     if (!this.canInstallUpdate()) {
       return {
@@ -246,15 +251,15 @@ export class AppUpdateService {
         error: "Automatic updates are not supported in this build.",
       };
     }
-    if (!this.availableUpdate) {
+    if (this.downloadPromise) return this.downloadPromise;
+    const version = this.availableUpdate?.version;
+    if (!version) {
       return { success: false, error: "No update is ready to download." };
     }
-    if (this.downloadPromise) return this.downloadPromise;
+    if (this.downloadedVersion === version) return { success: true, version };
 
-    // From this point onward the user has consented. If the immediate restart is interrupted,
-    // electron-updater may safely apply the verified download on the next normal app quit.
-    this.updater.autoInstallOnAppQuit = true;
-    this.downloadPromise = this.#performDownload();
+    this.downloadedVersion = null;
+    this.downloadPromise = this.#performDownload(version);
     try {
       return await this.downloadPromise;
     } finally {
@@ -262,13 +267,13 @@ export class AppUpdateService {
     }
   }
 
-  async #performDownload() {
+  /** @param {string} version @returns {Promise<UpdateDownloadResult>} */
+  async #performDownload(version) {
     try {
       await this.updater.downloadUpdate();
-      this.downloadedVersion = this.availableUpdate.version;
-      return { success: true, version: this.downloadedVersion };
+      this.downloadedVersion = version;
+      return { success: true, version };
     } catch (error) {
-      this.updater.autoInstallOnAppQuit = false;
       return {
         success: false,
         error: `Update download failed: ${errorMessage(error)}`,
@@ -277,7 +282,7 @@ export class AppUpdateService {
   }
 
   installUpdate() {
-    if (!this.downloadedVersion) return false;
+    if (!this.downloadedVersion || this.downloadedVersion !== this.availableUpdate?.version) return false;
     // NSIS receives /S so the approved update installs without another wizard; AppImage ignores
     // the silent flag. Force-run launches the newly installed version.
     this.updater.quitAndInstall(true, true);

@@ -53,6 +53,7 @@ interface Invocations {
 export interface IpcEvents {
     'download-progress': string;
     'download-folder-updated': string;
+    'app-update-available': InvokeResult<'check-app-update'>;
     'app-update-progress': {
         percent: number;
         bytesPerSecond: number;

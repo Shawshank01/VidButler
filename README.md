@@ -171,7 +171,7 @@ To stop an ongoing task, click **Cancel Action**. VidButler removes unfinished F
 
 Packaged macOS and Windows builds and Linux AppImages check GitHub Releases at launch.
 
-1. On **Windows and Linux AppImage**, choose **Download and Restart**. The update is checksum-verified, installed, and the new version launches automatically.
+1. On **Windows and Linux AppImage**, choose **Download Update** to see download progress. Once VidButler verifies the update, choose **Restart Now** to install it or **Later** to keep using the app. To return to the restart prompt, choose **Check for Updates** in About.
 2. On **macOS**, choose **Copy Homebrew Command**, then paste the command into Terminal to refresh the tap and upgrade.
 
    ```bash
