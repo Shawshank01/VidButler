@@ -161,6 +161,7 @@ jobs:
         xvfb-run -a node scripts/verify-package.mjs "${{ matrix.target }}"
 
     - name: Preserve architecture-specific update manifest
+      if: runner.os != 'Linux'
       shell: bash
       run: |
         while IFS= read -r manifest; do
@@ -214,14 +215,16 @@ jobs:
         find dist -type f -name "*.blockmap" -exec mv {} release_assets/ \;
 
         mapfile -t MAC_MANIFESTS < <(find dist -type f -name "latest-mac-*.yml" | sort)
-        mapfile -t WIN_MANIFESTS < <(find dist -type f -name "latest-*.yml" ! -name "latest-mac-*.yml" ! -name "latest-linux-*.yml" | sort)
-        mapfile -t LINUX_MANIFESTS < <(find dist -type f -name "latest-linux-*.yml" | sort)
+        mapfile -t WIN_MANIFESTS < <(find dist -type f -name "latest-*.yml" ! -name "latest-mac-*.yml" ! -name "latest-linux*.yml" | sort)
         test "${#MAC_MANIFESTS[@]}" -eq 2
         test "${#WIN_MANIFESTS[@]}" -eq 2
-        test "${#LINUX_MANIFESTS[@]}" -eq 2
         node scripts/merge-update-manifests.mjs release_assets/latest-mac.yml "${MAC_MANIFESTS[@]}"
         node scripts/merge-update-manifests.mjs release_assets/latest.yml "${WIN_MANIFESTS[@]}"
-        node scripts/merge-update-manifests.mjs release_assets/latest-linux.yml "${LINUX_MANIFESTS[@]}"
+
+        # electron-updater requests a different channel file for each Linux architecture.
+        # AppImage filenames use x86_64 for x64, so a mixed file list can select ARM64.
+        cp dist/*/latest-linux.yml release_assets/latest-linux.yml
+        cp dist/*/latest-linux-arm64.yml release_assets/latest-linux-arm64.yml
 
         # Try to collect release notes from the tag annotation if available
         TAG_NAME=${{ github.ref_name }}

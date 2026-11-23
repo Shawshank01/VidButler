@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { mergeUpdateManifests } from "../scripts/merge-update-manifests.mjs";
 
 const manifest = (arch, hash) => `version: 4.7.0
@@ -38,4 +39,11 @@ test("release manifest merge rejects mismatched versions", () => {
       ]),
     /different versions/,
   );
+});
+
+test("release publishes the builder's x64 and ARM64 Linux manifests separately", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  assert.match(workflow, /- name: Preserve architecture-specific update manifest\n\s+if: runner\.os != 'Linux'/);
+  assert.match(workflow, /^\s+cp dist\/\*\/latest-linux\.yml release_assets\/latest-linux\.yml$/m);
+  assert.match(workflow, /^\s+cp dist\/\*\/latest-linux-arm64\.yml release_assets\/latest-linux-arm64\.yml$/m);
 });
