@@ -127,9 +127,9 @@ Le téléchargement d’extraits fonctionne avec des sources en ligne et nécess
 
 | Fournisseur | Prérequis | Remarques |
 | --- | --- | --- |
+| **Cohere** (modèle `command-a-plus-05-2026`) | Clé API du [tableau de bord Cohere](https://dashboard.cohere.com/api-keys) | Option la plus recommandée. L’offre gratuite suffit pour un usage quotidien. |
 | **Google Gemini** (par défaut, modèle `gemini-3.5-flash-lite`) | Clé API de [Google AI Studio](https://aistudio.google.com/apikey) | Le modèle par défaut propose une [offre gratuite](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Vos messages sont envoyés à Google. |
-| **xAI Grok** (modèle `grok-4.3`) | Clé API de la [console xAI](https://console.x.ai) | Utilise l’API Responses de xAI à l’adresse `https://api.x.ai/v1/responses`. Vos messages sont envoyés à xAI. |
-| **Cohere** (modèle `command-a-plus-05-2026`) | Clé API du [tableau de bord Cohere](https://dashboard.cohere.com/api-keys) | Diffuse les réponses via l’[API Chat de Cohere](https://docs.cohere.com/docs/streaming). Vos messages sont envoyés à Cohere. |
+| **xAI Grok** (modèle `grok-4.3`) | Clé API de la [console xAI](https://console.x.ai) | Utilisez-le pour montrer votre soutien aux Rockets. |
 | **Ollama (local)** | [Ollama](https://ollama.com) doit être lancé avec un modèle qui prend en charge les appels d’outils, par exemple `lfm3:1.7b`. | Avec un modèle et un serveur locaux, l’application envoie les données du chat à Ollama sur votre ordinateur. |
 | **Compatible OpenAI** | URL du serveur, nom du modèle et généralement une clé API | Fonctionne avec llama.cpp, OpenAI, OpenRouter, Groq, LM Studio et des services similaires. |
 

@@ -127,9 +127,9 @@ Homebrew 版とそのローカルデータを削除するには、VidButler を�
 
 | プロバイダー | 要件 | 備考 |
 | --- | --- | --- |
+| **Cohere**（モデル `command-a-plus-05-2026`） | [Cohere ダッシュボード](https://dashboard.cohere.com/api-keys) の API キー | 最もおすすめです。日常的な利用には無料枠で十分です。 |
 | **Google Gemini**（既定、モデル `gemini-3.5-flash-lite`） | [Google AI Studio](https://aistudio.google.com/apikey) の API キー | 既定のモデルには [無料枠](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite) があります。メッセージは Google へ送信されます。 |
-| **xAI Grok**（モデル `grok-4.3`） | [xAI コンソール](https://console.x.ai) の API キー | `https://api.x.ai/v1/responses` の xAI Responses API を使用します。メッセージは xAI へ送信されます。 |
-| **Cohere**（モデル `command-a-plus-05-2026`） | [Cohere ダッシュボード](https://dashboard.cohere.com/api-keys) の API キー | [Cohere Chat API](https://docs.cohere.com/docs/streaming) で回答をストリーミングします。メッセージは Cohere へ送信されます。 |
+| **xAI Grok**（モデル `grok-4.3`） | [xAI コンソール](https://console.x.ai) の API キー | ロケッツを応援したいなら使ってみてください。 |
 | **Ollama（ローカル）** | `lfm3:1.7b` など、ツール呼び出しに対応するモデルで [Ollama](https://ollama.com) を起動 | ローカルモデルとローカルサーバーを使用する場合、チャットデータは自分のコンピューター上の Ollama に送られます。 |
 | **OpenAI 互換** | サーバー URL、モデル名、通常は API キー | llama.cpp、OpenAI、OpenRouter、Groq、LM Studio などに対応します。 |
 

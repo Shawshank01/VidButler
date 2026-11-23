@@ -127,9 +127,9 @@ A transferência de excertos funciona com fontes online e requer o FFmpeg. Para 
 
 | Fornecedor | Requisitos | Notas |
 | --- | --- | --- |
+| **Cohere** (modelo `command-a-plus-05-2026`) | Chave de API do [painel da Cohere](https://dashboard.cohere.com/api-keys) | A opção mais recomendada. O plano gratuito é suficiente para a utilização diária. |
 | **Google Gemini** (predefinição, modelo `gemini-3.5-flash-lite`) | Chave de API do [Google AI Studio](https://aistudio.google.com/apikey) | O modelo predefinido tem um [nível gratuito](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). As suas mensagens são enviadas para a Google. |
-| **xAI Grok** (modelo `grok-4.3`) | Chave de API da [consola da xAI](https://console.x.ai) | Utiliza a API Responses da xAI em `https://api.x.ai/v1/responses`. As suas mensagens são enviadas para a xAI. |
-| **Cohere** (modelo `command-a-plus-05-2026`) | Chave de API do [painel da Cohere](https://dashboard.cohere.com/api-keys) | Transmite respostas através da [API Chat da Cohere](https://docs.cohere.com/docs/streaming). As suas mensagens são enviadas para a Cohere. |
+| **xAI Grok** (modelo `grok-4.3`) | Chave de API da [consola da xAI](https://console.x.ai) | Utilize-o para mostrar o seu apoio aos Rockets. |
 | **Ollama (local)** | [Ollama](https://ollama.com) em execução com um modelo que suporta chamadas a ferramentas, como `lfm3:1.7b`. | Com o modelo e o servidor locais, a aplicação envia os dados da conversa para o Ollama no seu computador. |
 | **Compatível com OpenAI** | URL do servidor, nome do modelo e, normalmente, uma chave de API | Funciona com llama.cpp, OpenAI, OpenRouter, Groq, LM Studio e serviços semelhantes. |
 

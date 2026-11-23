@@ -127,9 +127,9 @@ pnpm run build
 
 | Постачальник | Вимоги | Примітки |
 | --- | --- | --- |
+| **Cohere** (модель `command-a-plus-05-2026`) | Ключ API з [панелі керування Cohere](https://dashboard.cohere.com/api-keys) | Найбільш рекомендований варіант. Безплатного тарифу достатньо для щоденного використання. |
 | **Google Gemini** (типовий, модель `gemini-3.5-flash-lite`) | Ключ API з [Google AI Studio](https://aistudio.google.com/apikey) | Типова модель має [безплатний тариф](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Ваші повідомлення надсилаються в Google. |
-| **xAI Grok** (модель `grok-4.3`) | Ключ API з [консолі xAI](https://console.x.ai) | Використовує xAI Responses API за адресою `https://api.x.ai/v1/responses`. Ваші повідомлення надсилаються в xAI. |
-| **Cohere** (модель `command-a-plus-05-2026`) | Ключ API з [панелі керування Cohere](https://dashboard.cohere.com/api-keys) | Передає відповіді потоком через [Cohere Chat API](https://docs.cohere.com/docs/streaming). Ваші повідомлення надсилаються в Cohere. |
+| **xAI Grok** (модель `grok-4.3`) | Ключ API з [консолі xAI](https://console.x.ai) | Скористайтеся ним, щоб підтримати «Рокетс». |
 | **Ollama (локально)** | Запущена [Ollama](https://ollama.com) з моделлю, що підтримує виклики інструментів, наприклад `lfm3:1.7b`. | З локальною моделлю й сервером програма надсилає дані розмови до Ollama на вашому комп’ютері. |
 | **Сумісний з OpenAI** | URL сервера, назва моделі та зазвичай ключ API | Працює з llama.cpp, OpenAI, OpenRouter, Groq, LM Studio й подібними сервісами. |
 

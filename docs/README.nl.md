@@ -127,9 +127,9 @@ Fragmenten downloaden werkt met online bronnen en vereist FFmpeg. Kies bij een p
 
 | Aanbieder | Vereisten | Opmerkingen |
 | --- | --- | --- |
+| **Cohere** (model `command-a-plus-05-2026`) | API-sleutel uit het [Cohere-dashboard](https://dashboard.cohere.com/api-keys) | Meest aanbevolen. Het gratis abonnement volstaat voor dagelijks gebruik. |
 | **Google Gemini** (standaard, model `gemini-3.5-flash-lite`) | API-sleutel uit [Google AI Studio](https://aistudio.google.com/apikey) | Het standaardmodel heeft een [gratis abonnement](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Je berichten gaan naar Google. |
-| **xAI Grok** (model `grok-4.3`) | API-sleutel uit de [xAI-console](https://console.x.ai) | Gebruikt de Responses API van xAI op `https://api.x.ai/v1/responses`. Je berichten gaan naar xAI. |
-| **Cohere** (model `command-a-plus-05-2026`) | API-sleutel uit het [Cohere-dashboard](https://dashboard.cohere.com/api-keys) | Streamt reacties via de [Cohere Chat API](https://docs.cohere.com/docs/streaming). Je berichten gaan naar Cohere. |
+| **xAI Grok** (model `grok-4.3`) | API-sleutel uit de [xAI-console](https://console.x.ai) | Gebruik het om je steun voor de Rockets te tonen. |
 | **Ollama (lokaal)** | [Ollama](https://ollama.com) moet actief zijn met een model dat hulpmiddelen kan aanroepen, bijvoorbeeld `lfm3:1.7b`. | Met een lokaal model en een lokale server stuurt de app de chatgegevens naar Ollama op je eigen computer. |
 | **OpenAI-compatibel** | Server-URL, modelnaam en meestal een API-sleutel | Werkt met llama.cpp, OpenAI, OpenRouter, Groq, LM Studio en vergelijkbare diensten. |
 

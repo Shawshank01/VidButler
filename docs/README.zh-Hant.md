@@ -127,9 +127,9 @@ macOS 發行組建採用 ad hoc 簽署，無須 Apple Developer Program 憑證�
 
 | 服務供應商 | 需求 | 備註 |
 | --- | --- | --- |
+| **Cohere**（模型 `command-a-plus-05-2026`） | 從 [Cohere 儀表板](https://dashboard.cohere.com/api-keys) 取得 API 金鑰 | 最推薦。免費方案足以應付日常使用。 |
 | **Google Gemini**（預設，模型 `gemini-3.5-flash-lite`） | 從 [Google AI Studio](https://aistudio.google.com/apikey) 取得 API 金鑰 | 預設模型提供 [免費方案](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite)。你的訊息會傳送給 Google。 |
-| **xAI Grok**（模型 `grok-4.3`） | 從 [xAI 控制台](https://console.x.ai) 取得 API 金鑰 | 使用 xAI 的 Responses API，位址為 `https://api.x.ai/v1/responses`。你的訊息會傳送給 xAI。 |
-| **Cohere**（模型 `command-a-plus-05-2026`） | 從 [Cohere 儀表板](https://dashboard.cohere.com/api-keys) 取得 API 金鑰 | 透過 [Cohere Chat API](https://docs.cohere.com/docs/streaming) 串流回覆。你的訊息會傳送給 Cohere。 |
+| **xAI Grok**（模型 `grok-4.3`） | 從 [xAI 控制台](https://console.x.ai) 取得 API 金鑰 | 用它來表達你對火箭隊的支持。 |
 | **Ollama（本機）** | 執行 [Ollama](https://ollama.com) 並使用支援工具呼叫的模型，例如 `lfm3:1.7b`。 | 使用本機模型和伺服器時，應用程式會將對話資料傳送到你電腦上的 Ollama。 |
 | **相容 OpenAI** | 伺服器網址、模型名稱，通常還需要 API 金鑰 | 支援 llama.cpp、OpenAI、OpenRouter、Groq、LM Studio 等。 |
 

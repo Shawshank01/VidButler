@@ -127,9 +127,9 @@ Pobieranie fragmentów działa ze źródłami internetowymi i wymaga FFmpeg. Aby
 
 | Dostawca | Wymagania | Uwagi |
 | --- | --- | --- |
+| **Cohere** (model `command-a-plus-05-2026`) | Klucz API z [panelu Cohere](https://dashboard.cohere.com/api-keys) | Najbardziej polecana opcja. Bezpłatny pakiet wystarcza do codziennego użytku. |
 | **Google Gemini** (domyślny, model `gemini-3.5-flash-lite`) | Klucz API z [Google AI Studio](https://aistudio.google.com/apikey) | Domyślny model ma [bezpłatny pakiet](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Wiadomości są wysyłane do Google. |
-| **xAI Grok** (model `grok-4.3`) | Klucz API z [konsoli xAI](https://console.x.ai) | Używa Responses API xAI pod adresem `https://api.x.ai/v1/responses`. Wiadomości są wysyłane do xAI. |
-| **Cohere** (model `command-a-plus-05-2026`) | Klucz API z [panelu Cohere](https://dashboard.cohere.com/api-keys) | Przesyła odpowiedzi strumieniowo przez [Cohere Chat API](https://docs.cohere.com/docs/streaming). Wiadomości są wysyłane do Cohere. |
+| **xAI Grok** (model `grok-4.3`) | Klucz API z [konsoli xAI](https://console.x.ai) | Użyj go, by okazać wsparcie drużynie Rockets. |
 | **Ollama (lokalny)** | Uruchomiona [Ollama](https://ollama.com) z modelem obsługującym wywołania narzędzi, np. `lfm3:1.7b`. | Przy lokalnym modelu i serwerze aplikacja wysyła dane rozmowy do Ollama na Twoim komputerze. |
 | **Zgodny z OpenAI** | Adres URL serwera, nazwa modelu i zazwyczaj klucz API | Działa z llama.cpp, OpenAI, OpenRouter, Groq, LM Studio i podobnymi usługami. |
 

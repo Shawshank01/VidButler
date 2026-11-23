@@ -38,3 +38,22 @@ test('the English README links every translation and the translated READMEs pres
         }
     }
 });
+
+test('Cohere leads the provider table in every README', () => {
+    const english = read(englishPath);
+    const firstProvider = (markdown) => markdown.match(/^\| --- \| --- \| --- \|\n(\| .*)$/m)?.[1] ?? '';
+    assert.match(firstProvider(english), /\| Most recommended\. The Free Tier is sufficient for daily use\. \|$/);
+
+    const paths = [englishPath, ...links(english)
+        .filter((link) => link.startsWith('docs/README.'))
+        .map((link) => new URL(link, englishPath))];
+
+    for (const path of paths) {
+        assert.match(firstProvider(read(path)), /^\| \*\*Cohere\*\*.*`command-a-plus-05-2026`/, path.pathname);
+    }
+});
+
+test('the English README uses the requested Rockets note for xAI Grok', () => {
+    const row = read(englishPath).split('\n').find((line) => line.startsWith('| **xAI Grok**'));
+    assert.equal(row?.split('|').at(-2)?.trim(), 'Use it to show your support for the Rockets.');
+});
