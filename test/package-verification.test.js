@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import asar from '@electron/asar';
+import * as asar from '@electron/asar';
 import { evaluateRenderer, verifyAppArchive } from '../scripts/verify-package.mjs';
 
 test('the release smoke check rejects missing runtime files and packaged TypeScript', async (t) => {

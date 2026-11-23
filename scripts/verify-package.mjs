@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import asar from '@electron/asar';
+import * as asar from '@electron/asar';
 
 const execFileAsync = promisify(execFile);
 const metadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
