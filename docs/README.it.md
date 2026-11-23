@@ -127,8 +127,8 @@ Puoi scaricare clip da fonti online. La funzione richiede FFmpeg. Per usare un p
 
 | Fornitore | Requisiti | Note |
 | --- | --- | --- |
-| **Cohere** (modello `command-a-plus-05-2026`) | Chiave API dalla [dashboard Cohere](https://dashboard.cohere.com/api-keys) | L’opzione più consigliata. Il piano gratuito è sufficiente per l’uso quotidiano. |
-| **Google Gemini** (predefinito, modello `gemini-3.5-flash-lite`) | Chiave API da [Google AI Studio](https://aistudio.google.com/apikey) | Il modello predefinito offre un [piano gratuito](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). I messaggi vengono inviati a Google. |
+| **Cohere** (predefinito, modello `command-a-plus-05-2026`) | Chiave API dalla [dashboard Cohere](https://dashboard.cohere.com/api-keys) | L’opzione più consigliata. Il piano gratuito è sufficiente per l’uso quotidiano. |
+| **Google Gemini** (modello `gemini-3.5-flash-lite`) | Chiave API da [Google AI Studio](https://aistudio.google.com/apikey) | Questo modello offre un [piano gratuito](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). I messaggi vengono inviati a Google. |
 | **xAI Grok** (modello `grok-4.3`) | Chiave API dalla [console xAI](https://console.x.ai) | Usalo per mostrare il tuo sostegno ai Rockets. |
 | **Ollama (locale)** | [Ollama](https://ollama.com) in esecuzione con un modello che supporta le chiamate agli strumenti, per esempio `lfm3:1.7b`. | Con modello e server locali, l’app invia i dati della chat a Ollama sul tuo computer. |
 | **Compatibile con OpenAI** | URL del server, nome del modello e, di solito, chiave API | Funziona con llama.cpp, OpenAI, OpenRouter, Groq, LM Studio e servizi simili. |

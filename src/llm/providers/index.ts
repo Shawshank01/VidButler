@@ -19,6 +19,8 @@ interface ProviderCapabilities {
     options: Record<string, { choices: string[]; default: string; label: string }>;
 }
 
+export const DEFAULT_PROVIDER_TYPE = 'cohere';
+
 /**
  * Provider types the app knows about, with the defaults the settings UI should pre-fill.
  *
@@ -84,7 +86,7 @@ export const PROVIDER_TYPES: Record<string, ProviderCapabilities> = {
 
 /** Build a provider from saved settings. */
 export function createProvider(config: ProviderOptions = {}, options: { fetchImpl?: typeof fetch } = {}): Provider {
-    const type = config.type || 'gemini';
+    const type = config.type || DEFAULT_PROVIDER_TYPE;
     const common = { ...config, ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}) };
 
     switch (type) {

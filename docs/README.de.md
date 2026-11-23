@@ -127,8 +127,8 @@ Ausschnitte lassen sich aus Online-Quellen herunterladen und benötigen FFmpeg. 
 
 | Anbieter | Voraussetzung | Hinweise |
 | --- | --- | --- |
-| **Cohere** (Modell `command-a-plus-05-2026`) | API-Schlüssel aus dem [Cohere-Dashboard](https://dashboard.cohere.com/api-keys) | Besonders empfohlen. Der kostenlose Tarif reicht für den täglichen Gebrauch aus. |
-| **Google Gemini** (Standard, Modell `gemini-3.5-flash-lite`) | API-Schlüssel aus [Google AI Studio](https://aistudio.google.com/apikey) | Das Standardmodell hat einen [kostenlosen Tarif](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Deine Nachrichten gehen an Google. |
+| **Cohere** (Standard, Modell `command-a-plus-05-2026`) | API-Schlüssel aus dem [Cohere-Dashboard](https://dashboard.cohere.com/api-keys) | Besonders empfohlen. Der kostenlose Tarif reicht für den täglichen Gebrauch aus. |
+| **Google Gemini** (Modell `gemini-3.5-flash-lite`) | API-Schlüssel aus [Google AI Studio](https://aistudio.google.com/apikey) | Dieses Modell hat einen [kostenlosen Tarif](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Deine Nachrichten gehen an Google. |
 | **xAI Grok** (Modell `grok-4.3`) | API-Schlüssel aus der [xAI-Konsole](https://console.x.ai) | Damit kannst du deine Unterstützung für die Rockets zeigen. |
 | **Ollama (lokal)** | [Ollama](https://ollama.com) muss mit einem Modell laufen, das Tool-Aufrufe unterstützt, beispielsweise `lfm3:1.7b`. | Mit lokalem Modell und lokalem Server sendet die App Chatdaten an Ollama auf deinem Computer. |
 | **OpenAI-kompatibel** | Server-URL, Modellname, meist ein API-Schlüssel | Funktioniert mit llama.cpp, OpenAI, OpenRouter, Groq, LM Studio und ähnlichen Diensten. |

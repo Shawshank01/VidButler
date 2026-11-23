@@ -8,7 +8,7 @@ A desktop app (Electron 45, TypeScript and JavaScript ES modules, pnpm) that dow
 
 It originally had only a form-based UI ("Classic mode"). The goal of the current work is:
 
-> Let users do everything by describing it in plain language ("Help me download this video `link`"), using the Gemini API (default, free tier) or other providers including a local Ollama model, and eventually expose everything yt-dlp and FFmpeg can do through prompts, while keeping Classic mode as a no-LLM fallback.
+> Let users do everything by describing it in plain language ("Help me download this video `link`"), using Cohere (default) or other providers including a local Ollama model, and eventually expose everything yt-dlp and FFmpeg can do through prompts, while keeping Classic mode as a no-LLM fallback.
 
 ## 2. What has been achieved
 
@@ -154,7 +154,7 @@ On macOS, development and release share Electron's user-data profile under `~/Li
 
 | File | Content |
 | --- | --- |
-| `user-settings.json` | Classic settings, `uiLanguage`, and `aiMode`, `aiProvider`, `aiConfirmMode`, `aiProviderConfigs`. No secrets. Written atomically; a missing file means first run (defaults to AI mode), an unreadable one is treated as empty and logged. |
+| `user-settings.json` | Classic settings, `uiLanguage`, and `aiMode`, `aiProvider`, `aiConfirmMode`, `aiProviderConfigs`. No secrets. Written atomically; a missing file means first run (defaults to AI mode with Cohere), an unreadable one is treated as empty and logged. |
 | `ai-keys.json` | API keys, encrypted (`safeStorage`), file mode 0600. |
 | `tool-data/` | App-specific yt-dlp and Deno caches, and per-process scratch directories for manifests and transcripts. Normal operations clean up their scratch files. Startup removes scratch directories from dead app processes. |
 | electron-updater cache | On Windows/Linux, a verified pending app update after the user chooses Download Update. |

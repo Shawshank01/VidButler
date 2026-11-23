@@ -1,5 +1,5 @@
 // Validation of the AI settings that come from the renderer. Pure functions, no I/O.
-import { PROVIDER_TYPES } from './providers/index.ts';
+import { DEFAULT_PROVIDER_TYPE, PROVIDER_TYPES } from './providers/index.ts';
 
 export const MODES = ['classic', 'ai'];
 export const CONFIRM_MODES = ['always', 'risky', 'never'];
@@ -18,7 +18,7 @@ export class AiSettingsError extends Error {
 
 /** The provider type to use: `candidate` if it is known, otherwise the default. */
 export function normalizeProviderType(candidate) {
-    return PROVIDER_TYPES[candidate] ? candidate : 'gemini';
+    return typeof candidate === 'string' && Object.hasOwn(PROVIDER_TYPES, candidate) ? candidate : DEFAULT_PROVIDER_TYPE;
 }
 
 export function assertKnownProvider(type) {

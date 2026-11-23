@@ -57,7 +57,7 @@ const geminiCall = (name, args = {}) => ({
     }
 });
 
-async function makeService({ fetchImpl, savedSettings = {}, withKey = true } = {}) {
+async function makeService({ fetchImpl, savedSettings = { aiProvider: 'gemini' }, withKey = true } = {}) {
     const dir = await tempDir();
     let stored = { ...savedSettings };
     const events = [];
@@ -80,11 +80,13 @@ async function makeService({ fetchImpl, savedSettings = {}, withKey = true } = {
 
 // ---------- settings ----------
 
-test('getSettings returns safe defaults and never includes API keys', async () => {
-    const { service } = await makeService({ fetchImpl: fakeFetch([]) });
+test('getSettings defaults to Cohere without changing separately saved API keys', async () => {
+    const { service } = await makeService({ fetchImpl: fakeFetch([]), savedSettings: {} });
     const s = await service.getSettings();
     assert.equal(s.mode, 'classic');
-    assert.equal(s.provider, 'gemini');
+    assert.equal(s.provider, 'cohere');
+    assert.equal(s.providers.cohere.model, 'command-a-plus-05-2026');
+    assert.equal(s.providers.cohere.hasApiKey, false);
     assert.equal(s.confirmMode, 'risky');
     assert.equal(s.keyStorageSecure, true);
     assert.equal(s.providers.gemini.model, 'gemini-3.5-flash-lite');
@@ -172,7 +174,7 @@ test('testConnection reports a missing key and never throws', async () => {
 
 // ---------- chat ----------
 
-test('send: full round trip through Gemini with a real tool call', async () => {
+test('send: a saved Gemini selection still completes a round trip with a real tool call', async () => {
     const { service, events, dir } = await makeService({
         fetchImpl: fakeFetch([geminiCall('list_downloads'), geminiText('You have one video.')])
     });
@@ -402,7 +404,7 @@ test('xAI: appears as a provider with its own key slot, defaults, and works end 
     await assert.rejects(service.setSettings({ providerConfig: { type: 'xai', baseUrl: 'https://eu.api.x.ai/v1/' } }), AiSettingsError);
 });
 
-test('Cohere: streams the default model and lets users save or clear a model override', async () => {
+test('Cohere: streams the default model without a saved provider and supports model overrides', async () => {
     const textEvent = (text) => ({ type: 'content-delta', delta: { message: { content: { text } } } });
     const fetchImpl = fakeFetch([
         new Response([textEvent('Hello'), textEvent(' there'), { type: 'message-end', delta: { finish_reason: 'COMPLETE' } }]
@@ -411,7 +413,7 @@ test('Cohere: streams the default model and lets users save or clear a model ove
         { json: { name: 'command-a-03-2025', endpoints: ['chat'] } },
         { json: { name: 'embed-v4.0', endpoints: ['embed'] } }
     ]);
-    const { service, events, getStored } = await makeService({ fetchImpl });
+    const { service, events, getStored } = await makeService({ fetchImpl, savedSettings: {} });
     const { cohere } = (await service.getSettings()).providers;
     assert.equal(cohere.label, 'Cohere');
     assert.equal(cohere.model, 'command-a-plus-05-2026');
@@ -419,7 +421,6 @@ test('Cohere: streams the default model and lets users save or clear a model ove
     assert.equal(cohere.editableBaseUrl, false);
     assert.equal(cohere.hasApiKey, false);
 
-    await service.setSettings({ provider: 'cohere' });
     const folder = await tempDir();
     assert.equal((await service.send('hi', { downloadFolder: folder })).error.kind, 'auth');
     assert.equal(fetchImpl.calls.length, 0);

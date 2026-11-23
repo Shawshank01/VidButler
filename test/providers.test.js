@@ -1024,6 +1024,8 @@ test('createProvider picks the right class and rejects unknown types', () => {
     assert.equal(createProvider({ type: 'ollama' }).id, 'ollama');
     assert.equal(createProvider({ type: 'xai', apiKey: 'k' }).id, 'xai');
     assert.equal(createProvider({ type: 'openai-compatible', model: 'm' }).id, 'openai-compatible');
-    assert.equal(createProvider({}).id, 'gemini');
+    const defaultProvider = createProvider();
+    assert.equal(defaultProvider.id, 'cohere');
+    assert.equal(defaultProvider.model, 'command-a-plus-05-2026');
     assert.throws(() => createProvider({ type: 'nope' }), ProviderError);
 });

@@ -127,8 +127,8 @@ Clip downloads work with online sources and require FFmpeg. To clip through a pr
 
 | Provider | Requirement | Notes |
 | --- | --- | --- |
-| **Cohere** (model `command-a-plus-05-2026`) | API key from the [Cohere dashboard](https://dashboard.cohere.com/api-keys) | Most recommended. The Free Tier is sufficient for daily use. |
-| **Google Gemini** (default, model `gemini-3.5-flash-lite`) | API key from [Google AI Studio](https://aistudio.google.com/apikey) | The default model has a [free tier](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Your messages go to Google. |
+| **Cohere** (default, model `command-a-plus-05-2026`) | API key from the [Cohere dashboard](https://dashboard.cohere.com/api-keys) | Most recommended. The Free Tier is sufficient for daily use. |
+| **Google Gemini** (model `gemini-3.5-flash-lite`) | API key from [Google AI Studio](https://aistudio.google.com/apikey) | This model has a [free tier](https://aistudio.google.com/docs/pricing#gemini-3.5-flash-lite). Your messages go to Google. |
 | **xAI Grok** (model `grok-4.3`) | API key from the [xAI console](https://console.x.ai) | Use it to show your support for the Rockets. |
 | **Ollama (local)** | [Ollama](https://ollama.com) running with a tool-capable model such as `lfm3:1.7b`. | With a local model and local server, the app sends chat data to Ollama on your computer. |
 | **OpenAI-compatible** | Server URL, model name, usually an API key | Works with llama.cpp, OpenAI, OpenRouter, Groq, LM Studio and similar. |
