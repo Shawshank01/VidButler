@@ -1239,6 +1239,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const proxyToggle = document.getElementById('proxyEnabled') as HTMLInputElement | null;
     const proxyType = document.getElementById('proxyType') as HTMLSelectElement | null;
     const proxyInput = document.getElementById('proxyAddress') as HTMLTextAreaElement | null;
+    const browserEl = document.getElementById('browser') as HTMLSelectElement | null;
+    if (window.electronAPI?.platform !== 'darwin') {
+        browserEl?.querySelector('option[value="safari"]')?.remove();
+    }
 
     // Restore persisted user settings
     let saved: Record<string, unknown> = {};
@@ -1247,8 +1251,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             saved = await window.electronAPI.getSettings();
 
             // Browser for Cookies
-            const browserEl = document.getElementById('browser') as HTMLSelectElement | null;
-            if (browserEl && typeof saved.browser === 'string') {
+            if (browserEl && typeof saved.browser === 'string'
+                && Array.from(browserEl.options).some((option) => option.value === saved.browser)) {
                 browserEl.value = saved.browser;
             }
 
@@ -1287,7 +1291,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Persist settings on change
-    const browserEl = document.getElementById('browser') as HTMLSelectElement | null;
     if (browserEl) {
         browserEl.addEventListener('change', () => {
             window.electronAPI?.setSettings({ browser: browserEl.value }).catch(console.error);

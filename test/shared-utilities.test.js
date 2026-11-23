@@ -100,6 +100,39 @@ test('renderer restores the proxy type, keeps existing settings on SOCKS5, and s
     }
 });
 
+test('the shared browser picker offers Safari only on macOS', async () => {
+    for (const [platform, savedBrowser, expected] of [
+        ['darwin', 'safari', 'safari'],
+        ['win32', 'safari', ''],
+        ['linux', 'safari', ''],
+        ['linux', 'firefox', 'firefox']
+    ]) {
+        const safari = { value: 'safari', remove: () => { browser.options.pop(); } };
+        const browser = {
+            value: '',
+            options: [{ value: '' }, { value: 'firefox' }, safari],
+            querySelector: (selector) => selector === 'option[value="safari"]' ? safari : null,
+            addEventListener() {}
+        };
+        let initialize;
+        runInNewContext(renderer, {
+            console: { log() {} },
+            window: {
+                LogClassification: classification,
+                UiLanguage: { restore() {} },
+                electronAPI: { platform, onUpdateAvailable() {}, getSettings: async () => ({ browser: savedBrowser }) }
+            },
+            document: {
+                getElementById: (id) => id === 'browser' ? browser : null,
+                addEventListener: (_event, listener) => { initialize = listener; }
+            }
+        });
+        await initialize();
+        assert.equal(browser.options.includes(safari), platform === 'darwin');
+        assert.equal(browser.value, expected);
+    }
+});
+
 test('the startup update shows download progress and can be deferred until the next manual check', async () => {
     class Control extends EventTarget {
         style = {};
