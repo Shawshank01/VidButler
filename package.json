@@ -105,6 +105,12 @@
       ],
       "category": "Utility"
     },
+    "toolsets": {
+      "appimage": "1.0.3"
+    },
+    "appImage": {
+      "compression": "zstd"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,

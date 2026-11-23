@@ -11,6 +11,12 @@ import { compileApp } from '../scripts/compile-app.mjs';
 const execFileAsync = promisify(execFile);
 const source = (file) => new URL(`../src/${file}`, import.meta.url);
 
+test('Linux AppImages use the static runtime toolset with zstd compression', async () => {
+    const { build } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+    assert.equal(build.toolsets.appimage, '1.0.3');
+    assert.equal(build.appImage.compression, 'zstd');
+});
+
 test('the compiled app loads the AI backend as JavaScript and preserves Electron assets', async (t) => {
     const directory = await mkdtemp(join(tmpdir(), 'vidbutler-app-build-'));
     t.after(() => rm(directory, { recursive: true, force: true }));
