@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -275,9 +275,10 @@ try {
         // Clean up temp file
         try { unlinkSync(tagMessagePath); } catch { /* ignore */ }
 
-        // Push both the commit and tag together to GitHub
-        const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim() || 'main';
-        execSync(`git push origin ${currentBranch} ${tagName}`);
+        // Publish both refs in one transaction so a rejected branch cannot trigger a release.
+        const branchRef = execSync('git symbolic-ref HEAD', { encoding: 'utf8' }).trim();
+        const currentBranch = branchRef.slice('refs/heads/'.length);
+        execFileSync('git', ['push', '--atomic', '--no-follow-tags', 'origin', branchRef, `refs/tags/${tagName}`]);
         success(`Pushed ${currentBranch} and tag ${tagName} to GitHub`);
 
     } catch (err) {

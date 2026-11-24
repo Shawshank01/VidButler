@@ -4,7 +4,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Change to the script directory
-cd "$SCRIPT_DIR"
+cd "$SCRIPT_DIR" || exit 1
 
 echo "Script directory: $SCRIPT_DIR"
 echo "Current working directory: $(pwd)"
@@ -19,7 +19,23 @@ if ! command -v node &>/dev/null; then
 	exit 1
 fi
 
-# Check if the update-version.js file exists
+# Sync main before the version updater reads package.json.
+if [ "$(git branch --show-current)" != "main" ]; then
+	echo "❌ Switch to the main branch before running the patch updater."
+	echo "Press Enter to close this window..."
+	read -r
+	exit 1
+fi
+
+echo "Updating local main and fetching tags from origin..."
+if ! git pull --rebase --tags origin main; then
+	echo "❌ Git pull failed. Resolve the Git error above and rerun the patch updater."
+	echo "Press Enter to close this window..."
+	read -r
+	exit 1
+fi
+
+# Check if the update-version.js file exists after syncing
 if [ ! -f "update-version.js" ]; then
 	echo "❌ Error: update-version.js not found in $(pwd)"
 	echo "Make sure this script is in the same directory as update-version.js"
