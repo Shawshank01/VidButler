@@ -751,11 +751,12 @@ export async function downloadWithHardsub(options: HardsubOptions, onProgress: P
         const result = await runFfmpegWithCodecFallback({
             task,
             onProgress,
-            buildArgs: (audioCodec) => buildFfmpegHardsubArgs({
-                videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec, videoHeight, subtitlePosition
+            buildArgs: (audioCodec, softwareVideo) => buildFfmpegHardsubArgs({
+                videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec, videoHeight, subtitlePosition, softwareVideo
             }),
             outputPath,
-            logPrefix: 'Hardcoding'
+            logPrefix: 'Hardcoding',
+            h264Fallback: process.platform === 'darwin' && codec !== 'hevc'
         });
 
         if (result.isCancelled) {

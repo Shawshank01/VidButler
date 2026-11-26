@@ -78,6 +78,35 @@ cpu = '$target_arch'
 endian = 'little'
 EOF
 
+dav1d_version="$(node -p "require('./tools-versions.json').dav1d.version")"
+dav1d_sha256="$(node -p "require('./tools-versions.json').dav1d.sha256")"
+dav1d_archive="dav1d-${dav1d_version}.tar.xz"
+curl --fail --location --retry 5 --retry-all-errors \
+    --output "$source_dir/$dav1d_archive" \
+    "https://download.videolan.org/pub/videolan/dav1d/${dav1d_version}/$dav1d_archive"
+(
+    cd "$source_dir"
+    echo "$dav1d_sha256  $dav1d_archive" | shasum -a 256 -c -
+    tar -xf "$dav1d_archive"
+)
+meson setup "$build_dir/dav1d" "$source_dir/dav1d-$dav1d_version" \
+    --cross-file "$build_dir/meson-cross.ini" \
+    --prefix "$prefix" --libdir=lib --buildtype release \
+    --default-library static -Denable_tools=false -Denable_tests=false
+meson compile -C "$build_dir/dav1d"
+meson install -C "$build_dir/dav1d"
+
+git init "$source_dir/x264"
+(
+    cd "$source_dir/x264"
+    git fetch --depth 1 https://code.videolan.org/videolan/x264.git b35605ace3ddf7c1a5d67a2eb553f034aef41d55
+    git checkout --detach FETCH_HEAD
+    ./configure --host="$ffmpeg_arch-apple-darwin" --prefix="$prefix" \
+        --enable-static --enable-pic --disable-cli --disable-opencl
+    make -j"$(sysctl -n hw.ncpu)"
+    make install
+)
+
 meson setup "$build_dir/fribidi" "$source_dir/fribidi" \
     --cross-file "$build_dir/meson-cross.ini" \
     --prefix "$prefix" --libdir=lib --buildtype release \
@@ -142,6 +171,10 @@ configure_args=(
     --cc=clang
     --enable-gpl
     --enable-libass
+    --enable-libdav1d
+    # Use dav1d for ordinary AV1 inputs, including machines without AV1 hardware.
+    --disable-decoder=av1
+    --enable-libx264
     --enable-filter=subtitles
     --enable-videotoolbox
     --enable-static

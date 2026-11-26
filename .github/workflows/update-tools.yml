@@ -24,6 +24,7 @@ jobs:
       run: |
         node --input-type=module <<'NODE'
         import fs from 'node:fs';
+        import { checkDav1dUpdate } from './scripts/dav1d-release.mjs';
         const versions = JSON.parse(fs.readFileSync('tools-versions.json', 'utf8'));
         const get = async (url) => {
           const headers = { 'User-Agent': 'vidbutler-tool-check' };
@@ -46,6 +47,7 @@ jobs:
           versions['ffmpeg'] = latestFfmpegTag.replace(/^n/, '');
         }
         versions['deno'] = deno.tag_name.replace(/^v/, '');
+        versions.dav1d = await checkDav1dUpdate(versions.dav1d);
         fs.writeFileSync('tools-versions.json', `${JSON.stringify(versions, null, 2)}\n`);
         NODE
 
@@ -53,10 +55,10 @@ jobs:
       uses: peter-evans/create-pull-request@v8
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: Update bundled yt-dlp and FFmpeg
-        title: Update bundled yt-dlp and FFmpeg
+        commit-message: Update bundled tool versions
+        title: Update bundled tool versions
         body: |
-          Automated daily check of the upstream yt-dlp and FFmpeg releases.
+          Automated daily check of upstream yt-dlp, FFmpeg, Deno, and dav1d releases.
 
           This PR intentionally requires manual review and merge before release builds use the new bundle.
         branch: automation/update-bundled-tools

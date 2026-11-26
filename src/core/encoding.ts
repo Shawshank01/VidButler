@@ -18,3 +18,13 @@ export function aacEncoderArgs(encoder: string, stream = '') {
     args.push(`-b:a${stream}`, '128k');
     return args;
 }
+
+const H264_VIDEOTOOLBOX_ERRORS = [
+    /\bUnknown encoder ['"]?h264_videotoolbox\b/i,
+    /\[h264_videotoolbox @ [^\]\n]+\] (?:Cannot|Could not|Error|Failed)\b/i,
+    /\[vost#[^\]\n]+\/h264_videotoolbox @ [^\]\n]+\] (?:Error while opening|Could not open) encoder/i
+];
+
+export function isH264VideoToolboxError(output: string) {
+    return H264_VIDEOTOOLBOX_ERRORS.some((pattern) => pattern.test(output));
+}

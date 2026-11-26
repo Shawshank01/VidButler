@@ -31,11 +31,12 @@ interface ProbeData {
 }
 type ProbeResult = { ok: true; data: ProbeData } | { ok: false; error: string };
 import { logger } from './logger.js';
-import { aacEncoderArgs, videoBitrate } from './encoding.ts';
+import { aacEncoderArgs, isH264VideoToolboxError, videoBitrate } from './encoding.ts';
+import { attachLineStreamFilters } from './log-filter.ts';
 
 // Platform-adaptive default subtitle font (single font family name without commas for ASS style)
 const DEFAULT_SUBTITLE_FONT = process.platform === 'darwin'
-    ? 'PingFang SC'
+    ? 'Hiragino Sans GB'
     : process.platform === 'win32'
         ? 'Microsoft YaHei'
         : 'DejaVu Sans';
@@ -84,7 +85,8 @@ export function buildFfmpegReEncodeArgs({ filePath, outputPath, thumbnailPath, a
 
 // Helper to construct FFmpeg arguments for hardcoding subtitles
 export function buildFfmpegHardsubArgs({
-    videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec, videoHeight = 720, subtitlePosition = 'bottom'
+    videoPath, outputPath, subtitlePath, thumbnailPath, codec, audioCodec,
+    videoHeight = 720, subtitlePosition = 'bottom', softwareVideo = false
 }: OutputPaths & {
     videoPath: string;
     subtitlePath: string;
@@ -92,6 +94,7 @@ export function buildFfmpegHardsubArgs({
     audioCodec: string;
     videoHeight?: number;
     subtitlePosition?: string;
+    softwareVideo?: boolean;
 }) {
     const args = ['-y'];
     const escapedSubPath = subtitlePath.replace(/\\/g, '/').replace(/'/g, "'\\''").replace(/:/g, '\\:');
@@ -109,22 +112,18 @@ export function buildFfmpegHardsubArgs({
         args.push('-vf', subFilter);
     }
 
-    if (codec === 'hevc') {
-        const vcodec = process.platform === 'darwin' ? 'hevc_videotoolbox' : 'libx265';
-        args.push(
-            thumbnailPath ? '-c:v:0' : '-c:v', vcodec,
-            '-pix_fmt', TRANSCODE_CONFIG.pixelFormatHevc,
-            thumbnailPath ? '-b:v:0' : '-b:v', videoBitrate('hevc', videoHeight),
-            thumbnailPath ? '-tag:v:0' : '-tag:v', TRANSCODE_CONFIG.tagHevc
-        );
-    } else {
-        const vcodec = process.platform === 'darwin' ? 'h264_videotoolbox' : 'libx264';
-        args.push(
-            thumbnailPath ? '-c:v:0' : '-c:v', vcodec,
-            thumbnailPath ? '-b:v:0' : '-b:v', videoBitrate('h264', videoHeight),
-            thumbnailPath ? '-tag:v:0' : '-tag:v', TRANSCODE_CONFIG.tagH264
-        );
-    }
+    const hevc = codec === 'hevc';
+    const videoToolbox = process.platform === 'darwin' && !softwareVideo;
+    const stream = thumbnailPath ? ':0' : '';
+    const vcodec = videoToolbox ? (hevc ? 'hevc_videotoolbox' : 'h264_videotoolbox') : (hevc ? 'libx265' : 'libx264');
+    args.push(
+        `-c:v${stream}`, vcodec,
+        `-b:v${stream}`, videoBitrate(hevc ? 'hevc' : 'h264', videoHeight),
+        `-tag:v${stream}`, hevc ? TRANSCODE_CONFIG.tagHevc : TRANSCODE_CONFIG.tagH264
+    );
+    if (hevc) args.push(`-pix_fmt:v${stream}`, TRANSCODE_CONFIG.pixelFormatHevc);
+    if (videoToolbox) args.push(`-allow_sw:v${stream}`, '1');
+    if (softwareVideo && !hevc) args.push(`-pix_fmt:v${stream}`, 'yuv420p');
 
     args.push(...aacEncoderArgs(audioCodec, thumbnailPath ? ':0' : ''));
 
@@ -132,30 +131,34 @@ export function buildFfmpegHardsubArgs({
         args.push('-c:v:1', 'copy', '-disposition:v:1', 'attached_pic');
     }
 
-    args.push(outputPath);
+    args.push('-abort_on', 'empty_output_stream', outputPath);
     return args;
 }
 
-// Reusable runner for FFmpeg transcoding with automatic audio codec fallbacks
-export async function runFfmpegWithCodecFallback({ task, onProgress, buildArgs, outputPath, logPrefix }: {
+// Reusable runner for FFmpeg transcoding with audio and optional H.264 encoder fallbacks.
+export async function runFfmpegWithCodecFallback({ task, onProgress, buildArgs, outputPath, logPrefix, h264Fallback = false }: {
     task: MediaTask;
     onProgress: Progress;
-    buildArgs: (audioCodec: string) => string[];
+    buildArgs: (audioCodec: string, softwareVideo: boolean) => string[];
     outputPath: string;
     logPrefix: string;
+    h264Fallback?: boolean;
 }) {
     const audioCodecs = TRANSCODE_CONFIG.audioCodecs;
     let success = false;
     let lastCode: number | null = 0;
     let lastError = '';
+    let softwareVideo = false;
 
-    for (const audioCodec of audioCodecs) {
+    for (let audioIndex = 0; audioIndex < audioCodecs.length;) {
         if (task.isCancelled) break;
 
-        const args = buildArgs(audioCodec);
+        const audioCodec = audioCodecs[audioIndex];
+        const args = buildArgs(audioCodec, softwareVideo);
         logger.info(`${logPrefix} FFmpeg args:`, args);
 
         const stderrLines: string[] = [];
+        let videoToolboxError = '';
         let totalDurationSeconds = 0;
         let headerBuffer = '';
 
@@ -168,9 +171,8 @@ export async function runFfmpegWithCodecFallback({ task, onProgress, buildArgs, 
                 return;
             }
 
-            const handleData = (data: Buffer | string) => {
+            const flushLines = attachLineStreamFilters(child, (str) => {
                 if (task.isCancelled) return;
-                const str = data.toString();
 
                 if (!totalDurationSeconds) {
                     headerBuffer += str;
@@ -222,18 +224,17 @@ export async function runFfmpegWithCodecFallback({ task, onProgress, buildArgs, 
                         onProgress(`${logPrefix} (${audioCodec}): ${str.trim()}`);
                     }
                 } else {
-                    const lines = str.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-                    stderrLines.push(...lines);
+                    const line = str.trim();
+                    if (h264Fallback && !videoToolboxError && isH264VideoToolboxError(line)) videoToolboxError = line;
+                    stderrLines.push(line);
                     if (stderrLines.length > 50) {
                         stderrLines.splice(0, stderrLines.length - 50);
                     }
                 }
-            };
-
-            child.stdout.on('data', handleData);
-            child.stderr.on('data', handleData);
+            }, { suppressNoise: false });
 
             child.on('close', (code) => {
+                flushLines();
                 resolve(code);
             });
         });
@@ -247,20 +248,29 @@ export async function runFfmpegWithCodecFallback({ task, onProgress, buildArgs, 
             break;
         } else {
             try { await fs.unlink(outputPath); } catch { /* ignore */ }
-            const errorSnippet = stderrLines.slice(-15).join('\n');
+            const errorLines = stderrLines.slice(-15);
+            if (videoToolboxError && !errorLines.includes(videoToolboxError)) errorLines.unshift(videoToolboxError);
+            const errorSnippet = errorLines.join('\n');
             logger.error(`${logPrefix} with ${audioCodec} failed with code ${exitCode}:\n${errorSnippet}`);
             lastCode = exitCode;
             lastError = errorSnippet;
+
+            if (videoToolboxError && !softwareVideo) {
+                softwareVideo = true;
+                onProgress('VideoToolbox failed, trying the software H.264 encoder...');
+                continue;
+            }
 
             // If the failure is due to filtergraph/subtitles, retrying other audio codecs will not help
             if (
                 errorSnippet.includes('No option name near') ||
                 errorSnippet.includes('Error parsing filterchain') ||
-                errorSnippet.includes('subtitles')
+                /Error (?:initializing|applying|reinitializing) filters|Error opening filters/i.test(errorSnippet)
             ) {
                 break;
             }
 
+            audioIndex++;
             if (audioCodec === 'aac_at') {
                 onProgress('aac_at not available, trying with libfdk_aac...');
             } else if (audioCodec === 'libfdk_aac') {

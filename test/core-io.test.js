@@ -6,7 +6,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { attachLineStreamFilters } from '../src/core/log-filter.ts';
 import { findHardsubSourceFiles, findMatchingThumbnail } from '../src/core/media-files.ts';
-import { buildFfmpegHardsubArgs, buildFfmpegReEncodeArgs } from '../src/core/ffmpeg.ts';
+import { buildFfmpegHardsubArgs, buildFfmpegReEncodeArgs, runFfmpegWithCodecFallback } from '../src/core/ffmpeg.ts';
 import { taskManager } from '../src/core/task-manager.ts';
 import { cancelCurrentTask, listSubtitles, runYtDlp } from '../src/core/tools.ts';
 
@@ -215,4 +215,65 @@ test('hardsub uses the shared resolution tiers and keeps the original bitrates w
         assert.equal(args[args.indexOf('-aac_at_mode') + 1], 'cvbr');
         assert.equal(args[args.indexOf(`-b:a${stream}`) + 1], '128k');
     }
+});
+
+test('macOS hardsub uses Hiragino Sans GB and keeps the thumbnail when falling back to libx264', {
+    skip: process.platform !== 'darwin'
+}, () => {
+    const input = {
+        videoPath: '/in.webm', outputPath: '/out.mp4', subtitlePath: '/in.zh-Hans.vtt',
+        thumbnailPath: '/thumb.jpg', codec: 'h264', audioCodec: 'aac', subtitlePosition: 'top'
+    };
+    const hardware = buildFfmpegHardsubArgs(input);
+    const software = buildFfmpegHardsubArgs({ ...input, softwareVideo: true });
+    assert.equal(hardware[hardware.indexOf('-c:v:0') + 1], 'h264_videotoolbox');
+    assert.equal(hardware[hardware.indexOf('-allow_sw:v:0') + 1], '1');
+    assert.equal(software[software.indexOf('-c:v:0') + 1], 'libx264');
+    assert.equal(software[software.indexOf('-pix_fmt:v:0') + 1], 'yuv420p');
+    assert.equal(software[software.indexOf('-c:v:1') + 1], 'copy');
+    assert.ok(!software.includes('-allow_sw:v:0'));
+    assert.match(software[software.indexOf('-filter:v:0') + 1], /FontName=Hiragino Sans GB,Alignment=6/);
+});
+
+test('hardsub retries a VideoToolbox failure with software and keeps the audio fallback', async (t) => {
+    const folder = await makeFolder({ 'output.mp4': new Date() });
+    t.after(() => fs.rm(folder, { recursive: true, force: true }));
+    const outputPath = join(folder, 'output.mp4');
+    const task = taskManager.startTask('hardsub');
+    t.after(() => taskManager.endTask(task));
+    const attempts = [];
+    const progress = [];
+    t.mock.method(taskManager, 'spawnProcess', (_task, _command, args) => {
+        attempts.push(args);
+        const child = Object.assign(new EventEmitter(), { stdout: new EventEmitter(), stderr: new EventEmitter() });
+        setImmediate(() => {
+            child.stderr.emit('data', '  Duration: 00:00:10.00, start: 0.000000\n');
+            if (args[0] === 'h264_videotoolbox') {
+                child.stderr.emit('data', '[h264_videotoolbox @ 0x123] Cannot create comp');
+                child.stderr.emit('data', 'ression session: -12903\rframe=0 time=00:00:00.00\n');
+                child.stderr.emit('data', '[Parsed_subtitles_0 @ 0x123] libass warning\n'.repeat(60));
+                child.emit('close', 1);
+            } else if (args[1] !== 'aac') {
+                child.stderr.emit('data', `Unknown encoder '${args[1]}'`);
+                child.emit('close', 1);
+            } else {
+                child.stderr.emit('data', 'frame=20 time=00:00:05.00\r');
+                child.emit('close', 0);
+            }
+        });
+        return child;
+    });
+
+    const result = await runFfmpegWithCodecFallback({
+        task, outputPath, logPrefix: 'Hardcoding', h264Fallback: true,
+        onProgress: (line) => progress.push(line),
+        buildArgs: (audioCodec, softwareVideo) => [softwareVideo ? 'libx264' : 'h264_videotoolbox', audioCodec]
+    });
+    assert.equal(result.success, true);
+    assert.equal(attempts[0][0], 'h264_videotoolbox');
+    assert.deepEqual(attempts[1], ['libx264', attempts[0][1]]);
+    assert.deepEqual(attempts.at(-1), ['libx264', 'aac']);
+    assert.equal(progress.filter((line) => line.includes('VideoToolbox failed')).length, 1);
+    assert.ok(progress.some((line) => line.includes('50.0%')));
+    await assert.rejects(fs.access(outputPath), { code: 'ENOENT' });
 });

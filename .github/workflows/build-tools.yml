@@ -82,7 +82,7 @@ jobs:
         TOOL_TARGET: ${{ matrix.target }}
       run: bash scripts/build-windows-ffmpeg.sh
 
-    - name: Build macOS FFmpeg with static libass
+    - name: Build macOS FFmpeg with static subtitle and codec libraries
       if: startsWith(matrix.target, 'darwin-') && (inputs.scope == 'all' || inputs.scope == '' || inputs.scope == 'mac')
       env:
         TOOL_TARGET: ${{ matrix.target }}

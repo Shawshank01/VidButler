@@ -1,5 +1,5 @@
 import { MESSAGES } from '../messages.js';
-import { aacEncoderArgs, videoBitrate } from '../../core/encoding.ts';
+import { aacEncoderArgs, isH264VideoToolboxError, videoBitrate } from '../../core/encoding.ts';
 import { validateEnum, validateIntRange, validateTimestamp, validateUrl, ValidationError } from '../validate.ts';
 import { AUDIO_FORMATS, defineTool, runDownload, urlProperty } from './common.ts';
 import type { ToolContext } from './common.ts';
@@ -7,11 +7,6 @@ import { explainResolutionFailure, MERGE_FORMATS, videoFormatArgs } from './down
 import { TOOL_NAMES } from './names.ts';
 
 const CLIP_OUTPUT_ARGS = ['-abort_on', 'empty_output'];
-const VIDEO_TOOLBOX_ERRORS = [
-    /\bUnknown encoder ['"]?h264_videotoolbox\b/i,
-    /\[h264_videotoolbox @ [^\]\n]+\] (?:Cannot|Could not|Error|Failed)\b/i,
-    /\[vost#[^\]\n]+\/h264_videotoolbox @ [^\]\n]+\] (?:Error while opening|Could not open) encoder/i
-];
 const AUDIO_TOOLBOX_ERRORS = [
     /\bUnknown encoder ['"]?aac_at\b|\bUnrecognized option ['"]?aac_at_mode\b/i,
     /\[aac_at @ [^\]\n]+\] .*\berror\b/i,
@@ -42,7 +37,7 @@ async function downloadMacAacClip(specific: string[], url: string, ctx: ToolCont
         if (result.ok || result.cancelled) return result;
 
         let retryMessage;
-        if (videoToolbox && VIDEO_TOOLBOX_ERRORS.some((error) => error.test(result.output))) {
+        if (videoToolbox && isH264VideoToolboxError(result.output)) {
             videoToolbox = false;
             retryMessage = MESSAGES.clipVideoToolboxFallback;
         } else if (audioEncoder === 'aac_at' && AUDIO_TOOLBOX_ERRORS.some((error) => error.test(result.output))) {
